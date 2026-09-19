@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -29,10 +29,6 @@ export default function Footer() {
         <div className="flex items-center gap-6 text-xs text-purple-300/80 font-medium">
           <Link href="/" className="hover:text-purple-200 transition-colors">Home</Link>
           <Link href="/dashboard" className="hover:text-purple-200 transition-colors">Dashboard</Link>
-          <span className="flex items-center gap-1 text-emerald-400 bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-500/30">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Supabase Connected
-          </span>
         </div>
 
         {/* Copyright */}
