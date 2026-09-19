@@ -28,3 +28,4 @@ export async function GET() {
   // Fallback server name if GoFile servers API times out or fails
   return NextResponse.json({ status: 'ok', serverName: 'store1' });
 }
+
