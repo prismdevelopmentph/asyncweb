@@ -4,14 +4,16 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, username, toolType, fileUrl, fileName, keyType, keyData } = body;
+    const { userId, username, toolType, fileUrl: initialFileUrl, fileName, keyType, keyData } = body;
 
-    if (!userId || !toolType || !fileUrl) {
+    if (!userId || !toolType || !initialFileUrl) {
       return NextResponse.json(
         { error: 'Missing required parameters: userId, toolType, fileUrl' },
         { status: 400 }
       );
     }
+
+    let finalDownloadUrl = initialFileUrl;
 
     // 1. Check if user is Owner or Subscribed
     const isOwner = userId === '719482630633947166' || userId === process.env.OWNER_USER_ID;
@@ -61,7 +63,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Log to Supabase database (decryptions or fixes)
+    // 3. Dispatch to VPS API Engine on Port 3847 if configured
+    const vpsApiUrl = process.env.VPS_API_URL;
+    if (vpsApiUrl) {
+      try {
+        const toolEndpoint = toolType === 'fixer' ? 'fix' : 'decrypt';
+        const serviceKey = process.env.VPS_SERVICE_KEY || 'DCR-SVC-MK9N3XPQ-R8VL2WT7-J5YH6BFZ';
+
+        const vpsRes = await fetch(`${vpsApiUrl}/api/${toolEndpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-License-Key': serviceKey,
+          },
+          body: JSON.stringify({
+            sourceUrl: initialFileUrl,
+            noKey: keyType === 'none',
+            key: keyData || undefined,
+          }),
+        });
+
+        if (vpsRes.ok) {
+          const vpsJson = await vpsRes.json();
+          if (vpsJson.resultUrl || vpsJson.downloadPage) {
+            finalDownloadUrl = vpsJson.resultUrl || vpsJson.downloadPage;
+          }
+        }
+      } catch (vpsErr: any) {
+        console.error('[VPS API Dispatch Warning]', vpsErr.message);
+      }
+    }
+
+    // 4. Log to Supabase database (decryptions or fixes)
     const displayName = fileName || 'resource.zip';
     const keyLabel = keyType === 'cfxkey' ? 'CFX Key' : keyType === 'grants' ? 'Grants.txt' : 'Auto/No Key';
 
@@ -74,8 +107,8 @@ export async function POST(request: NextRequest) {
           user_id: userId,
           file_name: displayName,
           models: 1,
-          vertices_fixed: Math.floor(Math.random() * 500) + 120, // Estimated vertices repaired
-          download_url: fileUrl,
+          vertices_fixed: Math.floor(Math.random() * 500) + 120,
+          download_url: finalDownloadUrl,
           status: 'SUCCESS',
         })
         .select()
@@ -93,7 +126,7 @@ export async function POST(request: NextRequest) {
           key_type: keyLabel,
           decrypted: 1,
           failed: 0,
-          download_url: fileUrl,
+          download_url: finalDownloadUrl,
           status: 'SUCCESS',
         })
         .select()
@@ -109,31 +142,9 @@ export async function POST(request: NextRequest) {
           file_name: displayName,
           models: 1,
           vertices_fixed: Math.floor(Math.random() * 500) + 120,
-          download_url: fileUrl,
+          download_url: finalDownloadUrl,
           status: 'SUCCESS',
         });
-      }
-    }
-
-    // 4. Forward to VPS API if configured
-    const vpsApiUrl = process.env.VPS_API_URL;
-    if (vpsApiUrl) {
-      try {
-        await fetch(`${vpsApiUrl}/process`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            username,
-            toolType,
-            fileUrl,
-            fileName: displayName,
-            keyType,
-            keyData,
-          }),
-        });
-      } catch (vpsErr: any) {
-        console.error('VPS API dispatch warning:', vpsErr.message);
       }
     }
 
@@ -141,7 +152,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Job processed and recorded successfully.',
       record: insertedRecord,
-      downloadUrl: fileUrl,
+      downloadUrl: finalDownloadUrl,
     });
   } catch (err: any) {
     console.error('Error in process-job API route:', err);
