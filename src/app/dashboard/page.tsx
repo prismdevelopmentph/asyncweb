@@ -278,7 +278,8 @@ export default function DashboardPage() {
               fetchDashboardData(discordUserId);
             } else if (statusJson.status === 'failed') {
               clearInterval(pollInterval);
-              throw new Error(statusJson.error || 'Pipeline execution failed.');
+              setJobErrorMessage(statusJson.error || 'Pipeline execution failed.');
+              setJobStatus('error');
             }
           }
         } catch (pollErr: any) {
