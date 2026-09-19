@@ -46,9 +46,6 @@ export default function Navbar() {
       provider: 'discord',
       options: {
         redirectTo: redirectTarget,
-        queryParams: {
-          prompt: 'consent',
-        },
       },
     });
 
