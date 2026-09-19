@@ -36,16 +36,18 @@ export default function Navbar() {
   const handleDiscordLogin = async () => {
     setLoading(true);
 
-    const redirectTarget = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-      ? `${window.location.origin}/auth/callback`
-      : 'https://asyncdevph.vercel.app/auth/callback';
+    // Always use production URL — PKCE flow will respect this redirectTo
+    const redirectTarget = 'https://asyncdevph.vercel.app/auth/callback';
 
-    console.log('[Auth] Initiating Discord login with target:', redirectTarget);
+    console.log('[Auth] Initiating Discord PKCE login with redirect:', redirectTarget);
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
         redirectTo: redirectTarget,
+        queryParams: {
+          prompt: 'consent',
+        },
       },
     });
 

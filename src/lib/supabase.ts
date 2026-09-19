@@ -4,8 +4,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rlkssffulox
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey;
 
-// Client for public browser queries
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Client for public browser queries — using PKCE flow for proper redirect handling
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    flowType: 'pkce',
+    detectSessionInUrl: true,
+    autoRefreshToken: true,
+  },
+});
 
 // Admin client for server-side API routes & stats
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
