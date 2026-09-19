@@ -36,8 +36,9 @@ export default function Navbar() {
   const handleDiscordLogin = async () => {
     setLoading(true);
 
-    // Always use production URL — PKCE flow will respect this redirectTo
-    const redirectTarget = 'https://asyncdevph.vercel.app/auth/callback';
+    // Dynamically determine the redirect URL based on the current origin
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const redirectTarget = `${origin}/auth/callback`;
 
     console.log('[Auth] Initiating Discord PKCE login with redirect:', redirectTarget);
 
