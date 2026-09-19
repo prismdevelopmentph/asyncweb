@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Dispatch to VPS API Engine on Port 3847 if configured
+    // 3. Dispatch to VPS API Engine on Port 3847 & Poll until completion
     const vpsApiUrl = process.env.VPS_API_URL;
     if (vpsApiUrl) {
       try {
@@ -83,14 +83,45 @@ export async function POST(request: NextRequest) {
           }),
         });
 
-        if (vpsRes.ok) {
-          const vpsJson = await vpsRes.json();
-          if (vpsJson.resultUrl || vpsJson.downloadPage) {
-            finalDownloadUrl = vpsJson.resultUrl || vpsJson.downloadPage;
+        if (!vpsRes.ok) {
+          const errText = await vpsRes.text();
+          throw new Error(`VPS API rejected job: ${errText}`);
+        }
+
+        const vpsJson = await vpsRes.json();
+        const jobId = vpsJson.jobId;
+
+        if (jobId) {
+          // Poll VPS job status until completed or timed out (max 90 sec)
+          const startTime = Date.now();
+          const maxWaitMs = 90000;
+
+          while (Date.now() - startTime < maxWaitMs) {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            const jobRes = await fetch(`${vpsApiUrl}/api/job/${jobId}`, {
+              headers: { 'X-License-Key': serviceKey },
+            });
+
+            if (jobRes.ok) {
+              const jobData = await jobRes.json();
+              if (jobData.status === 'success') {
+                if (jobData.resultUrl) {
+                  finalDownloadUrl = jobData.resultUrl;
+                }
+                break;
+              } else if (jobData.status === 'failed') {
+                throw new Error(jobData.error || 'VPS pipeline execution failed.');
+              }
+            }
           }
         }
       } catch (vpsErr: any) {
-        console.error('[VPS API Dispatch Warning]', vpsErr.message);
+        console.error('[VPS API Pipeline Error]', vpsErr.message);
+        return NextResponse.json(
+          { error: `VPS Processing Failed: ${vpsErr.message}` },
+          { status: 502 }
+        );
       }
     }
 
