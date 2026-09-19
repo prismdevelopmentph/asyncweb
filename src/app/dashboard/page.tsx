@@ -229,7 +229,7 @@ export default function DashboardPage() {
                   .replace(/api-work\\[^\s]+\\?/gi, '')
                   .trim();
 
-                // Parse JSON progress payload if present
+                // If line contains JSON string, parse it cleanly!
                 const jsonMatch = text.match(/\{.*\}$/);
                 if (jsonMatch) {
                   try {
@@ -241,10 +241,18 @@ export default function DashboardPage() {
 
                     const fileStr = parsed.currentFile ? `: ${parsed.currentFile}` : '';
                     const countStr = parsed.total ? ` (${parsed.current || 0}/${parsed.total})` : '';
-                    const phaseStr = parsed.phase || 'Decrypting';
+                    const phaseStr = parsed.phase || 'Processing';
 
                     return `${timePrefix} ${phaseStr}${fileStr}${countStr}`.trim();
-                  } catch (_) {}
+                  } catch (_) {
+                    // Extract fields via regex if JSON parse fails
+                    const cfMatch = text.match(/"currentFile"\s*:\s*"([^"]+)"/);
+                    const phMatch = text.match(/"phase"\s*:\s*"([^"]+)"/);
+                    if (cfMatch) latestFile = cfMatch[1];
+                    if (phMatch) latestPhase = phMatch[1];
+
+                    text = text.slice(0, text.indexOf('{')).trim() + ' Processing resource files...';
+                  }
                 }
 
                 if (text.includes('Resource:')) {
