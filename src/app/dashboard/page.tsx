@@ -1,10 +1,11 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import DiscordLoginButton from '@/components/DiscordLoginButton';
-import { createClient } from '@/lib/supabase-server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import {
   LayoutDashboard,
   Download,
@@ -14,55 +15,86 @@ import {
   Wrench,
   ShieldCheck,
   Lock,
-  Calendar,
-  Layers,
-  Sparkles,
   RefreshCw,
+  Search,
+  Sparkles,
   ExternalLink
 } from 'lucide-react';
 
-async function getUserDashboardData(discordUserId: string) {
-  try {
-    const [decryptionsRes, fixesRes, plansRes] = await Promise.all([
-      supabaseAdmin
-        .from('decryptions')
-        .select('*')
-        .eq('user_id', discordUserId)
-        .order('created_at', { ascending: false })
-        .limit(25),
-      supabaseAdmin
-        .from('fixes')
-        .select('*')
-        .eq('user_id', discordUserId)
-        .order('created_at', { ascending: false })
-        .limit(25),
-      supabaseAdmin
-        .from('plan_subscriptions')
-        .select('*')
-        .eq('user_id', discordUserId)
-        .eq('active', 1)
-        .order('expires_at', { ascending: false })
-    ]);
+export default function DashboardPage() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<{
+    decryptions: any[];
+    fixes: any[];
+    plans: any[];
+  }>({
+    decryptions: [],
+    fixes: [],
+    plans: [],
+  });
+  const [searchQuery, setSearchQuery] = useState('');
 
-    return {
-      decryptions: decryptionsRes.data || [],
-      fixes: fixesRes.data || [],
-      plans: plansRes.data || [],
+  // 1. Check client session
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false);
     };
-  } catch (err) {
-    console.error('Error fetching dashboard data:', err);
-    return { decryptions: [], fixes: [], plans: [] };
+
+    fetchUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 2. Fetch user-specific data when user is present
+  const fetchDashboardData = async (userId: string) => {
+    setDataLoading(true);
+    try {
+      const res = await fetch(`/api/dashboard-data?userId=${encodeURIComponent(userId)}`);
+      if (res.ok) {
+        const json = await res.json();
+        setDashboardData({
+          decryptions: json.decryptions || [],
+          fixes: json.fixes || [],
+          plans: json.plans || [],
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard records:', err);
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      const discordUserId = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
+      fetchDashboardData(discordUserId);
+    }
+  }, [user]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col items-center justify-center">
+        <Sparkles className="w-10 h-10 text-purple-400 animate-spin mb-4" />
+        <p className="text-sm font-mono text-purple-300">Loading your profile...</p>
+      </div>
+    );
   }
-}
 
-export default async function DashboardPage() {
-  const supabaseServer = await createClient();
-  const { data: { user } } = await supabaseServer.auth.getUser();
-
-  // If user is signed out, show clean locked authentication screen (NO DATA PREVIEW)
+  // If signed out: locked authentication screen (NO DATA PREVIEW)
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative overflow-hidden">
+      <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden">
         <Navbar />
 
         <div className="purple-glow-bg top-1/4 left-1/2 -translate-x-1/2 opacity-50 w-[500px] h-[500px]"></div>
@@ -87,14 +119,16 @@ export default async function DashboardPage() {
     );
   }
 
-  // Logged-in User Data Fetching
+  // Logged-in User Profile Data
   const discordUserId = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
   const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Discord User';
   const userAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '/images/Profile.png';
-  const userEmail = user.email || '';
+  const activePlan = dashboardData.plans[0] || null;
 
-  const { decryptions, fixes, plans } = await getUserDashboardData(discordUserId);
-  const activePlan = plans[0] || null;
+  // Filtered decryptions
+  const filteredDecryptions = dashboardData.decryptions.filter((item) =>
+    item.file_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white">
@@ -105,7 +139,7 @@ export default async function DashboardPage() {
 
       <main className="flex-1 max-w-7xl mx-auto px-4 lg:px-8 py-10 w-full relative z-10">
         
-        {/* MEMBER HEADER PROFILE */}
+        {/* MEMBER PROFILE HEADER */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 glass-panel p-6 sm:p-8 rounded-3xl border border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
           <div className="flex items-center gap-5">
             <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] shrink-0">
@@ -124,6 +158,15 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">
+            <button
+              onClick={() => fetchDashboardData(discordUserId)}
+              disabled={dataLoading}
+              className="p-3 rounded-2xl glass-card border border-purple-500/30 text-purple-300 hover:text-white hover:bg-purple-600/30 transition-all flex items-center justify-center"
+              title="Refresh records"
+            >
+              <RefreshCw className={`w-4 h-4 ${dataLoading ? 'animate-spin' : ''}`} />
+            </button>
+
             <div className="glass-card px-4 py-2.5 rounded-2xl border border-purple-500/30 text-xs flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-purple-400" />
               <div>
@@ -161,7 +204,7 @@ export default async function DashboardPage() {
               <FileCode className="w-4 h-4 text-purple-400" />
             </div>
             <div className="text-2xl font-black text-white">
-              {decryptions.length}
+              {dashboardData.decryptions.length}
             </div>
             <span className="text-[10px] text-purple-400/70 block mt-1">Completed jobs</span>
           </div>
@@ -172,7 +215,7 @@ export default async function DashboardPage() {
               <Wrench className="w-4 h-4 text-purple-400" />
             </div>
             <div className="text-2xl font-black text-white">
-              {fixes.length}
+              {dashboardData.fixes.length}
             </div>
             <span className="text-[10px] text-purple-400/70 block mt-1">3D models repaired</span>
           </div>
@@ -191,14 +234,22 @@ export default async function DashboardPage() {
 
         {/* RECENT DECRYPTION HISTORY TABLE */}
         <section className="mb-12">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <h2 className="text-lg font-bold text-purple-100 flex items-center gap-2">
               <FileCode className="w-5 h-5 text-purple-400" />
               <span>Your Decryption History</span>
             </h2>
-            <span className="text-xs text-purple-400/70 font-mono">
-              {decryptions.length} records found
-            </span>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search file name..."
+                className="w-full pl-9 pr-4 py-1.5 rounded-xl glass-card border border-purple-500/30 text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-purple-400"
+              />
+            </div>
           </div>
 
           <div className="glass-panel rounded-2xl overflow-hidden border border-purple-500/20">
@@ -215,15 +266,22 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-purple-500/10">
-                  {decryptions.length === 0 ? (
+                  {dataLoading ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-purple-300">
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
+                        <span>Loading records...</span>
+                      </td>
+                    </tr>
+                  ) : filteredDecryptions.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="p-10 text-center text-purple-400/60">
                         <FileCode className="w-8 h-8 text-purple-500/40 mx-auto mb-2" />
-                        <span>No decryptions logged yet under your Discord ID. Dispatch files via the bot to see them here!</span>
+                        <span>No decryptions found for this Discord ID. Dispatch files via the bot to see them here!</span>
                       </td>
                     </tr>
                   ) : (
-                    decryptions.map((item: any) => (
+                    filteredDecryptions.map((item: any) => (
                       <tr key={item.id} className="hover:bg-purple-900/20 transition-colors">
                         <td className="p-4 font-semibold text-purple-100 flex items-center gap-2">
                           <FileCode className="w-4 h-4 text-purple-400 shrink-0" />
@@ -271,7 +329,7 @@ export default async function DashboardPage() {
               <span>3D Model & Vertex Fix History</span>
             </h2>
             <span className="text-xs text-purple-400/70 font-mono">
-              {fixes.length} records found
+              {dashboardData.fixes.length} records found
             </span>
           </div>
 
@@ -288,7 +346,14 @@ export default async function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-purple-500/10">
-                  {fixes.length === 0 ? (
+                  {dataLoading ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-purple-300">
+                        <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
+                        <span>Loading records...</span>
+                      </td>
+                    </tr>
+                  ) : dashboardData.fixes.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="p-10 text-center text-purple-400/60">
                         <Wrench className="w-8 h-8 text-purple-500/40 mx-auto mb-2" />
@@ -296,7 +361,7 @@ export default async function DashboardPage() {
                       </td>
                     </tr>
                   ) : (
-                    fixes.map((item: any) => (
+                    dashboardData.fixes.map((item: any) => (
                       <tr key={item.id} className="hover:bg-purple-900/20 transition-colors">
                         <td className="p-4 font-semibold text-purple-100 flex items-center gap-2">
                           <Wrench className="w-4 h-4 text-purple-400 shrink-0" />
