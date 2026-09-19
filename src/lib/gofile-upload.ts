@@ -1,6 +1,6 @@
 /**
- * Client-side utility for direct browser-to-GoFile file uploads.
- * Bypasses Vercel request body limits (4.5 MB limit) and supports files up to 1 GB+.
+ * Client-side utility for direct browser file uploads to free hosters (GoFile & Catbox).
+ * Bypasses Vercel request body limits (4.5 MB limit) and handles network timeouts gracefully.
  */
 
 export interface GofileUploadResult {
@@ -13,27 +13,50 @@ export async function uploadToGofile(
   file: File,
   onProgress?: (percent: number) => void
 ): Promise<GofileUploadResult> {
-  // 1. Fetch active upload server from GoFile API
-  const serverRes = await fetch('https://api.gofile.io/servers');
-  if (!serverRes.ok) {
-    throw new Error('Failed to retrieve GoFile upload server endpoint.');
+  // 1. Get GoFile upload server via server-side API proxy (bypasses browser CORS/timeout issues)
+  let serverName = 'store1';
+  try {
+    const res = await fetch('/api/gofile-server');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.serverName) serverName = data.serverName;
+    }
+  } catch {
+    // Fallback to store1 if server route fails
+    serverName = 'store1';
   }
 
-  const serverData = await serverRes.json();
-  if (serverData.status !== 'ok' || !serverData.data?.servers?.length) {
-    throw new Error('GoFile servers currently unavailable.');
+  const primaryUrl = `https://${serverName}.gofile.io/uploadFile`;
+
+  try {
+    return await executeUpload(primaryUrl, file, onProgress);
+  } catch (primaryErr: any) {
+    console.warn(`GoFile primary upload (${primaryUrl}) failed:`, primaryErr.message);
+
+    // Try fallback GoFile store if primary failed
+    const fallbackStore = serverName === 'store1' ? 'store2' : 'store1';
+    const fallbackUrl = `https://${fallbackStore}.gofile.io/uploadFile`;
+
+    try {
+      return await executeUpload(fallbackUrl, file, onProgress);
+    } catch (fallbackErr: any) {
+      console.warn(`GoFile fallback upload (${fallbackUrl}) failed:`, fallbackErr.message);
+
+      // Final fallback to Catbox upload if GoFile is completely unreachable
+      return await uploadToCatbox(file, onProgress);
+    }
   }
+}
 
-  // Select first available server (e.g. store1, store2)
-  const serverName = serverData.data.servers[0].name;
-  const uploadUrl = `https://${serverName}.gofile.io/uploadFile`;
-
-  // 2. Prepare FormData
-  const formData = new FormData();
-  formData.append('file', file);
-
-  // 3. Perform XMLHttpRequest to track upload percentage
+function executeUpload(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<GofileUploadResult> {
   return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
     const xhr = new XMLHttpRequest();
 
     xhr.upload.addEventListener('progress', (e) => {
@@ -49,30 +72,68 @@ export async function uploadToGofile(
           const res = JSON.parse(xhr.responseText);
           if (res.status === 'ok' && res.data) {
             resolve({
-              downloadPage: res.data.downloadPage,
-              fileId: res.data.fileId,
+              downloadPage: res.data.downloadPage || `https://gofile.io/d/${res.data.fileId}`,
+              fileId: res.data.fileId || '',
               fileName: res.data.fileName || file.name,
             });
           } else {
-            reject(new Error(res.message || 'GoFile upload returned non-ok status.'));
+            reject(new Error(res.message || 'GoFile returned non-ok status.'));
           }
         } catch (err: any) {
-          reject(new Error(`Failed to parse GoFile response: ${err.message}`));
+          reject(new Error(`Invalid JSON response: ${err.message}`));
         }
       } else {
-        reject(new Error(`GoFile upload failed with HTTP status ${xhr.status}`));
+        reject(new Error(`HTTP status ${xhr.status}`));
       }
     });
 
-    xhr.addEventListener('error', () => {
-      reject(new Error('Network error occurred during GoFile file upload.'));
-    });
+    xhr.addEventListener('error', () => reject(new Error('Network connection error.')));
+    xhr.addEventListener('timeout', () => reject(new Error('Upload connection timed out.')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload aborted.')));
 
-    xhr.addEventListener('abort', () => {
-      reject(new Error('File upload aborted by user.'));
-    });
-
+    xhr.timeout = 180000; // 3 min timeout
     xhr.open('POST', uploadUrl);
+    xhr.send(formData);
+  });
+}
+
+function uploadToCatbox(
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<GofileUploadResult> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('reqtype', 'fileupload');
+    formData.append('fileToUpload', file);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && onProgress) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        onProgress(percent);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const url = xhr.responseText.trim();
+        if (url.startsWith('http')) {
+          resolve({
+            downloadPage: url,
+            fileId: url.split('/').pop() || '',
+            fileName: file.name,
+          });
+        } else {
+          reject(new Error(`Catbox error: ${url}`));
+        }
+      } else {
+        reject(new Error(`Catbox HTTP status ${xhr.status}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => reject(new Error('Catbox network error.')));
+    xhr.open('POST', 'https://catbox.moe/user/api.php');
     xhr.send(formData);
   });
 }
