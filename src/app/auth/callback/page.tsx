@@ -13,60 +13,75 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        // The Supabase client with detectSessionInUrl: true will automatically
-        // pick up the #access_token fragment from the URL (implicit flow)
-        // and establish a session. We just need to wait for it.
+        // Parse the hash fragment manually
+        // URL looks like: /auth/callback#access_token=xxx&refresh_token=yyy&...
+        const hash = window.location.hash.substring(1); // remove the '#'
+        const params = new URLSearchParams(hash);
 
-        // First check if session is already established
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
 
-        if (error) {
-          console.error('[Auth Callback] Error:', error.message);
-          setStatus(`Authentication failed: ${error.message}`);
+        console.log('[Auth Callback] Hash fragment present:', !!hash);
+        console.log('[Auth Callback] access_token present:', !!accessToken);
+        console.log('[Auth Callback] refresh_token present:', !!refreshToken);
+        console.log('[Auth Callback] Full URL:', window.location.href);
+
+        if (accessToken && refreshToken) {
+          // Manually set the session using tokens from the hash fragment
+          setStatus('Setting up your session...');
+
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            console.error('[Auth Callback] setSession error:', error.message);
+            setStatus(`Failed: ${error.message}`);
+            setHasError(true);
+            setTimeout(() => router.replace('/'), 3000);
+            return;
+          }
+
+          if (data.session) {
+            const name = data.session.user?.user_metadata?.full_name || 'User';
+            console.log('[Auth Callback] Session set successfully for:', name);
+            setStatus(`Welcome ${name}! Redirecting...`);
+            
+            // Clean the hash from URL before redirecting
+            window.history.replaceState(null, '', window.location.pathname);
+            router.replace('/dashboard');
+            return;
+          }
+        }
+
+        // If no hash tokens, check if session already exists
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setStatus('Session found! Redirecting...');
+          router.replace('/dashboard');
+          return;
+        }
+
+        // Check for error in query params
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorParam = urlParams.get('error');
+        if (errorParam) {
+          setStatus(`Login failed: ${urlParams.get('error_description') || errorParam}`);
           setHasError(true);
           setTimeout(() => router.replace('/'), 3000);
           return;
         }
 
-        if (session) {
-          console.log('[Auth Callback] Session found:', session.user?.user_metadata?.full_name);
-          setStatus('Success! Redirecting to dashboard...');
-          router.replace('/dashboard');
-          return;
-        }
-
-        // If no session yet, listen for the SIGNED_IN event
-        // (the Supabase client may still be processing the hash fragment)
-        console.log('[Auth Callback] Waiting for auth state change...');
-        setStatus('Processing login...');
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          console.log('[Auth Callback] Auth event:', event);
-          if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
-            setStatus('Success! Redirecting to dashboard...');
-            subscription.unsubscribe();
-            router.replace('/dashboard');
-          }
-        });
-
-        // Timeout after 8 seconds
-        setTimeout(async () => {
-          // One last check
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            subscription.unsubscribe();
-            router.replace('/dashboard');
-          } else {
-            subscription.unsubscribe();
-            setStatus('Authentication timed out. Please try again.');
-            setHasError(true);
-            setTimeout(() => router.replace('/'), 2000);
-          }
-        }, 8000);
+        // Nothing found
+        console.log('[Auth Callback] No tokens or session found');
+        setStatus('No authentication data found.');
+        setHasError(true);
+        setTimeout(() => router.replace('/'), 3000);
 
       } catch (err: any) {
         console.error('[Auth Callback] Unexpected error:', err);
-        setStatus(`Error: ${err.message || 'Unknown error'}`);
+        setStatus(`Error: ${err.message}`);
         setHasError(true);
         setTimeout(() => router.replace('/'), 3000);
       }
