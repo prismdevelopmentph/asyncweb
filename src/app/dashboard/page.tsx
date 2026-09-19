@@ -7,10 +7,6 @@ import Footer from '@/components/Footer';
 import DiscordLoginButton from '@/components/DiscordLoginButton';
 import { supabase } from '@/lib/supabase';
 import {
-  LayoutDashboard,
-  Download,
-  CheckCircle,
-  Clock,
   FileCode,
   Wrench,
   ShieldCheck,
@@ -18,8 +14,10 @@ import {
   RefreshCw,
   Search,
   Sparkles,
-  ExternalLink,
-  Crown
+  Crown,
+  Calendar,
+  Layers,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -32,11 +30,16 @@ export default function DashboardPage() {
     decryptions: any[];
     fixes: any[];
     plans: any[];
+    usage?: {
+      weekly: number;
+      monthly: number;
+    };
   }>({
     isOwner: false,
     decryptions: [],
     fixes: [],
     plans: [],
+    usage: { weekly: 0, monthly: 0 }
   });
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -78,6 +81,7 @@ export default function DashboardPage() {
           decryptions: json.decryptions || [],
           fixes: json.fixes || [],
           plans: json.plans || [],
+          usage: json.usage || { weekly: 0, monthly: 0 }
         });
       }
     } catch (err) {
@@ -104,7 +108,7 @@ export default function DashboardPage() {
     );
   }
 
-  // If signed out: locked authentication screen (NO DATA PREVIEW)
+  // If signed out: locked authentication screen
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden">
@@ -120,7 +124,7 @@ export default function DashboardPage() {
 
             <h1 className="text-2xl font-black mb-2 text-white">Authentication Required</h1>
             <p className="text-sm text-purple-300/70 mb-8 leading-relaxed">
-              Please sign in with your Discord account to access your personal decryptions, fixes, and active subscription details.
+              Please sign in with your Discord account to access your personal dashboard and active subscription details.
             </p>
 
             <DiscordLoginButton size="lg" className="w-full" text="Sign in with Discord" />
@@ -132,24 +136,106 @@ export default function DashboardPage() {
     );
   }
 
-  // Logged-in User Profile Data
+  // User details
   const discordUserId = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
   const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Discord User';
   const activePlan = dashboardData.plans[0] || null;
   const isOwner = dashboardData.isOwner || discordUserId === '719482630633947166';
+  const hasActiveSubscription = isOwner || activePlan != null;
 
-  // Format Tier Name
+  // Format Tier Display
   const getTierDisplay = () => {
     if (isOwner) return { name: 'OWNER LIFETIME', badge: 'OWNER', active: true, color: 'text-amber-300 border-amber-500/40 bg-amber-500/20' };
-    if (!activePlan) return { name: 'STANDARD FREE', badge: 'FREE TIER', active: false, color: 'text-purple-300 border-purple-500/40 bg-purple-500/20' };
+    if (!activePlan) return { name: 'NO PLAN', badge: 'INACTIVE', active: false, color: 'text-rose-300 border-rose-500/40 bg-rose-500/20' };
     
-    const key = activePlan.plan_key?.toLowerCase();
-    if (key === 'lifetime') return { name: 'LIFETIME ACCESS', badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
-    if (key === 'month' || key === 'monthly') return { name: 'MONTHLY VIP', badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
-    return { name: activePlan.plan_key?.toUpperCase(), badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
+    const key = activePlan.plan_key?.toLowerCase() || '';
+    if (key.includes('lifetime')) return { name: 'LIFETIME VIP', badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
+    if (key.includes('month')) return { name: 'MONTHLY VIP', badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
+    return { name: activePlan.plan_key?.toUpperCase() || 'VIP PLAN', badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
   };
 
   const tier = getTierDisplay();
+
+  // If signed in BUT NOT subscribed & NOT owner: locked dashboard view
+  if (!dataLoading && !hasActiveSubscription) {
+    return (
+      <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white">
+        <Navbar />
+
+        <div className="purple-glow-bg top-20 left-1/4 opacity-30"></div>
+
+        <main className="flex-1 max-w-4xl mx-auto px-4 py-16 w-full relative z-10">
+          {/* HEADER */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 mb-8 glass-panel p-6 rounded-3xl border border-purple-500/30">
+            <div className="flex items-center gap-4">
+              <div className="relative w-14 h-14 rounded-2xl overflow-hidden border border-purple-400/50 shrink-0 bg-purple-900/40">
+                <Image
+                  src={avatarSrc}
+                  alt={userName}
+                  fill
+                  unoptimized
+                  onError={() => setAvatarSrc('/images/Profile.png')}
+                  className="object-cover"
+                />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">{userName}</h1>
+                <p className="text-xs text-purple-400/80 font-mono">Discord ID: {discordUserId}</p>
+              </div>
+            </div>
+
+            <div className="glass-card px-4 py-2 rounded-2xl border border-rose-500/40 text-xs flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse"></span>
+              <span className="font-bold text-rose-300">Status: NO PLAN</span>
+            </div>
+          </div>
+
+          {/* LOCKED SUBSCRIPTION CARD */}
+          <div className="glass-panel-glow p-8 sm:p-12 rounded-3xl border border-rose-500/30 text-center relative overflow-hidden shadow-[0_0_50px_rgba(244,63,94,0.15)]">
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-400/40 flex items-center justify-center mx-auto mb-6 text-rose-300">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+
+            <h2 className="text-2xl font-black text-white mb-3">Active Subscription Required</h2>
+            <p className="text-sm text-purple-300/80 max-w-lg mx-auto mb-8 leading-relaxed">
+              You are currently signed in, but your Discord account does not have an active <span className="text-purple-200 font-bold">Monthly VIP</span> or <span className="text-purple-200 font-bold">Lifetime VIP</span> subscription.
+              <br /><br />
+              Please purchase a plan or contact staff in Discord to activate your plan.
+            </p>
+
+            <div className="inline-flex flex-col sm:flex-row items-center justify-center gap-4">
+              <a
+                href="https://discord.gg"
+                target="_blank"
+                rel="noreferrer"
+                className="px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+              >
+                Open Discord Server
+              </a>
+              <button
+                onClick={() => fetchDashboardData(discordUserId)}
+                className="px-6 py-3 rounded-2xl glass-card border border-purple-500/30 text-purple-200 hover:text-white text-xs font-semibold transition-all flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${dataLoading ? 'animate-spin' : ''}`} />
+                <span>Re-check Subscription</span>
+              </button>
+            </div>
+          </div>
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
+
+  // Subscribed / Owner Users Dashboard View
+  const planKeyStr = activePlan?.plan_key?.toLowerCase() || '';
+  const isDumperPlan = planKeyStr.includes('dumper');
+  const weeklyLimit = isOwner || planKeyStr.includes('lifetime') ? null : (isDumperPlan ? 40 : 60);
+  const monthlyLimit = isOwner || planKeyStr.includes('lifetime') ? null : (isDumperPlan ? 120 : 180);
+
+  const weeklyUsed = dashboardData.usage?.weekly || 0;
+  const monthlyUsed = dashboardData.usage?.monthly || 0;
 
   // Filtered decryptions
   const filteredDecryptions = dashboardData.decryptions.filter((item) =>
@@ -210,14 +296,14 @@ export default function DashboardPage() {
             <div className="glass-card px-4 py-2.5 rounded-2xl border border-purple-500/30 text-xs flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-purple-400" />
               <div>
-                <span className="text-purple-300/60 block text-[10px] uppercase font-mono">Current Tier</span>
+                <span className="text-purple-300/60 block text-[10px] uppercase font-mono">Current Plan</span>
                 <span className="font-bold text-purple-200">{tier.name}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ACTIVE PLAN & STATS OVERVIEW */}
+        {/* ACTIVE PLAN & USAGE STATS OVERVIEW */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
           <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
             <div className="flex items-center justify-between mb-2">
@@ -230,43 +316,45 @@ export default function DashboardPage() {
               {tier.name}
             </div>
             <span className="text-[10px] text-purple-400/70 block mt-1">
-              {isOwner ? 'Permanent Full Access' : activePlan?.expires_at ? `Exp: ${new Date(activePlan.expires_at).toLocaleDateString()}` : 'Standard Daily Quotas'}
+              {isOwner || !activePlan?.expires_at ? 'Permanent Access' : `Expires: ${new Date(activePlan.expires_at).toLocaleDateString()}`}
             </span>
           </div>
 
           <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-purple-300/70 font-medium">Decryptions</span>
+              <span className="text-xs text-purple-300/70 font-medium">Weekly Limit</span>
+              <Calendar className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-xl font-black text-emerald-400">
+              {weeklyLimit === null ? 'Unlimited' : `${weeklyUsed} / ${weeklyLimit}`}
+            </div>
+            <span className="text-[10px] text-purple-400/70 block mt-1">
+              {weeklyLimit === null ? 'No weekly restriction' : 'Shared decrypt & 3D fix limit'}
+            </span>
+          </div>
+
+          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-purple-300/70 font-medium">Monthly Limit</span>
+              <Layers className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-xl font-black text-emerald-400">
+              {monthlyLimit === null ? 'Unlimited' : `${monthlyUsed} / ${monthlyLimit}`}
+            </div>
+            <span className="text-[10px] text-purple-400/70 block mt-1">
+              {monthlyLimit === null ? 'No monthly restriction' : 'Shared decrypt & 3D fix limit'}
+            </span>
+          </div>
+
+          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-purple-300/70 font-medium">Jobs Completed</span>
               <FileCode className="w-4 h-4 text-purple-400" />
             </div>
             <div className="text-2xl font-black text-white">
-              {dashboardData.decryptions.length}
+              {dashboardData.decryptions.length + dashboardData.fixes.length}
             </div>
-            <span className="text-[10px] text-purple-400/70 block mt-1">Completed jobs</span>
-          </div>
-
-          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-purple-300/70 font-medium">Vertex Fixes</span>
-              <Wrench className="w-4 h-4 text-purple-400" />
-            </div>
-            <div className="text-2xl font-black text-white">
-              {dashboardData.fixes.length}
-            </div>
-            <span className="text-[10px] text-purple-400/70 block mt-1">3D models repaired</span>
-          </div>
-
-          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-purple-300/70 font-medium">Daily Quota</span>
-              <Clock className="w-4 h-4 text-purple-400" />
-            </div>
-            <div className="text-xl font-black text-emerald-400">
-              {isOwner || activePlan ? 'Unlimited' : 'Active'}
-            </div>
-            <span className="text-[10px] text-purple-400/70 block mt-1">
-              {isOwner || activePlan ? 'No limits applied' : '+1 Bonus claimable in Discord'}
-            </span>
+            <span className="text-[10px] text-purple-400/70 block mt-1">Total decryptions & 3D fixes</span>
           </div>
         </div>
 
@@ -300,22 +388,21 @@ export default function DashboardPage() {
                     <th className="p-4">Extracted Files</th>
                     <th className="p-4">Date</th>
                     <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Download</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-purple-500/10">
                   {dataLoading ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-purple-300">
+                      <td colSpan={5} className="p-8 text-center text-purple-300">
                         <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
                         <span>Loading records...</span>
                       </td>
                     </tr>
                   ) : filteredDecryptions.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-10 text-center text-purple-400/60">
+                      <td colSpan={5} className="p-10 text-center text-purple-400/60">
                         <FileCode className="w-8 h-8 text-purple-500/40 mx-auto mb-2" />
-                        <span>No decryptions found for this Discord ID. Dispatch files via the bot to see them here!</span>
+                        <span>No decryptions found. Dispatch files via the bot in Discord to see them here!</span>
                       </td>
                     </tr>
                   ) : (
@@ -334,21 +421,6 @@ export default function DashboardPage() {
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                             {item.status || 'SUCCESS'}
                           </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          {item.download_url ? (
-                            <a
-                              href={item.download_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/40 hover:bg-purple-600 text-purple-200 font-medium text-xs border border-purple-400/30 transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>Download</span>
-                            </a>
-                          ) : (
-                            <span className="text-purple-400/40 italic text-[11px]">Expired</span>
-                          )}
                         </td>
                       </tr>
                     ))
@@ -380,20 +452,19 @@ export default function DashboardPage() {
                     <th className="p-4">Vertices Fixed</th>
                     <th className="p-4">Date</th>
                     <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Download</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-purple-500/10">
                   {dataLoading ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-purple-300">
+                      <td colSpan={4} className="p-8 text-center text-purple-300">
                         <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
                         <span>Loading records...</span>
                       </td>
                     </tr>
                   ) : dashboardData.fixes.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-10 text-center text-purple-400/60">
+                      <td colSpan={4} className="p-10 text-center text-purple-400/60">
                         <Wrench className="w-8 h-8 text-purple-500/40 mx-auto mb-2" />
                         <span>No vertex fix history found. Use the 3D model repair command in Discord to repair models!</span>
                       </td>
@@ -413,21 +484,6 @@ export default function DashboardPage() {
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                             {item.status || 'FIXED'}
                           </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          {item.download_url ? (
-                            <a
-                              href={item.download_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/40 hover:bg-purple-600 text-purple-200 font-medium text-xs border border-purple-400/30 transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                              <span>Download</span>
-                            </a>
-                          ) : (
-                            <span className="text-purple-400/40 italic text-[11px]">Expired</span>
-                          )}
                         </td>
                       </tr>
                     ))
