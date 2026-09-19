@@ -2,46 +2,52 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import DiscordLoginButton from '@/components/DiscordLoginButton';
 import { createClient } from '@/lib/supabase-server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { LayoutDashboard, Download, CheckCircle, Clock, FileCode, Wrench, ShieldCheck, LogIn, Lock } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Download,
+  CheckCircle,
+  Clock,
+  FileCode,
+  Wrench,
+  ShieldCheck,
+  Lock,
+  Calendar,
+  Layers,
+  Sparkles,
+  RefreshCw,
+  ExternalLink
+} from 'lucide-react';
 
-async function getUserDashboardData(discordUserId: string | null) {
-  if (!discordUserId) {
-    // Return sample stats if not logged in
-    const { data: decryptions } = await supabaseAdmin.from('decryptions').select('*').limit(10).order('created_at', { ascending: false });
-    const { data: fixes } = await supabaseAdmin.from('fixes').select('*').limit(10).order('created_at', { ascending: false });
-    const { data: plans } = await supabaseAdmin.from('plan_subscriptions').select('*').eq('active', 1).limit(1);
-
-    return { decryptions: decryptions || [], fixes: fixes || [], plans: plans || [] };
-  }
-
+async function getUserDashboardData(discordUserId: string) {
   try {
-    const { data: decryptions } = await supabaseAdmin
-      .from('decryptions')
-      .select('*')
-      .eq('user_id', discordUserId)
-      .order('created_at', { ascending: false })
-      .limit(15);
-
-    const { data: fixes } = await supabaseAdmin
-      .from('fixes')
-      .select('*')
-      .eq('user_id', discordUserId)
-      .order('created_at', { ascending: false })
-      .limit(15);
-
-    const { data: plans } = await supabaseAdmin
-      .from('plan_subscriptions')
-      .select('*')
-      .eq('user_id', discordUserId)
-      .eq('active', 1)
-      .order('expires_at', { ascending: false });
+    const [decryptionsRes, fixesRes, plansRes] = await Promise.all([
+      supabaseAdmin
+        .from('decryptions')
+        .select('*')
+        .eq('user_id', discordUserId)
+        .order('created_at', { ascending: false })
+        .limit(25),
+      supabaseAdmin
+        .from('fixes')
+        .select('*')
+        .eq('user_id', discordUserId)
+        .order('created_at', { ascending: false })
+        .limit(25),
+      supabaseAdmin
+        .from('plan_subscriptions')
+        .select('*')
+        .eq('user_id', discordUserId)
+        .eq('active', 1)
+        .order('expires_at', { ascending: false })
+    ]);
 
     return {
-      decryptions: decryptions || [],
-      fixes: fixes || [],
-      plans: plans || [],
+      decryptions: decryptionsRes.data || [],
+      fixes: fixesRes.data || [],
+      plans: plansRes.data || [],
     };
   } catch (err) {
     console.error('Error fetching dashboard data:', err);
@@ -53,95 +59,146 @@ export default async function DashboardPage() {
   const supabaseServer = await createClient();
   const { data: { user } } = await supabaseServer.auth.getUser();
 
-  const discordUserId = user?.user_metadata?.provider_id || user?.user_metadata?.sub || null;
+  // If user is signed out, show clean locked authentication screen (NO DATA PREVIEW)
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative overflow-hidden">
+        <Navbar />
+
+        <div className="purple-glow-bg top-1/4 left-1/2 -translate-x-1/2 opacity-50 w-[500px] h-[500px]"></div>
+
+        <main className="flex-1 max-w-lg mx-auto px-4 py-20 flex flex-col items-center justify-center text-center relative z-10">
+          <div className="glass-panel-glow p-8 sm:p-10 rounded-3xl border border-purple-500/40 w-full shadow-[0_0_50px_rgba(168,85,247,0.25)]">
+            <div className="w-16 h-16 rounded-2xl bg-purple-600/20 border border-purple-400/40 flex items-center justify-center mx-auto mb-6 text-purple-300">
+              <Lock className="w-8 h-8" />
+            </div>
+
+            <h1 className="text-2xl font-black mb-2 text-white">Authentication Required</h1>
+            <p className="text-sm text-purple-300/70 mb-8 leading-relaxed">
+              Please sign in with your Discord account to access your personal decryptions, fixes, and active subscription details.
+            </p>
+
+            <DiscordLoginButton size="lg" className="w-full" text="Sign in with Discord" />
+          </div>
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
+
+  // Logged-in User Data Fetching
+  const discordUserId = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
+  const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Discord User';
+  const userAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '/images/Profile.png';
+  const userEmail = user.email || '';
+
   const { decryptions, fixes, plans } = await getUserDashboardData(discordUserId);
   const activePlan = plans[0] || null;
 
   return (
-    <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative">
+    <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white">
       <Navbar />
 
       <div className="purple-glow-bg top-20 left-1/4 opacity-40"></div>
+      <div className="purple-glow-bg bottom-40 right-10 opacity-30"></div>
 
       <main className="flex-1 max-w-7xl mx-auto px-4 lg:px-8 py-10 w-full relative z-10">
         
-        {/* DASHBOARD HEADER */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-purple-400 mb-1">
-              <LayoutDashboard className="w-4 h-4 text-purple-400" />
-              <span>MEMBER PORTAL</span>
+        {/* MEMBER HEADER PROFILE */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 glass-panel p-6 sm:p-8 rounded-3xl border border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
+          <div className="flex items-center gap-5">
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] shrink-0">
+              <Image src={userAvatar} alt={userName} fill className="object-cover" priority />
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight">
-              User <span className="purple-gradient-text">Dashboard</span>
-            </h1>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-mono text-purple-300 uppercase tracking-widest flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Authenticated Member
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{userName}</h1>
+              <p className="text-xs text-purple-400/80 font-mono mt-0.5">Discord ID: {discordUserId}</p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            {user ? (
-              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border border-purple-500/30 text-xs text-purple-200">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-                <span>Logged in as {user.user_metadata?.full_name || user.email}</span>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="glass-card px-4 py-2.5 rounded-2xl border border-purple-500/30 text-xs flex items-center gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-purple-400" />
+              <div>
+                <span className="text-purple-300/60 block text-[10px] uppercase font-mono">Current Tier</span>
+                <span className="font-bold text-purple-200">
+                  {activePlan ? activePlan.plan_key.toUpperCase() : 'STANDARD FREE'}
+                </span>
               </div>
-            ) : (
-              <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-full border border-purple-500/30 text-xs text-purple-400/80">
-                <Lock className="w-3.5 h-3.5" />
-                <span>Guest Preview Mode</span>
-              </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* ACTIVE SUBSCRIPTION PLAN BANNER */}
-        <section className="mb-10">
-          <div className="glass-panel-glow p-6 sm:p-8 rounded-3xl relative overflow-hidden border border-purple-500/40">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative z-10">
-              <div className="flex items-center gap-4">
-                <div className="p-4 rounded-2xl bg-purple-600/30 border border-purple-400/40 text-purple-300">
-                  <ShieldCheck className="w-8 h-8" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-purple-300 uppercase tracking-widest">Active Plan</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                      activePlan ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                    }`}>
-                      {activePlan ? 'ACTIVE' : 'FREE MEMBER'}
-                    </span>
-                  </div>
-                  <h2 className="text-2xl font-black text-white">
-                    {activePlan ? activePlan.plan_key.toUpperCase() : 'STANDARD FREE MEMBER'}
-                  </h2>
-                  <p className="text-xs text-purple-300/70 mt-1">
-                    Expires at: <span className="font-mono text-purple-200">{activePlan ? new Date(activePlan.expires_at).toLocaleString() : 'N/A'}</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <Link href="/" className="w-full sm:w-auto px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all flex items-center justify-center gap-2">
-                  <span>Upgrade Plan</span>
-                </Link>
-              </div>
+        {/* ACTIVE PLAN & STATS OVERVIEW */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
+          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-purple-300/70 font-medium">Subscription</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                activePlan ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-purple-500/20 text-purple-300'
+              }`}>
+                {activePlan ? 'ACTIVE' : 'FREE'}
+              </span>
             </div>
+            <div className="text-xl font-black text-white">
+              {activePlan ? activePlan.plan_key.toUpperCase() : 'Standard'}
+            </div>
+            <span className="text-[10px] text-purple-400/70 block mt-1">
+              {activePlan?.expires_at ? `Exp: ${new Date(activePlan.expires_at).toLocaleDateString()}` : 'Lifetime / No Expiry'}
+            </span>
           </div>
-        </section>
 
-        {/* SUMMARY STATS GRID */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
-          <DashboardStat label="Total Decryptions" value={decryptions.length} icon={FileCode} sub="Personal history" />
-          <DashboardStat label="Total Fixes" value={fixes.length} icon={Wrench} sub="Geometry repairs" />
-          <DashboardStat label="Daily Bonus Status" value="+1 Decrypt / +1 Fix" icon={Clock} sub="Active 48h credit" />
-        </section>
+          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-purple-300/70 font-medium">Decryptions</span>
+              <FileCode className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-2xl font-black text-white">
+              {decryptions.length}
+            </div>
+            <span className="text-[10px] text-purple-400/70 block mt-1">Completed jobs</span>
+          </div>
+
+          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-purple-300/70 font-medium">Vertex Fixes</span>
+              <Wrench className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-2xl font-black text-white">
+              {fixes.length}
+            </div>
+            <span className="text-[10px] text-purple-400/70 block mt-1">3D models repaired</span>
+          </div>
+
+          <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-purple-300/70 font-medium">Daily Quota</span>
+              <Clock className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-xl font-black text-emerald-400">
+              Active
+            </div>
+            <span className="text-[10px] text-purple-400/70 block mt-1">+1 Bonus claimable in Discord</span>
+          </div>
+        </div>
 
         {/* RECENT DECRYPTION HISTORY TABLE */}
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-purple-100 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-purple-100 flex items-center gap-2">
               <FileCode className="w-5 h-5 text-purple-400" />
-              <span>Decryption History</span>
-            </h3>
-            <span className="text-xs text-purple-400/70 font-mono">Showing recent entries</span>
+              <span>Your Decryption History</span>
+            </h2>
+            <span className="text-xs text-purple-400/70 font-mono">
+              {decryptions.length} records found
+            </span>
           </div>
 
           <div className="glass-panel rounded-2xl overflow-hidden border border-purple-500/20">
@@ -150,9 +207,9 @@ export default async function DashboardPage() {
                 <thead className="bg-purple-950/40 text-purple-300 border-b border-purple-500/20 font-mono uppercase tracking-wider">
                   <tr>
                     <th className="p-4">File Name</th>
-                    <th className="p-4">Key Type</th>
-                    <th className="p-4">Decrypted Files</th>
-                    <th className="p-4">Elapsed</th>
+                    <th className="p-4">Key / Engine</th>
+                    <th className="p-4">Extracted Files</th>
+                    <th className="p-4">Date</th>
                     <th className="p-4">Status</th>
                     <th className="p-4 text-right">Download</th>
                   </tr>
@@ -160,8 +217,9 @@ export default async function DashboardPage() {
                 <tbody className="divide-y divide-purple-500/10">
                   {decryptions.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-purple-400/60">
-                        No decryption history found for this account.
+                      <td colSpan={6} className="p-10 text-center text-purple-400/60">
+                        <FileCode className="w-8 h-8 text-purple-500/40 mx-auto mb-2" />
+                        <span>No decryptions logged yet under your Discord ID. Dispatch files via the bot to see them here!</span>
                       </td>
                     </tr>
                   ) : (
@@ -169,14 +227,16 @@ export default async function DashboardPage() {
                       <tr key={item.id} className="hover:bg-purple-900/20 transition-colors">
                         <td className="p-4 font-semibold text-purple-100 flex items-center gap-2">
                           <FileCode className="w-4 h-4 text-purple-400 shrink-0" />
-                          <span className="truncate max-w-[200px]">{item.file_name}</span>
+                          <span className="truncate max-w-[220px]">{item.file_name}</span>
                         </td>
-                        <td className="p-4 font-mono text-purple-300">{item.key_type || 'auto'}</td>
-                        <td className="p-4 font-mono text-emerald-400 font-bold">{item.decrypted} files</td>
-                        <td className="p-4 font-mono text-purple-300">{item.elapsed}s</td>
+                        <td className="p-4 font-mono text-purple-300">{item.key_type || 'Auto'}</td>
+                        <td className="p-4 font-mono text-emerald-400 font-bold">{item.decrypted ?? 0} files</td>
+                        <td className="p-4 font-mono text-purple-300/80">
+                          {item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A'}
+                        </td>
                         <td className="p-4">
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            {item.status}
+                            {item.status || 'SUCCESS'}
                           </span>
                         </td>
                         <td className="p-4 text-right">
@@ -185,13 +245,85 @@ export default async function DashboardPage() {
                               href={item.download_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-purple-600/40 hover:bg-purple-600 text-purple-200 font-medium text-xs border border-purple-400/30 transition-all"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/40 hover:bg-purple-600 text-purple-200 font-medium text-xs border border-purple-400/30 transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]"
                             >
                               <Download className="w-3.5 h-3.5" />
                               <span>Download</span>
                             </a>
                           ) : (
-                            <span className="text-purple-400/40 italic">Expired</span>
+                            <span className="text-purple-400/40 italic text-[11px]">Expired</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* RECENT VERTEX FIXES TABLE */}
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-purple-100 flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-purple-400" />
+              <span>3D Model & Vertex Fix History</span>
+            </h2>
+            <span className="text-xs text-purple-400/70 font-mono">
+              {fixes.length} records found
+            </span>
+          </div>
+
+          <div className="glass-panel rounded-2xl overflow-hidden border border-purple-500/20">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-purple-950/40 text-purple-300 border-b border-purple-500/20 font-mono uppercase tracking-wider">
+                  <tr>
+                    <th className="p-4">Model File</th>
+                    <th className="p-4">Vertices Fixed</th>
+                    <th className="p-4">Date</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Download</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-purple-500/10">
+                  {fixes.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-10 text-center text-purple-400/60">
+                        <Wrench className="w-8 h-8 text-purple-500/40 mx-auto mb-2" />
+                        <span>No vertex fix history found. Use the 3D model repair command in Discord to repair models!</span>
+                      </td>
+                    </tr>
+                  ) : (
+                    fixes.map((item: any) => (
+                      <tr key={item.id} className="hover:bg-purple-900/20 transition-colors">
+                        <td className="p-4 font-semibold text-purple-100 flex items-center gap-2">
+                          <Wrench className="w-4 h-4 text-purple-400 shrink-0" />
+                          <span className="truncate max-w-[220px]">{item.file_name}</span>
+                        </td>
+                        <td className="p-4 font-mono text-emerald-400 font-bold">{item.vertices_fixed?.toLocaleString() ?? 0} vertices</td>
+                        <td className="p-4 font-mono text-purple-300/80">
+                          {item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A'}
+                        </td>
+                        <td className="p-4">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            {item.status || 'FIXED'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          {item.download_url ? (
+                            <a
+                              href={item.download_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600/40 hover:bg-purple-600 text-purple-200 font-medium text-xs border border-purple-400/30 transition-all shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Download</span>
+                            </a>
+                          ) : (
+                            <span className="text-purple-400/40 italic text-[11px]">Expired</span>
                           )}
                         </td>
                       </tr>
@@ -206,21 +338,6 @@ export default async function DashboardPage() {
       </main>
 
       <Footer />
-    </div>
-  );
-}
-
-function DashboardStat({ label, value, icon: Icon, sub }: any) {
-  return (
-    <div className="glass-card p-5 rounded-2xl flex items-center justify-between border border-purple-500/20">
-      <div>
-        <span className="text-xs text-purple-300/70 font-medium block mb-1">{label}</span>
-        <span className="text-2xl font-black text-white">{value}</span>
-        <span className="block text-[10px] text-purple-400/60 mt-1">{sub}</span>
-      </div>
-      <div className="p-3 rounded-xl bg-purple-600/20 border border-purple-500/30 text-purple-300">
-        <Icon className="w-5 h-5" />
-      </div>
     </div>
   );
 }
