@@ -151,8 +151,8 @@ export default function DashboardPage() {
         });
         targetFileUrl = uploadResult.downloadPage;
       } catch (err: any) {
-        console.error('GoFile Upload Error:', err);
-        setJobErrorMessage(err.message || 'Failed to upload file to GoFile.');
+        console.error('Upload Error:', err);
+        setJobErrorMessage(err.message || 'Failed to upload file.');
         setJobStatus('error');
         return;
       }
@@ -487,7 +487,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <span className="hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-              DIRECT GOFILE STREAM
+              DIRECT UPLOAD STREAM
             </span>
           </div>
 
@@ -777,10 +777,10 @@ export default function DashboardPage() {
               <div className="mb-6 p-6 rounded-2xl glass-card border border-purple-500/30 text-center">
                 <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-3" />
                 <h4 className="text-sm font-bold text-white mb-1">
-                  {jobStatus === 'uploading' ? `Uploading to GoFile... ${uploadProgress}%` : 'Processing File on VPS Engine...'}
+                  {jobStatus === 'uploading' ? `Uploading File... ${uploadProgress}%` : 'Processing File on VPS Engine...'}
                 </h4>
                 <p className="text-xs text-purple-300/70 mb-4">
-                  {jobStatus === 'uploading' ? 'Bypassing Vercel limits via direct stream...' : 'Executing resource extraction & vertex repairs...'}
+                  {jobStatus === 'uploading' ? 'Uploading resource package...' : 'Executing resource extraction & vertex repairs...'}
                 </p>
 
                 {jobStatus === 'uploading' && (
@@ -840,7 +840,7 @@ export default function DashboardPage() {
                         {selectedFile ? selectedFile.name : 'Click or Drag & Drop local .zip file here'}
                       </span>
                       <span className="text-[10px] text-purple-400/60 block font-mono">
-                        {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB selected` : 'Direct GoFile stream supports files up to 1 GB+'}
+                        {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB selected` : 'Supports large resource files up to 1 GB+'}
                       </span>
                     </div>
                   </div>
