@@ -77,7 +77,7 @@ export default function AdminPage() {
     if (!ownerUserId) return;
     setDataLoading(true);
     try {
-      const res = await fetch(`/api/dashboard-data?userId=${encodeURIComponent(ownerUserId)}`);
+      const res = await fetch(`/api/dashboard-data?userId=${encodeURIComponent(ownerUserId)}&admin=true`);
       if (res.ok) {
         const json = await res.json();
         setAdminData(json);
@@ -290,6 +290,7 @@ export default function AdminPage() {
     );
   }
 
+  const licensesList = adminData?.licenses || [];
   const plansList = adminData?.plans || [];
   const decryptionsList = adminData?.decryptions || [];
   const fixesList = adminData?.fixes || [];
@@ -348,6 +349,17 @@ export default function AdminPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-2 p-1.5 rounded-2xl glass-card border border-purple-500/30">
             <button
+              onClick={() => setActiveTab('licenses')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'licenses'
+                  ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]'
+                  : 'text-purple-300/70 hover:text-white'
+              }`}
+            >
+              <Key className="w-4 h-4" />
+              <span>API Licenses ({licensesList.length})</span>
+            </button>
+            <button
               onClick={() => setActiveTab('plans')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
                 activeTab === 'plans'
@@ -377,13 +389,13 @@ export default function AdminPage() {
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Assign Plan Subscription</span>
+              <span>Assign Subscription</span>
             </button>
           </div>
         </div>
 
-        {/* TAB 1: PLAN SUBSCRIPTIONS TABLE */}
-        {activeTab === 'plans' && (
+        {/* TAB 1: API LICENSES TABLE */}
+        {activeTab === 'licenses' && (
           <section className="space-y-6">
             <div className="glass-panel rounded-3xl overflow-hidden border border-purple-500/30">
               <div className="overflow-x-auto">
@@ -392,52 +404,65 @@ export default function AdminPage() {
                     <tr>
                       <th className="p-4">Discord User ID</th>
                       <th className="p-4">Username</th>
-                      <th className="p-4">Assigned Plan</th>
-                      <th className="p-4">Expires At</th>
-                      <th className="p-4">Assigned By</th>
+                      <th className="p-4">License Key</th>
+                      <th className="p-4">Plan / Type</th>
+                      <th className="p-4">Daily Usage</th>
+                      <th className="p-4">HWID Binding</th>
                       <th className="p-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-purple-500/10">
-                    {plansList.length === 0 ? (
+                    {licensesList.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-10 text-center text-purple-400/60 font-mono">
-                          No active plan subscriptions found in database.
+                        <td colSpan={7} className="p-10 text-center text-purple-400/60 font-mono">
+                          No API licenses found in database.
                         </td>
                       </tr>
                     ) : (
-                      plansList.map((p: any) => {
-                        const planStr = (p.plan_key || '').toUpperCase();
-                        const isLifetime = !p.expires_at || planStr.includes('LIFETIME');
-                        return (
-                          <tr key={p.id} className="hover:bg-purple-900/20 transition-colors">
-                            <td className="p-4 font-mono font-bold text-purple-300">{p.user_id}</td>
-                            <td className="p-4 font-semibold text-purple-100">{p.username || 'User'}</td>
-                            <td className="p-4">
-                              <span className="px-3 py-1 rounded-full font-mono text-[10px] font-bold bg-purple-600/30 text-purple-200 border border-purple-400/30">
-                                {planStr}
+                      licensesList.map((lic: any) => (
+                        <tr key={lic.id} className="hover:bg-purple-900/20 transition-colors">
+                          <td className="p-4 font-mono font-bold text-purple-300">{lic.user_id}</td>
+                          <td className="p-4 font-semibold text-purple-100">{lic.username || 'User'}</td>
+                          <td className="p-4 font-mono text-purple-200">
+                            <span className="bg-purple-950/80 px-2.5 py-1 rounded border border-purple-500/30 select-all">
+                              {lic.license_key}
+                            </span>
+                          </td>
+                          <td className="p-4 uppercase font-bold text-purple-400">
+                            {lic.plan || 'combo'} <span className="text-[10px] text-purple-400/60 font-normal">({lic.plan_type || 'monthly'})</span>
+                          </td>
+                          <td className="p-4 font-mono text-purple-300">
+                            {lic.daily_used || 0} / {lic.daily_quota || 999999}
+                          </td>
+                          <td className="p-4 font-mono">
+                            {lic.hwid ? (
+                              <span className="text-amber-400 font-bold flex items-center gap-1">
+                                BOUND
+                                <button
+                                  onClick={() => handleResetHWID(lic.id)}
+                                  className="ml-2 text-[10px] underline text-purple-400 hover:text-white"
+                                >
+                                  (Reset HWID)
+                                </button>
                               </span>
-                            </td>
-                            <td className="p-4 font-mono text-purple-300">
-                              {isLifetime ? (
-                                <span className="text-emerald-400 font-bold">PERMANENT (LIFETIME)</span>
-                              ) : (
-                                new Date(p.expires_at).toLocaleString()
-                              )}
-                            </td>
-                            <td className="p-4 font-mono text-purple-400/80">{p.assigned_by || 'System'}</td>
-                            <td className="p-4 text-right">
-                              <button
-                                onClick={() => handleRevokePlan(p.id)}
-                                className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 border border-rose-500/40 text-[11px] font-bold transition-all flex items-center gap-1.5 ml-auto"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <span>Revoke</span>
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
+                            ) : (
+                              <span className="text-emerald-400 font-semibold">UNLOCKED</span>
+                            )}
+                          </td>
+                          <td className="p-4 text-right">
+                            <button
+                              onClick={() => handleToggleLicense(lic.id, lic.revoked || 0)}
+                              className={`px-3 py-1.5 rounded-lg border text-[11px] font-bold transition-all ml-auto ${
+                                lic.revoked === 0
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/30'
+                                  : 'bg-rose-500/20 text-rose-300 border-rose-500/30 hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/30'
+                              }`}
+                            >
+                              {lic.revoked === 0 ? 'VALID (Revoke)' : 'REVOKED (Enable)'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
