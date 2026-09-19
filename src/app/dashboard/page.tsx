@@ -18,18 +18,22 @@ import {
   RefreshCw,
   Search,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Crown
 } from 'lucide-react';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
+  const [avatarSrc, setAvatarSrc] = useState<string>('/images/Profile.png');
   const [dashboardData, setDashboardData] = useState<{
+    isOwner?: boolean;
     decryptions: any[];
     fixes: any[];
     plans: any[];
   }>({
+    isOwner: false,
     decryptions: [],
     fixes: [],
     plans: [],
@@ -41,6 +45,10 @@ export default function DashboardPage() {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      if (user) {
+        const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '/images/Profile.png';
+        setAvatarSrc(avatar);
+      }
       setLoading(false);
     };
 
@@ -48,6 +56,10 @@ export default function DashboardPage() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        const avatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || '/images/Profile.png';
+        setAvatarSrc(avatar);
+      }
       setLoading(false);
     });
 
@@ -62,6 +74,7 @@ export default function DashboardPage() {
       if (res.ok) {
         const json = await res.json();
         setDashboardData({
+          isOwner: json.isOwner || false,
           decryptions: json.decryptions || [],
           fixes: json.fixes || [],
           plans: json.plans || [],
@@ -122,8 +135,21 @@ export default function DashboardPage() {
   // Logged-in User Profile Data
   const discordUserId = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
   const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Discord User';
-  const userAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '/images/Profile.png';
   const activePlan = dashboardData.plans[0] || null;
+  const isOwner = dashboardData.isOwner || discordUserId === '719482630633947166';
+
+  // Format Tier Name
+  const getTierDisplay = () => {
+    if (isOwner) return { name: 'OWNER LIFETIME', badge: 'OWNER', active: true, color: 'text-amber-300 border-amber-500/40 bg-amber-500/20' };
+    if (!activePlan) return { name: 'STANDARD FREE', badge: 'FREE TIER', active: false, color: 'text-purple-300 border-purple-500/40 bg-purple-500/20' };
+    
+    const key = activePlan.plan_key?.toLowerCase();
+    if (key === 'lifetime') return { name: 'LIFETIME ACCESS', badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
+    if (key === 'month' || key === 'monthly') return { name: 'MONTHLY VIP', badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
+    return { name: activePlan.plan_key?.toUpperCase(), badge: 'ACTIVE', active: true, color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/20' };
+  };
+
+  const tier = getTierDisplay();
 
   // Filtered decryptions
   const filteredDecryptions = dashboardData.decryptions.filter((item) =>
@@ -142,8 +168,16 @@ export default function DashboardPage() {
         {/* MEMBER PROFILE HEADER */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10 glass-panel p-6 sm:p-8 rounded-3xl border border-purple-500/30 shadow-[0_0_30px_rgba(168,85,247,0.15)]">
           <div className="flex items-center gap-5">
-            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] shrink-0">
-              <Image src={userAvatar} alt={userName} fill className="object-cover" priority />
+            <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-purple-400/50 shadow-[0_0_20px_rgba(168,85,247,0.3)] shrink-0 bg-purple-900/40">
+              <Image
+                src={avatarSrc}
+                alt={userName}
+                fill
+                unoptimized
+                onError={() => setAvatarSrc('/images/Profile.png')}
+                className="object-cover"
+                priority
+              />
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -151,6 +185,12 @@ export default function DashboardPage() {
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   Authenticated Member
                 </span>
+                {isOwner && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                    <Crown className="w-3 h-3" />
+                    Owner
+                  </span>
+                )}
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">{userName}</h1>
               <p className="text-xs text-purple-400/80 font-mono mt-0.5">Discord ID: {discordUserId}</p>
@@ -171,9 +211,7 @@ export default function DashboardPage() {
               <ShieldCheck className="w-4 h-4 text-purple-400" />
               <div>
                 <span className="text-purple-300/60 block text-[10px] uppercase font-mono">Current Tier</span>
-                <span className="font-bold text-purple-200">
-                  {activePlan ? activePlan.plan_key.toUpperCase() : 'STANDARD FREE'}
-                </span>
+                <span className="font-bold text-purple-200">{tier.name}</span>
               </div>
             </div>
           </div>
@@ -184,17 +222,15 @@ export default function DashboardPage() {
           <div className="glass-panel p-5 rounded-2xl border border-purple-500/30">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-purple-300/70 font-medium">Subscription</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                activePlan ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-purple-500/20 text-purple-300'
-              }`}>
-                {activePlan ? 'ACTIVE' : 'FREE'}
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${tier.color}`}>
+                {tier.badge}
               </span>
             </div>
             <div className="text-xl font-black text-white">
-              {activePlan ? activePlan.plan_key.toUpperCase() : 'Standard'}
+              {tier.name}
             </div>
             <span className="text-[10px] text-purple-400/70 block mt-1">
-              {activePlan?.expires_at ? `Exp: ${new Date(activePlan.expires_at).toLocaleDateString()}` : 'Lifetime / No Expiry'}
+              {isOwner ? 'Permanent Full Access' : activePlan?.expires_at ? `Exp: ${new Date(activePlan.expires_at).toLocaleDateString()}` : 'Standard Daily Quotas'}
             </span>
           </div>
 
@@ -226,9 +262,11 @@ export default function DashboardPage() {
               <Clock className="w-4 h-4 text-purple-400" />
             </div>
             <div className="text-xl font-black text-emerald-400">
-              Active
+              {isOwner || activePlan ? 'Unlimited' : 'Active'}
             </div>
-            <span className="text-[10px] text-purple-400/70 block mt-1">+1 Bonus claimable in Discord</span>
+            <span className="text-[10px] text-purple-400/70 block mt-1">
+              {isOwner || activePlan ? 'No limits applied' : '+1 Bonus claimable in Discord'}
+            </span>
           </div>
         </div>
 

@@ -124,8 +124,14 @@ export default function Navbar() {
           ) : user ? (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 glass-card px-3 py-1.5 rounded-xl border border-purple-500/30 text-xs">
-                <div className="relative w-6 h-6 rounded-full overflow-hidden border border-purple-400/40">
-                  <Image src={userAvatar} alt="Avatar" fill className="object-cover" />
+                <div className="relative w-6 h-6 rounded-full overflow-hidden border border-purple-400/40 shrink-0">
+                  <Image
+                    src={userAvatar}
+                    alt="Avatar"
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
                 </div>
                 <span className="text-purple-200 font-semibold max-w-[120px] truncate">{userName}</span>
               </div>

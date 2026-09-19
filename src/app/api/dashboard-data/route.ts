@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
         .order('expires_at', { ascending: false })
     ]);
 
+    const isOwner = userId === '719482630633947166' || userId === process.env.OWNER_USER_ID;
+
     return NextResponse.json({
+      isOwner,
       decryptions: decryptionsRes.data || [],
       fixes: fixesRes.data || [],
       plans: plansRes.data || [],
@@ -41,3 +44,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });
   }
 }
+
