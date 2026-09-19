@@ -63,8 +63,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Dispatch to VPS API Engine on Port 3847 & Poll until completion
+    // 3. Dispatch to Processing Engine on Port 3847
     const vpsApiUrl = process.env.VPS_API_URL;
+    let jobId: string | null = null;
+
     if (vpsApiUrl) {
       try {
         const toolEndpoint = toolType === 'fixer' ? 'fix' : 'decrypt';
@@ -85,105 +87,24 @@ export async function POST(request: NextRequest) {
 
         if (!vpsRes.ok) {
           const errText = await vpsRes.text();
-          throw new Error(`VPS API rejected job: ${errText}`);
+          throw new Error(`Engine rejected job: ${errText}`);
         }
 
         const vpsJson = await vpsRes.json();
-        const jobId = vpsJson.jobId;
-
-        if (jobId) {
-          // Poll VPS job status until completed or timed out (max 90 sec)
-          const startTime = Date.now();
-          const maxWaitMs = 90000;
-
-          while (Date.now() - startTime < maxWaitMs) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-            const jobRes = await fetch(`${vpsApiUrl}/api/job/${jobId}`, {
-              headers: { 'X-License-Key': serviceKey },
-            });
-
-            if (jobRes.ok) {
-              const jobData = await jobRes.json();
-              if (jobData.status === 'success') {
-                if (jobData.resultUrl) {
-                  finalDownloadUrl = jobData.resultUrl;
-                }
-                break;
-              } else if (jobData.status === 'failed') {
-                throw new Error(jobData.error || 'VPS pipeline execution failed.');
-              }
-            }
-          }
-        }
+        jobId = vpsJson.jobId || null;
       } catch (vpsErr: any) {
-        console.error('[VPS API Pipeline Error]', vpsErr.message);
+        console.error('[Engine API Pipeline Error]', vpsErr.message);
         return NextResponse.json(
-          { error: `VPS Processing Failed: ${vpsErr.message}` },
+          { error: `Processing Engine Error: ${vpsErr.message}` },
           { status: 502 }
         );
       }
     }
 
-    // 4. Log to Supabase database (decryptions or fixes)
-    const displayName = fileName || 'resource.zip';
-    const keyLabel = keyType === 'cfxkey' ? 'CFX Key' : keyType === 'grants' ? 'Grants.txt' : 'Auto/No Key';
-
-    let insertedRecord = null;
-
-    if (toolType === 'fixer') {
-      const { data, error } = await supabaseAdmin
-        .from('fixes')
-        .insert({
-          user_id: userId,
-          file_name: displayName,
-          models: 1,
-          vertices_fixed: Math.floor(Math.random() * 500) + 120,
-          download_url: finalDownloadUrl,
-          status: 'SUCCESS',
-        })
-        .select()
-        .single();
-
-      if (error) console.error('Error logging fix to Supabase:', error);
-      insertedRecord = data;
-    } else {
-      // Decrypt or Decrypt + Fix
-      const { data, error } = await supabaseAdmin
-        .from('decryptions')
-        .insert({
-          user_id: userId,
-          file_name: displayName,
-          key_type: keyLabel,
-          decrypted: 1,
-          failed: 0,
-          download_url: finalDownloadUrl,
-          status: 'SUCCESS',
-        })
-        .select()
-        .single();
-
-      if (error) console.error('Error logging decryption to Supabase:', error);
-      insertedRecord = data;
-
-      // If toolType is decryptfix, log to fixes table as well
-      if (toolType === 'decryptfix') {
-        await supabaseAdmin.from('fixes').insert({
-          user_id: userId,
-          file_name: displayName,
-          models: 1,
-          vertices_fixed: Math.floor(Math.random() * 500) + 120,
-          download_url: finalDownloadUrl,
-          status: 'SUCCESS',
-        });
-      }
-    }
-
     return NextResponse.json({
       success: true,
-      message: 'Job processed and recorded successfully.',
-      record: insertedRecord,
-      downloadUrl: finalDownloadUrl,
+      message: 'Job initiated successfully.',
+      jobId,
     });
   } catch (err: any) {
     console.error('Error in process-job API route:', err);

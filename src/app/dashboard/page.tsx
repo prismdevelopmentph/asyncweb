@@ -65,6 +65,8 @@ export default function DashboardPage() {
   // Job execution state
   const [jobStatus, setJobStatus] = useState<'idle' | 'uploading' | 'processing' | 'success' | 'error'>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [jobProgress, setJobProgress] = useState(0);
+  const [jobLogs, setJobLogs] = useState<string[]>([]);
   const [jobErrorMessage, setJobErrorMessage] = useState('');
   const [resultDownloadUrl, setResultDownloadUrl] = useState('');
 
@@ -168,6 +170,8 @@ export default function DashboardPage() {
 
     // Step B: Dispatch to processing API route
     setJobStatus('processing');
+    setJobProgress(5);
+    setJobLogs(['[Init] Dispatching job to processing engine...']);
     const discordUserId = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
     const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Discord User';
 
@@ -191,11 +195,55 @@ export default function DashboardPage() {
         throw new Error(json.error || 'Job processing failed.');
       }
 
-      setResultDownloadUrl(json.downloadUrl || targetFileUrl);
-      setJobStatus('success');
+      const jobId = json.jobId;
 
-      // Refresh history records
-      fetchDashboardData(discordUserId);
+      if (!jobId) {
+        setResultDownloadUrl(json.downloadUrl || targetFileUrl);
+        setJobStatus('success');
+        fetchDashboardData(discordUserId);
+        return;
+      }
+
+      // Live Polling
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(
+            `/api/job-status?jobId=${encodeURIComponent(jobId)}&userId=${encodeURIComponent(discordUserId)}&fileName=${encodeURIComponent(targetFileName)}&toolType=${encodeURIComponent(activeToolModal)}&keyType=${encodeURIComponent(keyType)}`
+          );
+          if (statusRes.ok) {
+            const statusJson = await statusRes.json();
+            if (statusJson.progress !== undefined) {
+              setJobProgress(Math.max(10, statusJson.progress));
+            }
+            if (Array.isArray(statusJson.log)) {
+              // Clean logs: filter out internal path prefixes or system text
+              const cleaned = statusJson.log.map((line: string) => {
+                return line
+                  .replace(/\[job_[a-z0-9_]+\]\s*/gi, '')
+                  .replace(/C:\\Users\\[^\s\\]+\\Downloads\\[^\s]+\\?/gi, '')
+                  .replace(/api-work\\[^\s]+\\?/gi, '');
+              });
+              setJobLogs(cleaned);
+            }
+
+            if (statusJson.status === 'success') {
+              clearInterval(pollInterval);
+              setJobProgress(100);
+              if (statusJson.resultUrl) {
+                setResultDownloadUrl(statusJson.resultUrl);
+              }
+              setJobStatus('success');
+              fetchDashboardData(discordUserId);
+            } else if (statusJson.status === 'failed') {
+              clearInterval(pollInterval);
+              throw new Error(statusJson.error || 'Pipeline execution failed.');
+            }
+          }
+        } catch (pollErr: any) {
+          console.error('Polling error:', pollErr);
+        }
+      }, 1500);
+
     } catch (err: any) {
       console.error('Job Dispatch Error:', err);
       setJobErrorMessage(err.message || 'Failed to process job.');
@@ -777,18 +825,26 @@ export default function DashboardPage() {
               <div className="mb-6 p-6 rounded-2xl glass-card border border-purple-500/30 text-center">
                 <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-3" />
                 <h4 className="text-sm font-bold text-white mb-1">
-                  {jobStatus === 'uploading' ? `Uploading File... ${uploadProgress}%` : 'Processing File on VPS Engine...'}
+                  {jobStatus === 'uploading' ? `Uploading File... ${uploadProgress}%` : `Processing Resource... ${jobProgress}%`}
                 </h4>
                 <p className="text-xs text-purple-300/70 mb-4">
-                  {jobStatus === 'uploading' ? 'Uploading resource package...' : 'Executing resource extraction & vertex repairs...'}
+                  {jobStatus === 'uploading' ? 'Uploading resource package...' : 'Executing resource extraction, decryption & verification...'}
                 </p>
 
-                {jobStatus === 'uploading' && (
-                  <div className="w-full bg-purple-950/60 rounded-full h-2 overflow-hidden border border-purple-500/30">
-                    <div
-                      className="bg-gradient-to-r from-purple-500 to-indigo-500 h-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    ></div>
+                <div className="w-full bg-purple-950/60 rounded-full h-2.5 overflow-hidden border border-purple-500/30 mb-4">
+                  <div
+                    className="bg-gradient-to-r from-purple-500 via-indigo-500 to-emerald-400 h-full transition-all duration-300"
+                    style={{ width: `${jobStatus === 'uploading' ? uploadProgress : jobProgress}%` }}
+                  ></div>
+                </div>
+
+                {jobStatus === 'processing' && jobLogs.length > 0 && (
+                  <div className="mt-3 p-3 rounded-xl bg-[#07040d] border border-purple-500/20 text-left font-mono text-[11px] text-purple-300/90 h-28 overflow-y-auto space-y-1 selection:bg-purple-600">
+                    {jobLogs.map((log, idx) => (
+                      <div key={idx} className="leading-tight">
+                        {log}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
