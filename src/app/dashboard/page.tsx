@@ -67,8 +67,11 @@ export default function DashboardPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [jobProgress, setJobProgress] = useState(0);
   const [jobLogs, setJobLogs] = useState<string[]>([]);
+  const [currentFile, setCurrentFile] = useState<string>('');
+  const [currentPhase, setCurrentPhase] = useState<string>('Initializing processing pipeline...');
   const [jobErrorMessage, setJobErrorMessage] = useState('');
   const [resultDownloadUrl, setResultDownloadUrl] = useState('');
+  const terminalRef = useState<any>(null)[0];
 
   // 1. Check client session
   useEffect(() => {
@@ -216,13 +219,44 @@ export default function DashboardPage() {
               setJobProgress(Math.max(10, statusJson.progress));
             }
             if (Array.isArray(statusJson.log)) {
-              // Clean logs: filter out internal path prefixes or system text
+              let latestFile = '';
+              let latestPhase = '';
+
               const cleaned = statusJson.log.map((line: string) => {
-                return line
+                let text = line
                   .replace(/\[job_[a-z0-9_]+\]\s*/gi, '')
                   .replace(/C:\\Users\\[^\s\\]+\\Downloads\\[^\s]+\\?/gi, '')
-                  .replace(/api-work\\[^\s]+\\?/gi, '');
+                  .replace(/api-work\\[^\s]+\\?/gi, '')
+                  .trim();
+
+                // Parse JSON progress payload if present
+                const jsonMatch = text.match(/\{.*\}$/);
+                if (jsonMatch) {
+                  try {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    const timePrefix = text.slice(0, text.indexOf('{')).trim();
+
+                    if (parsed.currentFile) latestFile = parsed.currentFile;
+                    if (parsed.phase) latestPhase = parsed.phase;
+
+                    const fileStr = parsed.currentFile ? `: ${parsed.currentFile}` : '';
+                    const countStr = parsed.total ? ` (${parsed.current || 0}/${parsed.total})` : '';
+                    const phaseStr = parsed.phase || 'Decrypting';
+
+                    return `${timePrefix} ${phaseStr}${fileStr}${countStr}`.trim();
+                  } catch (_) {}
+                }
+
+                if (text.includes('Resource:')) {
+                  const resName = text.split('Resource:')[1]?.trim();
+                  if (resName) latestFile = resName;
+                }
+
+                return text;
               });
+
+              if (latestFile) setCurrentFile(latestFile);
+              if (latestPhase) setCurrentPhase(latestPhase);
               setJobLogs(cleaned);
             }
 
@@ -825,23 +859,51 @@ export default function DashboardPage() {
               <div className="mb-6 p-6 rounded-2xl glass-card border border-purple-500/30 text-center">
                 <RefreshCw className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-3" />
                 <h4 className="text-sm font-bold text-white mb-1">
-                  {jobStatus === 'uploading' ? `Uploading File... ${uploadProgress}%` : `Processing Resource... ${jobProgress}%`}
+                  {jobStatus === 'uploading' ? `Uploading Package... ${uploadProgress}%` : `Processing Engine... ${jobProgress}%`}
                 </h4>
                 <p className="text-xs text-purple-300/70 mb-4">
-                  {jobStatus === 'uploading' ? 'Uploading resource package...' : 'Executing resource extraction, decryption & verification...'}
+                  {jobStatus === 'uploading' ? 'Uploading resource archive...' : 'Executing resource extraction, decryption & verification...'}
                 </p>
 
-                <div className="w-full bg-purple-950/60 rounded-full h-2.5 overflow-hidden border border-purple-500/30 mb-4">
+                {/* Progress Bar */}
+                <div className="w-full bg-purple-950/60 rounded-full h-2.5 overflow-hidden border border-purple-500/30 mb-5">
                   <div
-                    className="bg-gradient-to-r from-purple-500 via-indigo-500 to-emerald-400 h-full transition-all duration-300"
+                    className="bg-gradient-to-r from-purple-500 via-indigo-500 to-emerald-400 h-full transition-all duration-300 shadow-[0_0_15px_rgba(168,85,247,0.5)]"
                     style={{ width: `${jobStatus === 'uploading' ? uploadProgress : jobProgress}%` }}
                   ></div>
                 </div>
 
+                {/* Active Job Information Card */}
+                {jobStatus === 'processing' && (
+                  <div className="mb-4 p-3.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-left space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-mono text-purple-400 uppercase text-[10px] tracking-wider">Active Resource / File:</span>
+                      <span className="font-mono text-emerald-400 text-[11px] font-bold bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/30 truncate max-w-[200px]">
+                        {currentFile ? currentFile.split('/').pop()?.split('\\').pop() : 'Scanning Package...'}
+                      </span>
+                    </div>
+                    {currentFile && (
+                      <div className="text-[11px] font-mono text-purple-200/90 truncate bg-purple-900/30 px-2.5 py-1 rounded border border-purple-500/20">
+                        {currentFile}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-[11px] text-purple-300/80 pt-1 border-t border-purple-500/20">
+                      <span>Status: <strong className="text-purple-200">{currentPhase || 'Decrypting'}</strong></span>
+                      <span>Progress: <strong className="text-purple-200">{jobProgress}%</strong></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sleek Terminal Log Console */}
                 {jobStatus === 'processing' && jobLogs.length > 0 && (
-                  <div className="mt-3 p-3 rounded-xl bg-[#07040d] border border-purple-500/20 text-left font-mono text-[11px] text-purple-300/90 h-28 overflow-y-auto space-y-1 selection:bg-purple-600">
+                  <div
+                    ref={(el) => {
+                      if (el) el.scrollTop = el.scrollHeight;
+                    }}
+                    className="p-3 rounded-xl bg-[#06030b] border border-purple-500/25 text-left font-mono text-[11px] text-purple-300/90 h-32 overflow-y-auto overflow-x-hidden custom-scrollbar space-y-1 selection:bg-purple-600 break-all whitespace-pre-wrap"
+                  >
                     {jobLogs.map((log, idx) => (
-                      <div key={idx} className="leading-tight">
+                      <div key={idx} className="leading-tight border-b border-purple-900/20 pb-0.5 last:border-0">
                         {log}
                       </div>
                     ))}
