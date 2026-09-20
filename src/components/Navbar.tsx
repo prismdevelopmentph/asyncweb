@@ -80,14 +80,14 @@ export default function Navbar() {
           <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-purple-500/30 p-0.5 glass-panel-glow group-hover:border-purple-400 transition-colors">
             <Image
               src="/images/Profile.png"
-              alt="ASYNC TAGABASAG"
+              alt="ASYNC DEVELOPMENT"
               fill
               className="object-cover rounded-lg"
             />
           </div>
           <div>
             <span className="font-extrabold text-lg tracking-wider purple-gradient-text">
-              ASYNC TAGABASAG
+              ASYNC DEVELOPMENT
             </span>
             <span className="block text-[10px] text-purple-400 font-mono tracking-widest uppercase">
               Asset Recovery & Web Panel

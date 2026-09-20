@@ -30,7 +30,7 @@ export default async function HomePage() {
         <div className="relative w-28 h-28 sm:w-36 sm:h-36 mx-auto mb-8 rounded-3xl overflow-hidden glass-panel-glow border-2 border-purple-500/40 p-1.5 shadow-[0_0_60px_rgba(168,85,247,0.35)] transform hover:scale-105 transition-all duration-300">
           <Image
             src="/images/Profile.png"
-            alt="ASYNC TAGABASAG"
+            alt="ASYNC DEVELOPMENT"
             fill
             className="object-cover rounded-2xl"
             priority
@@ -39,7 +39,7 @@ export default async function HomePage() {
 
         {/* Hero Title */}
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight mb-6 leading-tight">
-          ASYNC <span className="purple-gradient-text">TAGABASAG</span>
+          ASYNC <span className="purple-gradient-text">DEVELOPMENT</span>
         </h1>
 
         {/* Subtitle */}

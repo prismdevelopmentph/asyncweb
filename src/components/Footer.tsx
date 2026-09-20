@@ -20,7 +20,7 @@ export default function Footer() {
             />
           </div>
           <div>
-            <span className="text-sm font-bold purple-gradient-text">ASYNC TAGABASAG</span>
+            <span className="text-sm font-bold purple-gradient-text">ASYNC DEVELOPMENT</span>
             <p className="text-xs text-purple-400/60">FiveM Asset Recovery & Web Management</p>
           </div>
         </div>
@@ -35,7 +35,7 @@ export default function Footer() {
         <div className="text-xs text-purple-400/60 flex items-center gap-1">
           <span>Built with</span>
           <Heart className="w-3.5 h-3.5 text-purple-400 fill-purple-400" />
-          <span>for ASYNC TAGABASAG © {new Date().getFullYear()}</span>
+          <span>for ASYNC DEVELOPMENT © {new Date().getFullYear()}</span>
         </div>
 
       </div>
