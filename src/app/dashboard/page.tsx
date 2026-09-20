@@ -410,9 +410,6 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                   Async Dashboard
-                  <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 tracking-wider">
-                    V2 Live
-                  </span>
                 </h1>
               </div>
               <p className="text-xs text-purple-300/60 font-medium">
