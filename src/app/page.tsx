@@ -163,27 +163,21 @@ export default async function HomePage() {
           </p>
 
           {/* Call to Action Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto mb-6">
-            {user ? (
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
-                <Link
-                  href="/dashboard"
-                  className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all flex items-center justify-center gap-2 group"
-                >
-                  <span>Dashboard</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  href="/generator"
-                  className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-purple-950/80 hover:bg-purple-900/80 border border-purple-500/40 text-purple-100 font-bold text-sm shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-all flex items-center justify-center gap-2"
-                >
-                  <Key className="w-4 h-4 text-purple-400" />
-                  <span>Generator</span>
-                </Link>
-              </div>
-            ) : (
-              <DiscordLoginButton size="lg" className="w-full sm:w-auto" />
-            )}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mx-auto mb-6">
+            <Link
+              href="/dashboard"
+              className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all flex items-center justify-center gap-2 group"
+            >
+              <span>Dashboard</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link
+              href="/generator"
+              className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-purple-950/80 hover:bg-purple-900/80 border border-purple-500/40 text-purple-100 font-bold text-sm shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-all flex items-center justify-center gap-2"
+            >
+              <Key className="w-4 h-4 text-purple-400" />
+              <span>Generator</span>
+            </Link>
           </div>
         </div>
 
