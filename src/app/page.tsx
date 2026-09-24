@@ -4,12 +4,13 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import DiscordLoginButton from '@/components/DiscordLoginButton';
 import { createClient } from '@/lib/supabase-server';
-import { Shield, Sparkles, ArrowRight, Activity, Cpu, Wrench, Key, Check, Zap, Cloud } from 'lucide-react';
+import { Shield, Sparkles, ArrowRight, Cpu, Wrench, Key, Check, Zap, Layers, Star } from 'lucide-react';
 
 export default async function HomePage() {
   const supabaseServer = await createClient();
   const { data: { user } } = await supabaseServer.auth.getUser();
 
+  // Tools Summary List
   const toolPricing = [
     {
       id: 'generator',
@@ -67,6 +68,61 @@ export default async function HomePage() {
     }
   ];
 
+  // Account Generator Dedicated Tier Pricelist
+  const generatorTiers = [
+    {
+      id: 'per-service',
+      name: 'Per Service Tier',
+      badge: 'SINGLE ACCESS',
+      price: '$0',
+      period: '/ free for now',
+      description: 'Access to individual account generation service of your choice (Rockstar, Steam, Discord, VPN, or Netflix).',
+      features: [
+        'Rockstar, Steam, Discord, VPN or Netflix each access',
+        'Standard daily generation limits',
+        'Automated real-time stock updates',
+        'Clean 5-day generation history log'
+      ],
+      href: '/generator',
+      ctaText: 'Get Single Access',
+      highlight: false
+    },
+    {
+      id: 'fivem-bundle',
+      name: 'FiveM Gen Tier',
+      badge: 'FIVEM BUNDLE',
+      price: '$0',
+      period: '/ free for now',
+      description: 'Complete FiveM package access including Rockstar, Steam, Discord, and VPN account generation.',
+      features: [
+        'Rockstar, Steam, Discord & VPN package access',
+        'Elevated daily generation limit',
+        'Priority stock allocation',
+        'Instant key redemption system'
+      ],
+      href: '/generator',
+      ctaText: 'Get FiveM Package',
+      highlight: false
+    },
+    {
+      id: 'all-access',
+      name: 'All Access Tier',
+      badge: 'MOST POPULAR',
+      price: '$0',
+      period: '/ free for now',
+      description: 'Complete unlimited access to ALL Account Generator services (Steam, Discord, Rockstar, VPN, Netflix + future additions).',
+      features: [
+        'All Account Gen Access (Every service unlocked)',
+        'Highest daily generation limit & priority',
+        'Instant stock claiming & key redemption',
+        'Discord role sync & full cloud history'
+      ],
+      href: '/generator',
+      ctaText: 'Get All Access',
+      highlight: true
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden">
       <Navbar />
@@ -75,7 +131,7 @@ export default async function HomePage() {
       <div className="purple-glow-bg -top-20 left-1/2 -translate-x-1/2 opacity-70 w-[600px] h-[600px]"></div>
       <div className="purple-glow-bg top-1/2 right-10 opacity-30"></div>
 
-      <main className="flex-1 max-w-6xl mx-auto px-4 lg:px-8 py-12 sm:py-20 flex flex-col items-center justify-center text-center relative z-10 space-y-20">
+      <main className="flex-1 max-w-6xl mx-auto px-4 lg:px-8 py-12 sm:py-20 flex flex-col items-center justify-center text-center relative z-10 space-y-24">
         
         {/* HERO SECTION */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
@@ -174,8 +230,86 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* TOOLS & PRICING LIST SECTION */}
-        <section className="w-full pt-6">
+        {/* SECTION 1: ACCOUNT GENERATOR PRICELIST */}
+        <section className="w-full pt-4">
+          <div className="text-center max-w-xl mx-auto mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-xs font-mono mb-3">
+              <Key className="w-3.5 h-3.5 text-purple-400" />
+              <span>ACCOUNT GENERATOR PRICELIST</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Account Generator Tiers
+            </h2>
+            <p className="text-purple-300/60 text-sm mt-2">
+              Choose your account generation access plan. All tiers are currently $0 for early access.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            {generatorTiers.map((tier) => (
+              <div
+                key={tier.id}
+                className={`glass-ultra rounded-3xl p-6 sm:p-7 border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                  tier.highlight
+                    ? 'border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-purple-900/20 shadow-[0_0_40px_rgba(168,85,247,0.25)] scale-[1.03]'
+                    : 'border-white/[0.08] hover:border-purple-500/30'
+                }`}
+              >
+                <div>
+                  {/* Badge */}
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-md bg-purple-900/60 border border-purple-500/30 text-purple-300 font-bold">
+                      {tier.badge}
+                    </span>
+                    <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                      <Key className="w-5 h-5 text-purple-400" />
+                    </div>
+                  </div>
+
+                  {/* Tier Name */}
+                  <h3 className="text-xl font-bold text-white mb-1">{tier.name}</h3>
+                  <p className="text-xs text-purple-300/60 mb-6 leading-relaxed">
+                    {tier.description}
+                  </p>
+
+                  {/* Price Header */}
+                  <div className="flex items-baseline gap-1 mb-6 pb-6 border-b border-purple-500/15">
+                    <span className="text-4xl font-black text-white">{tier.price}</span>
+                    <span className="text-xs text-purple-300/50 font-mono">{tier.period}</span>
+                  </div>
+
+                  {/* Features List */}
+                  <div className="space-y-3 mb-8">
+                    {tier.features.map((feat, idx) => (
+                      <div key={idx} className="flex items-start gap-2.5 text-xs text-purple-200/90">
+                        <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                          <Check size={10} />
+                        </div>
+                        <span className={idx === 0 ? 'font-semibold text-white' : ''}>{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <Link
+                  href={tier.href}
+                  className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                    tier.highlight
+                      ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                      : 'bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200'
+                  }`}
+                >
+                  <span>{tier.ctaText}</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* SECTION 2: TOOLS & FEATURES SUMMARY */}
+        <section className="w-full pt-4">
           <div className="text-center max-w-xl mx-auto mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-xs font-mono mb-3">
               <Zap className="w-3.5 h-3.5 text-purple-400" />
@@ -197,7 +331,7 @@ export default async function HomePage() {
                   key={tool.id}
                   className={`glass-ultra rounded-3xl p-6 sm:p-7 border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
                     tool.highlight
-                      ? 'border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-purple-900/20 shadow-[0_0_35px_rgba(168,85,247,0.2)] scale-[1.02]'
+                      ? 'border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-purple-900/20 shadow-[0_0_35px_rgba(168,85,247,0.2)]'
                       : 'border-white/[0.08] hover:border-purple-500/30'
                   }`}
                 >
