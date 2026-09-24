@@ -264,59 +264,6 @@ export default function GenPreviewDashboard() {
             </div>
 
             <div className="space-y-5">
-              
-              {/* Callout 1: Add Another Gen / Key Redeem Form */}
-              <div className="glass-card rounded-2xl p-5 border border-purple-500/20 bg-purple-950/20">
-                <div className="text-xs font-bold text-white mb-1">Add Another Gen</div>
-                <p className="text-xs text-purple-300/60 mb-3">
-                  Gen keys and product license keys both work here.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
-                  <input
-                    type="text"
-                    value={keyInput}
-                    onChange={(e) => {
-                      setKeyInput(e.target.value);
-                      if (keyFeedback) setKeyFeedback(null);
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRedeemKey()}
-                    placeholder="XXXX - XXXX - XXXX - XXXX"
-                    className="flex-1 bg-purple-950/40 border border-purple-500/30 rounded-xl px-4 py-2.5 text-xs text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50 transition-all font-mono"
-                  />
-                  <button
-                    onClick={handleRedeemKey}
-                    className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-[1.02] active:scale-98 whitespace-nowrap"
-                  >
-                    Redeem
-                  </button>
-                </div>
-
-                {keyFeedback && (
-                  <div className={`mt-2.5 flex items-center gap-1.5 text-xs font-medium ${keyFeedback.type === 'ok' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {keyFeedback.type === 'ok' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-                    {keyFeedback.msg}
-                  </div>
-                )}
-              </div>
-
-              {/* Callout 2: Need More Generations? Banner */}
-              <div className="glass-card rounded-2xl p-5 border border-purple-500/20 bg-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="text-xs font-bold text-white mb-1">Need More Generations?</div>
-                  <p className="text-xs text-purple-300/60 max-w-xl">
-                    Pay with card via Stripe and <strong className="text-purple-200 font-semibold">50 extra generations</strong> are added to your limit. They never expire and are used once your daily limit runs out.
-                  </p>
-                </div>
-                <button
-                  onClick={() => triggerToast('Redirecting to Stripe checkout...')}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-2 whitespace-nowrap self-start sm:self-auto shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all hover:scale-[1.02] active:scale-98"
-                >
-                  <CreditCard size={15} />
-                  Buy 50 Gens
-                </button>
-              </div>
-
               {/* 5 Core Service Cards (Steam, Discord, Rockstar, VPN, Netflix) */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-2">
                 {services.map((svc) => {
