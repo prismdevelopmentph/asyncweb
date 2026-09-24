@@ -1,26 +1,22 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import {
-  LayoutGrid,
-  Settings,
-  LogOut,
-  Menu,
-  X,
   Copy,
-  Eye,
-  EyeOff,
-  RefreshCw,
   Search,
-  Lock,
   Clock,
-  CheckCircle2,
-  AlertCircle,
   CreditCard,
   Download,
   Info,
   ChevronDown,
-  Sparkles
+  Sparkles,
+  Key,
+  ShieldCheck,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 // --- Official Brand Icon Components (SimpleIcons Vectors) ---
@@ -55,9 +51,6 @@ const VpnIcon = ({ className }: { className?: string }) => (
 );
 
 // --- Types ---
-type ViewMode = 'dashboard' | 'settings';
-type SettingsTab = 'account' | 'security' | 'appearance' | 'api' | 'system';
-
 interface ServiceItem {
   id: string;
   name: string;
@@ -65,6 +58,7 @@ interface ServiceItem {
   unlocked: boolean;
   leftCount: number;
   color: string;
+  bgGlow: string;
 }
 
 interface HistoryItem {
@@ -75,33 +69,12 @@ interface HistoryItem {
 }
 
 export default function GenPreviewDashboard() {
-  // Navigation State
-  const [currentView, setCurrentView] = useState<ViewMode>('dashboard');
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('account');
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
   // Component States
   const [keyInput, setKeyInput] = useState('');
   const [keyFeedback, setKeyFeedback] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [historySearch, setHistorySearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-
-  // API Key State
-  const [apiKey, setApiKey] = useState('gen_live_4f9a8b1c2d3e4f5g6h7i8j9k0l');
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  // Toast State
   const [toast, setToast] = useState<string | null>(null);
-
-  // Accent Color Theme Swatches
-  const [activeAccent, setActiveAccent] = useState('#a855f7');
-  const accentSwatches = [
-    { name: 'Purple', hex: '#a855f7' },
-    { name: 'Violet', hex: '#8b5cf6' },
-    { name: 'Indigo', hex: '#6366f1' },
-    { name: 'Cyan', hex: '#06b6d4' },
-    { name: 'Emerald', hex: '#10b981' }
-  ];
 
   const triggerToast = (msg: string) => {
     setToast(msg);
@@ -110,13 +83,53 @@ export default function GenPreviewDashboard() {
     }, 3000);
   };
 
-  // Services Data matching reference image exactly (5 core services)
+  // 5 Core Account Generator Services
   const services: ServiceItem[] = [
-    { id: 'steam', name: 'Steam', icon: SteamIcon, unlocked: true, leftCount: 15642, color: 'text-cyan-400' },
-    { id: 'discord', name: 'Discord', icon: DiscordIcon, unlocked: true, leftCount: 0, color: 'text-indigo-400' },
-    { id: 'rockstar', name: 'Rockstar', icon: RockstarIcon, unlocked: true, leftCount: 9851, color: 'text-amber-400' },
-    { id: 'vpn', name: 'VPN', icon: VpnIcon, unlocked: true, leftCount: 717, color: 'text-emerald-400' },
-    { id: 'netflix', name: 'Netflix', icon: NetflixIcon, unlocked: true, leftCount: 1160, color: 'text-rose-500' }
+    {
+      id: 'steam',
+      name: 'Steam',
+      icon: SteamIcon,
+      unlocked: true,
+      leftCount: 15642,
+      color: 'text-[#66c0f4]',
+      bgGlow: 'hover:border-[#66c0f4]/50 hover:shadow-[0_0_20px_rgba(102,192,244,0.15)]'
+    },
+    {
+      id: 'discord',
+      name: 'Discord',
+      icon: DiscordIcon,
+      unlocked: true,
+      leftCount: 0,
+      color: 'text-[#5865f2]',
+      bgGlow: 'hover:border-[#5865f2]/50 hover:shadow-[0_0_20px_rgba(88,101,242,0.15)]'
+    },
+    {
+      id: 'rockstar',
+      name: 'Rockstar',
+      icon: RockstarIcon,
+      unlocked: true,
+      leftCount: 9851,
+      color: 'text-[#ffab00]',
+      bgGlow: 'hover:border-[#ffab00]/50 hover:shadow-[0_0_20px_rgba(255,171,0,0.15)]'
+    },
+    {
+      id: 'vpn',
+      name: 'VPN',
+      icon: VpnIcon,
+      unlocked: true,
+      leftCount: 717,
+      color: 'text-[#10b981]',
+      bgGlow: 'hover:border-[#10b981]/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+    },
+    {
+      id: 'netflix',
+      name: 'Netflix',
+      icon: NetflixIcon,
+      unlocked: true,
+      leftCount: 1160,
+      color: 'text-[#e50914]',
+      bgGlow: 'hover:border-[#e50914]/50 hover:shadow-[0_0_20px_rgba(229,9,20,0.15)]'
+    }
   ];
 
   // Generation History Data
@@ -178,564 +191,307 @@ export default function GenPreviewDashboard() {
     triggerToast(label);
   };
 
-  const handleRotateApiKey = () => {
-    const newKey = 'gen_live_' + Array.from({ length: 24 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-    setApiKey(newKey);
-    triggerToast('API Key rotated successfully');
+  const handleDownloadHistory = () => {
+    const textData = filteredHistory
+      .map((h) => `[${h.date}] ${h.service}: ${h.dataText}`)
+      .join('\n');
+    const blob = new Blob([textData], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `async-generator-history-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    triggerToast('Downloaded history text file');
   };
 
   return (
-    <div className="relative min-h-screen bg-[#0b0716] text-[#f3f0ff] font-sans antialiased selection:bg-purple-600 selection:text-white overflow-x-hidden">
-      {/* Ambient purple glowing background orbs matching main site theme */}
-      <div className="purple-glow-bg -top-20 left-1/2 -translate-x-1/2 opacity-70 w-[600px] h-[600px]" />
-      <div className="purple-glow-bg bottom-10 right-10 opacity-30" />
+    <div className="min-h-screen bg-[#06040b] text-[#f4f0ff] relative overflow-hidden font-sans selection:bg-purple-500/30 selection:text-purple-200">
+      
+      {/* Ambient Background Grid & Orbs matching main site /dashboard */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:36px_36px] pointer-events-none z-0 animate-grid-pulse" />
+      <div className="absolute -top-32 left-1/4 w-[600px] h-[600px] rounded-full bg-purple-600/15 blur-[140px] pointer-events-none z-0 animate-orb-slow" />
+      <div className="absolute top-1/3 -right-32 w-[550px] h-[550px] rounded-full bg-violet-600/15 blur-[130px] pointer-events-none z-0 animate-orb-reverse" />
+      <div className="absolute -bottom-40 left-1/3 w-[650px] h-[650px] rounded-full bg-fuchsia-600/10 blur-[150px] pointer-events-none z-0 animate-orb-slow" />
 
-      {/* Mobile Top Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#120a24]/90 backdrop-blur-md border-b border-purple-500/20 flex items-center justify-between px-4 z-50">
-        <div className="flex items-center gap-2.5 font-bold text-base tracking-tight">
-          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shadow-lg shadow-purple-500/30">
-            A
-          </div>
-          <span className="font-extrabold tracking-tight text-white">ASYNC <span className="purple-gradient-text">GEN</span></span>
-        </div>
-        <button
-          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          className="p-2 rounded-xl bg-purple-950/40 border border-purple-500/20 text-purple-200 hover:text-white"
-          aria-label="Toggle Menu"
-        >
-          {mobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
+      {/* Main Site Header Navigation */}
+      <Navbar />
 
-      <div className="relative z-10 flex min-h-screen">
-        {/* Mobile Sidebar Overlay */}
-        {mobileSidebarOpen && (
-          <div
-            className="md:hidden fixed inset-0 bg-black/70 backdrop-blur-xs z-40"
-            onClick={() => setMobileSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sidebar matching website design */}
-        <aside
-          className={`fixed md:sticky top-0 bottom-0 left-0 w-60 bg-[#120a24]/90 backdrop-blur-xl border-r border-purple-500/20 flex flex-col justify-between p-4 z-40 transition-transform duration-300 md:translate-x-0 ${
-            mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-          }`}
-        >
-          <div>
-            {/* Logo */}
-            <div className="flex items-center gap-3 px-2 py-3 mb-6">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-base shadow-lg shadow-purple-500/30 border border-purple-400/30">
-                A
-              </div>
-              <div className="font-extrabold text-lg tracking-tight text-white">
-                ASYNC <span className="purple-gradient-text">GEN</span>
-              </div>
-            </div>
-
-            {/* Navigation links */}
-            <nav className="space-y-1.5">
-              <button
-                onClick={() => {
-                  setCurrentView('dashboard');
-                  setMobileSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all duration-200 ${
-                  currentView === 'dashboard'
-                    ? 'bg-purple-600/20 text-purple-100 border border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.15)] font-semibold'
-                    : 'text-purple-300/60 hover:bg-purple-950/40 hover:text-purple-100'
-                }`}
-              >
-                <LayoutGrid size={17} className={currentView === 'dashboard' ? 'text-purple-400' : 'text-purple-400/60'} />
-                Dashboard
-              </button>
-
-              <button
-                onClick={() => {
-                  setCurrentView('settings');
-                  setMobileSidebarOpen(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all duration-200 ${
-                  currentView === 'settings'
-                    ? 'bg-purple-600/20 text-purple-100 border border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.15)] font-semibold'
-                    : 'text-purple-300/60 hover:bg-purple-950/40 hover:text-purple-100'
-                }`}
-              >
-                <Settings size={17} className={currentView === 'settings' ? 'text-purple-400' : 'text-purple-400/60'} />
-                Settings
-              </button>
-            </nav>
-          </div>
-
-          {/* User profile footer */}
-          <div className="pt-4 border-t border-purple-500/15 space-y-3">
-            <div className="flex items-center gap-3 px-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-purple-500/20 border border-purple-400/30">
-                B
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-xs text-purple-100 truncate">boks</div>
-                <div className="text-[10px] text-purple-300/50 truncate">User</div>
-              </div>
-            </div>
-            <button
-              onClick={() => triggerToast('Signed out')}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-purple-300/60 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
-            >
-              <LogOut size={14} />
-              Log Out
-            </button>
-          </div>
-        </aside>
-
-        {/* Main Content Area */}
-        <main className="flex-1 p-4 md:p-8 pt-20 md:pt-8 max-w-5xl mx-auto min-w-0 pb-24 md:pb-12">
-          {/* Header */}
-          <div className="flex items-center gap-3.5 mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.2)]">
-              B
+      {/* Main Workspace Canvas aligned with /dashboard */}
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20">
+        
+        {/* Top Floating Status Ribbon */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 glass-ultra rounded-2xl p-4 sm:p-5 border border-white/[0.08] shadow-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-fuchsia-500/10 border border-purple-500/30 flex items-center justify-center text-purple-300 shadow-inner">
+              <Sparkles className="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight text-white">Welcome back, boks</h1>
-              <p className="text-xs text-purple-300/60 flex items-center gap-1.5 mt-0.5 font-light">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-400/60" />
-                No active licenses
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                  Account Generator Dashboard
+                </h1>
+              </div>
+              <p className="text-xs text-purple-300/60 font-medium">
+                Instant multi-service account generation & license key manager
               </p>
             </div>
           </div>
 
-          {/* ================= DASHBOARD VIEW ================= */}
-          {currentView === 'dashboard' && (
-            <div className="space-y-6">
-              {/* Panel 1: Generator Panel matching screenshot layout with website glassmorphism theme */}
-              <section className="glass-panel rounded-2xl p-6 border border-purple-500/20 shadow-[0_0_30px_rgba(11,7,22,0.37)]">
-                {/* Panel Header */}
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-                    <LayoutGrid size={15} />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-purple-100">Generator</h2>
-                    <p className="text-[11px] text-purple-300/60">Netflix Gen plan · expires Aug 19 2126</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Callout 1: Add Another Gen */}
-                  <div className="glass-card rounded-xl p-4 border border-purple-500/20 bg-purple-950/20">
-                    <div className="text-xs font-bold text-purple-100 mb-0.5">Add Another Gen</div>
-                    <p className="text-[11px] text-purple-300/60 mb-3">Gen keys and product license keys both work here.</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={keyInput}
-                        onChange={(e) => setKeyInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleRedeemKey()}
-                        placeholder="XXXX-XXXX-XXXX-XXXX"
-                        className="flex-1 bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3.5 py-2 text-xs font-mono text-purple-100 placeholder-purple-400/30 focus:outline-none focus:border-purple-400 transition-colors"
-                      />
-                      <button
-                        onClick={handleRedeemKey}
-                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all active:scale-95"
-                      >
-                        Redeem
-                      </button>
-                    </div>
-                    {keyFeedback && (
-                      <div className={`text-[11px] mt-2 font-medium flex items-center gap-1.5 ${keyFeedback.type === 'ok' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {keyFeedback.type === 'ok' ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-                        {keyFeedback.msg}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Callout 2: Need More Generations? */}
-                  <div className="glass-card rounded-xl p-4 border border-purple-500/20 bg-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-bold text-purple-100 mb-0.5">Need More Generations?</div>
-                      <p className="text-[11px] text-purple-300/60">
-                        Pay with card via Stripe and <strong className="text-purple-200">50 extra generations</strong> are added to your limit. They never expire and are used once your daily limit runs out.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => triggerToast('Redirecting to Stripe checkout...')}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-2 whitespace-nowrap self-start sm:self-auto shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all"
-                    >
-                      <CreditCard size={14} />
-                      Buy 50 Gens
-                    </button>
-                  </div>
-
-                  {/* Horizontal Grid of 9 Service Cards */}
-                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2.5 pt-2">
-                    {services.map((svc) => {
-                      const IconComp = svc.icon;
-                      const isOutOfStock = svc.leftCount === 0;
-                      return (
-                        <button
-                          key={svc.id}
-                          onClick={() => {
-                            if (isOutOfStock) {
-                              triggerToast(`${svc.name} is currently out of stock`);
-                            } else {
-                              triggerToast(`Generated ${svc.name} Account!`);
-                            }
-                          }}
-                          className={`glass-card p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all duration-200 group relative ${
-                            isOutOfStock
-                              ? 'border-purple-500/10 opacity-50 hover:bg-purple-950/20'
-                              : 'border-purple-500/20 hover:border-purple-500/50 hover:bg-purple-900/30 hover:-translate-y-1'
-                          }`}
-                        >
-                          <div className={`w-9 h-9 rounded-xl bg-purple-950/60 border border-purple-500/20 flex items-center justify-center mb-2 ${svc.color}`}>
-                            <IconComp className="w-4 h-4" />
-                          </div>
-                          <div className="text-[11px] font-medium text-purple-100 group-hover:text-white transition-colors truncate w-full">
-                            {svc.name}
-                          </div>
-                          <div className={`text-[10px] mt-0.5 font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-purple-300/50'}`}>
-                            {isOutOfStock ? '0 left' : `${svc.leftCount} left`}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Generator Panel Footer */}
-                <div className="flex items-center justify-between text-[11px] text-purple-300/50 pt-4 mt-4 border-t border-purple-500/15">
-                  <div>Daily: 50/50 Netflix</div>
-                  <div>Resets at midnight</div>
-                </div>
-              </section>
-
-              {/* Panel 2: Generation History Panel matching screenshot layout */}
-              <section className="glass-panel rounded-2xl p-6 border border-purple-500/20 shadow-[0_0_30px_rgba(11,7,22,0.37)]">
-                {/* Panel Header */}
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-                    <Clock size={15} />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-purple-100">Generation History</h2>
-                    <p className="text-[11px] text-purple-300/60">Your last 100 generated accounts</p>
-                  </div>
-                </div>
-
-                {/* Notice callout */}
-                <div className="glass-card rounded-xl p-3.5 border border-purple-500/20 bg-purple-950/20 flex items-center gap-2.5 mb-4 text-xs text-purple-200/80">
-                  <Info size={15} className="text-purple-400 flex-shrink-0" />
-                  <span>
-                    History is automatically cleared every 5 days. <strong className="text-purple-100">Download or copy anything you want to keep.</strong>
-                  </span>
-                </div>
-
-                {/* Toolbar */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-4">
-                  <div className="relative">
-                    <select
-                      value={typeFilter}
-                      onChange={(e) => setTypeFilter(e.target.value)}
-                      className="w-full sm:w-36 bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-1.5 text-xs text-purple-100 focus:outline-none focus:border-purple-400 appearance-none pr-8 cursor-pointer"
-                    >
-                      <option value="all" className="bg-[#0b0716] text-purple-100">All types</option>
-                      <option value="netflix" className="bg-[#0b0716] text-purple-100">Netflix</option>
-                      <option value="steam" className="bg-[#0b0716] text-purple-100">Steam</option>
-                      <option value="rockstar" className="bg-[#0b0716] text-purple-100">Rockstar</option>
-                      <option value="vpn" className="bg-[#0b0716] text-purple-100">VPN</option>
-                    </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-2.5 text-purple-400/50 pointer-events-none" />
-                  </div>
-
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={historySearch}
-                      onChange={(e) => setHistorySearch(e.target.value)}
-                      placeholder="Search..."
-                      className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3.5 py-1.5 text-xs text-purple-100 placeholder-purple-400/30 focus:outline-none focus:border-purple-400"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleCopyText(filteredHistory.map((h) => h.dataText).join('\n'), 'All history copied to clipboard')}
-                      className="flex-1 sm:flex-none px-4 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-200 hover:text-white hover:bg-purple-900/40 text-xs font-semibold transition-colors"
-                    >
-                      Copy all
-                    </button>
-                    <button
-                      onClick={() => triggerToast('Downloading history.txt file...')}
-                      className="flex-1 sm:flex-none px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-                    >
-                      <Download size={13} />
-                      Download
-                    </button>
-                  </div>
-                </div>
-
-                {/* History Header Count */}
-                <div className="text-[11px] text-purple-300/50 mb-2 font-medium">
-                  {filteredHistory.length} accounts
-                </div>
-
-                {/* History Item Rows */}
-                <div className="space-y-2">
-                  {filteredHistory.length > 0 ? (
-                    filteredHistory.map((item) => (
-                      <div
-                        key={item.id}
-                        className="glass-card rounded-xl p-3 border border-purple-500/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-purple-500/35 transition-all"
-                      >
-                        <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                          <div className="w-8 h-8 rounded-xl bg-purple-950/60 border border-purple-500/20 flex items-center justify-center text-rose-500 flex-shrink-0 mt-0.5 sm:mt-0">
-                            {item.service === 'Netflix' ? (
-                              <NetflixIcon className="w-4 h-4" />
-                            ) : item.service === 'Steam' ? (
-                              <SteamIcon className="w-4 h-4 text-cyan-400" />
-                            ) : (
-                              <RockstarIcon className="w-4 h-4 text-amber-400" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-purple-100">{item.service}</span>
-                              <span className="text-[10px] text-purple-300/40 font-mono">{item.date}</span>
-                            </div>
-                            <div className="text-[11px] text-purple-200/90 font-mono mt-0.5 truncate select-all">
-                              {item.dataText}
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleCopyText(item.dataText)}
-                          className="px-3.5 py-1 rounded-lg bg-purple-950/50 border border-purple-500/25 text-purple-200 hover:text-white hover:bg-purple-900/50 text-xs font-medium self-end sm:self-auto transition-colors"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-xs text-purple-300/40 glass-card rounded-xl border border-purple-500/10">
-                      No matching account history found.
-                    </div>
-                  )}
-                </div>
-              </section>
+          <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-purple-200/80">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span className="font-medium text-[11px]">Generator Engine Online</span>
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* ================= SETTINGS VIEW ================= */}
-          {currentView === 'settings' && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-                  <Settings size={20} />
-                </div>
-                <div>
-                  <h1 className="text-xl font-extrabold tracking-tight text-white">Settings</h1>
-                  <p className="text-xs text-purple-300/60">Manage your preferences and API keys</p>
-                </div>
+        {/* Dashboard Main Content Container */}
+        <div className="space-y-6">
+          
+          {/* Panel 1: Generator Main Panel */}
+          <section className="glass-ultra rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-2xl relative overflow-hidden">
+            
+            {/* Header Title */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                <Key className="w-5 h-5" />
               </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Generator</h2>
+                <p className="text-xs text-purple-300/60">Netflix Gen plan · expires Aug 19 2126</p>
+              </div>
+            </div>
 
-              <div className="flex items-center gap-1 border-b border-purple-500/15 pb-1">
-                {(['account', 'security', 'appearance', 'api', 'system'] as SettingsTab[]).map((tab) => (
+            <div className="space-y-5">
+              
+              {/* Callout 1: Add Another Gen / Key Redeem Form */}
+              <div className="glass-card rounded-2xl p-5 border border-purple-500/20 bg-purple-950/20">
+                <div className="text-xs font-bold text-white mb-1">Add Another Gen</div>
+                <p className="text-xs text-purple-300/60 mb-3">
+                  Gen keys and product license keys both work here.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row items-stretch gap-2.5">
+                  <input
+                    type="text"
+                    value={keyInput}
+                    onChange={(e) => {
+                      setKeyInput(e.target.value);
+                      if (keyFeedback) setKeyFeedback(null);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRedeemKey()}
+                    placeholder="XXXX - XXXX - XXXX - XXXX"
+                    className="flex-1 bg-purple-950/40 border border-purple-500/30 rounded-xl px-4 py-2.5 text-xs text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/50 transition-all font-mono"
+                  />
                   <button
-                    key={tab}
-                    onClick={() => setSettingsTab(tab)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${
-                      settingsTab === tab
-                        ? 'bg-purple-600/20 text-purple-100 border border-purple-500/40 shadow-sm'
-                        : 'text-purple-300/50 hover:text-purple-200 hover:bg-purple-950/30'
-                    }`}
+                    onClick={handleRedeemKey}
+                    className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:scale-[1.02] active:scale-98 whitespace-nowrap"
                   >
-                    {tab}
+                    Redeem
                   </button>
-                ))}
+                </div>
+
+                {keyFeedback && (
+                  <div className={`mt-2.5 flex items-center gap-1.5 text-xs font-medium ${keyFeedback.type === 'ok' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {keyFeedback.type === 'ok' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                    {keyFeedback.msg}
+                  </div>
+                )}
               </div>
 
-              <div className="max-w-xl">
-                {settingsTab === 'account' && (
-                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
-                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">Account Details</h2>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-purple-300/70 mb-1">Display Name</label>
-                        <input
-                          type="text"
-                          defaultValue="boks"
-                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-purple-300/70 mb-1">Email</label>
-                        <input
-                          type="email"
-                          defaultValue="boks@example.com"
-                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
-                        />
-                      </div>
-                    </div>
+              {/* Callout 2: Need More Generations? Banner */}
+              <div className="glass-card rounded-2xl p-5 border border-purple-500/20 bg-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="text-xs font-bold text-white mb-1">Need More Generations?</div>
+                  <p className="text-xs text-purple-300/60 max-w-xl">
+                    Pay with card via Stripe and <strong className="text-purple-200 font-semibold">50 extra generations</strong> are added to your limit. They never expire and are used once your daily limit runs out.
+                  </p>
+                </div>
+                <button
+                  onClick={() => triggerToast('Redirecting to Stripe checkout...')}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-2 whitespace-nowrap self-start sm:self-auto shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all hover:scale-[1.02] active:scale-98"
+                >
+                  <CreditCard size={15} />
+                  Buy 50 Gens
+                </button>
+              </div>
+
+              {/* 5 Core Service Cards (Steam, Discord, Rockstar, VPN, Netflix) */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-2">
+                {services.map((svc) => {
+                  const IconComp = svc.icon;
+                  const isOutOfStock = svc.leftCount === 0;
+                  return (
                     <button
-                      onClick={() => triggerToast('Changes saved')}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)]"
+                      key={svc.id}
+                      onClick={() => {
+                        if (isOutOfStock) {
+                          triggerToast(`${svc.name} is currently out of stock`);
+                        } else {
+                          triggerToast(`Generated ${svc.name} Account!`);
+                        }
+                      }}
+                      className={`glass-card p-4 rounded-2xl border border-purple-500/20 flex flex-col items-center justify-center text-center transition-all duration-200 group relative ${svc.bgGlow} ${
+                        isOutOfStock
+                          ? 'opacity-60 hover:bg-purple-950/30'
+                          : 'hover:bg-purple-900/30 hover:-translate-y-1'
+                      }`}
                     >
-                      Save changes
+                      <div className={`w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center mb-3 shadow-inner ${svc.color}`}>
+                        <IconComp className="w-6 h-6" />
+                      </div>
+                      <div className="text-xs font-semibold text-white group-hover:text-purple-200 transition-colors truncate w-full">
+                        {svc.name}
+                      </div>
+                      <div className={`text-[11px] mt-1 font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-purple-300/60'}`}>
+                        {isOutOfStock ? '0 left' : `${svc.leftCount.toLocaleString()} left`}
+                      </div>
                     </button>
-                  </div>
-                )}
-
-                {settingsTab === 'security' && (
-                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
-                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">Change Password</h2>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-purple-300/70 mb-1">Current Password</label>
-                        <input
-                          type="password"
-                          placeholder="••••••••"
-                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-purple-300/70 mb-1">New Password</label>
-                        <input
-                          type="password"
-                          placeholder="••••••••"
-                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => triggerToast('Password updated')}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)]"
-                    >
-                      Update password
-                    </button>
-                  </div>
-                )}
-
-                {settingsTab === 'appearance' && (
-                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
-                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">Accent Color</h2>
-                    <p className="text-xs text-purple-300/60">Pick the highlight color used across the dashboard.</p>
-                    <div className="flex items-center gap-2.5">
-                      {accentSwatches.map((swatch) => (
-                        <button
-                          key={swatch.name}
-                          onClick={() => {
-                            setActiveAccent(swatch.hex);
-                            triggerToast(`Theme color set to ${swatch.name}`);
-                          }}
-                          style={{ backgroundColor: swatch.hex }}
-                          className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                            activeAccent === swatch.hex ? 'border-white scale-105' : 'border-transparent'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {settingsTab === 'api' && (
-                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
-                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">API Access</h2>
-                    <p className="text-xs text-purple-300/60">Use this secret key to authenticate requests. Keep it secret.</p>
-                    <div className="flex gap-2">
-                      <input
-                        type={showApiKey ? 'text' : 'password'}
-                        value={apiKey}
-                        readOnly
-                        className="flex-1 bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs font-mono text-purple-100 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-200 hover:text-white text-xs font-medium flex items-center gap-1.5"
-                      >
-                        {showApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
-                        {showApiKey ? 'Hide' : 'Reveal'}
-                      </button>
-                      <button
-                        onClick={() => handleCopyText(apiKey, 'API Key copied to clipboard')}
-                        className="px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-200 hover:text-white text-xs font-medium flex items-center gap-1.5"
-                      >
-                        <Copy size={13} />
-                        Copy
-                      </button>
-                    </div>
-                    <button
-                      onClick={handleRotateApiKey}
-                      className="px-3.5 py-1.5 rounded-xl border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                    >
-                      <RefreshCw size={13} />
-                      Rotate key
-                    </button>
-                  </div>
-                )}
-
-                {settingsTab === 'system' && (
-                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-3">
-                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">System Information</h2>
-                    <div className="divide-y divide-purple-500/10 text-xs">
-                      <div className="flex justify-between py-2">
-                        <span className="text-purple-300/60">Version</span>
-                        <span className="font-mono text-purple-100">2.4.1</span>
-                      </div>
-                      <div className="flex justify-between py-2">
-                        <span className="text-purple-300/60">Plan</span>
-                        <span className="font-mono text-purple-100">Standard</span>
-                      </div>
-                      <div className="flex justify-between py-2">
-                        <span className="text-purple-300/60">Region</span>
-                        <span className="font-mono text-purple-100">eu-central</span>
-                      </div>
-                      <div className="flex justify-between py-2">
-                        <span className="text-purple-300/60">Member since</span>
-                        <span className="font-mono text-purple-100">2024-11-02</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
             </div>
-          )}
-        </main>
-      </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#120a24]/95 backdrop-blur-xl border-t border-purple-500/20 flex items-center justify-around px-2 z-40">
-        <button
-          onClick={() => setCurrentView('dashboard')}
-          className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors ${
-            currentView === 'dashboard' ? 'text-purple-400' : 'text-purple-300/40'
-          }`}
-        >
-          <LayoutGrid size={18} />
-          <span>Home</span>
-        </button>
-        <button
-          onClick={() => setCurrentView('settings')}
-          className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors ${
-            currentView === 'settings' ? 'text-purple-400' : 'text-purple-300/40'
-          }`}
-        >
-          <Settings size={18} />
-          <span>Settings</span>
-        </button>
-        <button
-          onClick={() => triggerToast('Signed out')}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-purple-300/40 hover:text-rose-300 transition-colors"
-        >
-          <LogOut size={18} />
-          <span>Logout</span>
-        </button>
-      </nav>
+            {/* Generator Panel Footer */}
+            <div className="flex items-center justify-between text-xs text-purple-300/50 pt-5 mt-6 border-t border-purple-500/15">
+              <div className="font-medium">Daily: <span className="text-purple-200">50/50 Netflix</span></div>
+              <div className="font-medium">Resets at midnight</div>
+            </div>
+          </section>
 
-      {/* Toast Notification Container */}
+          {/* Panel 2: Generation History Panel */}
+          <section className="glass-ultra rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-2xl">
+            
+            {/* Panel Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                <Clock size={18} />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Generation History</h2>
+                <p className="text-xs text-purple-300/60">Your last 100 generated accounts</p>
+              </div>
+            </div>
+
+            {/* Notice Callout */}
+            <div className="glass-card rounded-2xl p-4 border border-purple-500/20 bg-purple-950/20 flex items-center gap-3 mb-6 text-xs text-purple-200/90">
+              <Info size={16} className="text-purple-400 shrink-0" />
+              <div>
+                History is automatically cleared every 5 days. <strong className="text-white font-semibold">Download or copy anything you want to keep.</strong>
+              </div>
+            </div>
+
+            {/* History Toolbar (Filters & Search) */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-3 flex-1">
+                {/* Type Filter Select */}
+                <div className="relative">
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    className="appearance-none bg-purple-950/40 border border-purple-500/30 rounded-xl px-4 py-2.5 pr-8 text-xs font-medium text-purple-100 focus:outline-none focus:border-purple-400 cursor-pointer min-w-[120px]"
+                  >
+                    <option value="all" className="bg-[#120a24]">All types</option>
+                    <option value="netflix" className="bg-[#120a24]">Netflix</option>
+                    <option value="steam" className="bg-[#120a24]">Steam</option>
+                    <option value="rockstar" className="bg-[#120a24]">Rockstar</option>
+                    <option value="vpn" className="bg-[#120a24]">VPN</option>
+                    <option value="discord" className="bg-[#120a24]">Discord</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
+                </div>
+
+                {/* Search Input */}
+                <div className="relative flex-1 max-w-md">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400/60" />
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full bg-purple-950/40 border border-purple-500/30 rounded-xl pl-9 pr-4 py-2.5 text-xs text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400 transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Download / Copy All Buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const allText = filteredHistory.map((h) => h.dataText).join('\n');
+                    handleCopyText(allText, 'All history copied to clipboard');
+                  }}
+                  className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all"
+                >
+                  <Copy size={14} />
+                  Copy all
+                </button>
+                <button
+                  onClick={handleDownloadHistory}
+                  className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(168,85,247,0.25)]"
+                >
+                  <Download size={14} />
+                  Download
+                </button>
+              </div>
+            </div>
+
+            {/* Account Count Badge */}
+            <div className="text-xs text-purple-300/50 mb-3 font-medium">
+              {filteredHistory.length} account{filteredHistory.length !== 1 ? 's' : ''}
+            </div>
+
+            {/* History Items List */}
+            <div className="space-y-3">
+              {filteredHistory.length === 0 ? (
+                <div className="p-8 text-center text-xs text-purple-300/40 border border-dashed border-purple-500/20 rounded-2xl">
+                  No generation history found.
+                </div>
+              ) : (
+                filteredHistory.map((item) => (
+                  <div
+                    key={item.id}
+                    className="glass-card rounded-2xl p-4 border border-purple-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-purple-500/40 transition-all"
+                  >
+                    <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+                      {/* Icon Avatar */}
+                      <div className="w-10 h-10 rounded-xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center text-white shrink-0 font-bold text-sm">
+                        {item.service[0]}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-white">{item.service}</span>
+                          <span className="text-[11px] text-purple-300/40">{item.date}</span>
+                        </div>
+                        <div className="text-xs text-purple-200/80 font-mono break-all leading-relaxed">
+                          {item.dataText}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleCopyText(item.dataText)}
+                      className="px-4 py-2 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200 font-medium text-xs flex items-center gap-1.5 shrink-0 self-end sm:self-center transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Copy size={13} />
+                      Copy
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      </main>
+
+      {/* Main Site Footer */}
+      <Footer />
+
+      {/* Floating Toast Notification */}
       {toast && (
-        <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 bg-[#1b0d35] border border-purple-500/40 text-purple-100 px-4.5 py-2.5 rounded-xl text-xs font-semibold shadow-[0_0_30px_rgba(139,92,246,0.3)] z-50 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <Sparkles size={14} className="text-purple-400" />
-          <span>{toast}</span>
+        <div className="fixed bottom-6 right-6 z-50 bg-purple-950/90 border border-purple-400/40 text-purple-100 text-xs px-4 py-3 rounded-2xl shadow-[0_0_25px_rgba(168,85,247,0.4)] backdrop-blur-md animate-bounce">
+          {toast}
         </div>
       )}
     </div>
