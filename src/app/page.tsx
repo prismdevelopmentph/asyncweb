@@ -44,7 +44,7 @@ export default async function HomePage() {
         'GoFile cloud storage host link',
         'Discord log audit trail'
       ],
-      href: '/dashboard',
+      href: '/decrypt',
       ctaText: 'Launch Decryptor',
       highlight: false
     },
@@ -62,7 +62,7 @@ export default async function HomePage() {
         'GoFile storage download link',
         'Instant batch zip processing'
       ],
-      href: '/dashboard',
+      href: '/decrypt',
       ctaText: 'Use Mesh Repair',
       highlight: false
     }
@@ -165,7 +165,7 @@ export default async function HomePage() {
           {/* Call to Action Controls */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mx-auto mb-6">
             <Link
-              href="/dashboard"
+              href="/decrypt"
               className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all flex items-center justify-center gap-2 group"
             >
               <span>Decrypt</span>

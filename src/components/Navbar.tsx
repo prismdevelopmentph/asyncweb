@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Sparkles, LogIn, LogOut, User, Key } from 'lucide-react';
+import { Wrench, Sparkles, LogIn, LogOut, User, Key } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Navbar() {
@@ -65,7 +65,7 @@ export default function Navbar() {
 
   const navItems = [
     { name: 'Home', href: '/', icon: Sparkles },
-    { name: 'Decrypt', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Decrypt', href: '/decrypt', icon: Wrench },
     { name: 'Generator', href: '/generator', icon: Key },
   ];
 
