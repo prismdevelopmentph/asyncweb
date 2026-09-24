@@ -23,7 +23,7 @@ import {
   Sparkles
 } from 'lucide-react';
 
-// --- Brand Icon Components matching reference image ---
+// --- Brand Icon Components ---
 const SteamIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.064 0 .125.009.188.012l2.845-4.123v-.058c0-2.36 1.914-4.274 4.273-4.274 2.36 0 4.274 1.914 4.274 4.274 0 2.36-1.914 4.274-4.274 4.274-.08 0-.156-.01-.235-.015l-4.048 2.893c.004.054.01.107.01.161 0 1.884-1.526 3.41-3.41 3.41-1.579 0-2.91-1.074-3.303-2.529L.3 15.282C1.69 20.354 6.402 24 11.979 24c6.627 0 12-5.373 12-12s-5.373-12-12-12zm-3.614 15.651c0-1.026.832-1.858 1.858-1.858s1.858.832 1.858 1.858-.832 1.858-1.858 1.858-1.858-.832-1.858-1.858zm9.324-6.697c-1.328 0-2.404-1.076-2.404-2.404s1.076-2.404 2.404-2.404 2.404 1.076 2.404 2.404-1.076 2.404-2.404 2.404z"/>
@@ -138,15 +138,15 @@ export default function GenPreviewDashboard() {
 
   // Services Data matching reference image exactly
   const services: ServiceItem[] = [
-    { id: 'steam', name: 'Steam', icon: SteamIcon, unlocked: true, leftCount: 15642, color: 'text-[#66c0f4]' },
-    { id: 'discord', name: 'Discord', icon: DiscordIcon, unlocked: true, leftCount: 0, color: 'text-[#5865f2]' },
-    { id: 'rockstar', name: 'Rockstar', icon: RockstarIcon, unlocked: true, leftCount: 9851, color: 'text-[#fcaf17]' },
-    { id: 'vpn', name: 'VPN', icon: VpnIcon, unlocked: true, leftCount: 717, color: 'text-[#10b981]' },
-    { id: 'fortnite', name: 'Fortnite', icon: FortniteIcon, unlocked: true, leftCount: 321, color: 'text-[#a855f7]' },
-    { id: 'netflix', name: 'Netflix', icon: NetflixIcon, unlocked: true, leftCount: 1160, color: 'text-[#e50914]' },
-    { id: 'roblox', name: 'Roblox', icon: RobloxIcon, unlocked: true, leftCount: 172, color: 'text-[#00a2ff]' },
-    { id: 'chatgpt', name: 'ChatGPT', icon: ChatGptIcon, unlocked: true, leftCount: 0, color: 'text-[#10a37f]' },
-    { id: 'gemini', name: 'Gemini', icon: GeminiIcon, unlocked: true, leftCount: 0, color: 'text-[#8e75ff]' }
+    { id: 'steam', name: 'Steam', icon: SteamIcon, unlocked: true, leftCount: 15642, color: 'text-cyan-400' },
+    { id: 'discord', name: 'Discord', icon: DiscordIcon, unlocked: true, leftCount: 0, color: 'text-indigo-400' },
+    { id: 'rockstar', name: 'Rockstar', icon: RockstarIcon, unlocked: true, leftCount: 9851, color: 'text-amber-400' },
+    { id: 'vpn', name: 'VPN', icon: VpnIcon, unlocked: true, leftCount: 717, color: 'text-emerald-400' },
+    { id: 'fortnite', name: 'Fortnite', icon: FortniteIcon, unlocked: true, leftCount: 321, color: 'text-purple-400' },
+    { id: 'netflix', name: 'Netflix', icon: NetflixIcon, unlocked: true, leftCount: 1160, color: 'text-rose-500' },
+    { id: 'roblox', name: 'Roblox', icon: RobloxIcon, unlocked: true, leftCount: 172, color: 'text-blue-400' },
+    { id: 'chatgpt', name: 'ChatGPT', icon: ChatGptIcon, unlocked: true, leftCount: 0, color: 'text-teal-400' },
+    { id: 'gemini', name: 'Gemini', icon: GeminiIcon, unlocked: true, leftCount: 0, color: 'text-violet-400' }
   ];
 
   // Generation History Data
@@ -215,18 +215,22 @@ export default function GenPreviewDashboard() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#0d0f14] text-[#e6edf3] font-sans antialiased selection:bg-purple-500/30 selection:text-purple-200">
+    <div className="relative min-h-screen bg-[#0b0716] text-[#f3f0ff] font-sans antialiased selection:bg-purple-600 selection:text-white overflow-x-hidden">
+      {/* Ambient purple glowing background orbs matching main site theme */}
+      <div className="purple-glow-bg -top-20 left-1/2 -translate-x-1/2 opacity-70 w-[600px] h-[600px]" />
+      <div className="purple-glow-bg bottom-10 right-10 opacity-30" />
+
       {/* Mobile Top Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#131a22]/90 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 z-50">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-[#120a24]/90 backdrop-blur-md border-b border-purple-500/20 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-2.5 font-bold text-base tracking-tight">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md">
-            F
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shadow-lg shadow-purple-500/30">
+            A
           </div>
-          <span>FLK Gen<span className="text-purple-400">.</span></span>
+          <span className="font-extrabold tracking-tight text-white">ASYNC <span className="purple-gradient-text">GEN</span></span>
         </div>
         <button
           onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          className="p-2 rounded-lg bg-[#182028] border border-white/10 text-zinc-300 hover:text-white"
+          className="p-2 rounded-xl bg-purple-950/40 border border-purple-500/20 text-purple-200 hover:text-white"
           aria-label="Toggle Menu"
         >
           {mobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -242,37 +246,37 @@ export default function GenPreviewDashboard() {
           />
         )}
 
-        {/* Sidebar */}
+        {/* Sidebar matching website design */}
         <aside
-          className={`fixed md:sticky top-0 bottom-0 left-0 w-56 bg-[#131a22] border-r border-white/10 flex flex-col justify-between p-4 z-40 transition-transform duration-300 md:translate-x-0 ${
+          className={`fixed md:sticky top-0 bottom-0 left-0 w-60 bg-[#120a24]/90 backdrop-blur-xl border-r border-purple-500/20 flex flex-col justify-between p-4 z-40 transition-transform duration-300 md:translate-x-0 ${
             mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
           }`}
         >
           <div>
             {/* Logo */}
-            <div className="flex items-center gap-2.5 px-2 py-3 mb-6">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-sm shadow-md border border-white/10">
-                F
+            <div className="flex items-center gap-3 px-2 py-3 mb-6">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-extrabold text-base shadow-lg shadow-purple-500/30 border border-purple-400/30">
+                A
               </div>
-              <div className="font-extrabold text-base tracking-tight text-white">
-                FLK Gen<span className="text-purple-400">.</span>
+              <div className="font-extrabold text-lg tracking-tight text-white">
+                ASYNC <span className="purple-gradient-text">GEN</span>
               </div>
             </div>
 
             {/* Navigation links */}
-            <nav className="space-y-1">
+            <nav className="space-y-1.5">
               <button
                 onClick={() => {
                   setCurrentView('dashboard');
                   setMobileSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium text-xs transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all duration-200 ${
                   currentView === 'dashboard'
-                    ? 'bg-white/10 text-white font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-purple-600/20 text-purple-100 border border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.15)] font-semibold'
+                    : 'text-purple-300/60 hover:bg-purple-950/40 hover:text-purple-100'
                 }`}
               >
-                <LayoutGrid size={16} className={currentView === 'dashboard' ? 'text-purple-400' : 'text-zinc-400'} />
+                <LayoutGrid size={17} className={currentView === 'dashboard' ? 'text-purple-400' : 'text-purple-400/60'} />
                 Dashboard
               </button>
 
@@ -281,32 +285,32 @@ export default function GenPreviewDashboard() {
                   setCurrentView('settings');
                   setMobileSidebarOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium text-xs transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-medium text-xs transition-all duration-200 ${
                   currentView === 'settings'
-                    ? 'bg-white/10 text-white font-semibold shadow-sm'
-                    : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-purple-600/20 text-purple-100 border border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.15)] font-semibold'
+                    : 'text-purple-300/60 hover:bg-purple-950/40 hover:text-purple-100'
                 }`}
               >
-                <Settings size={16} className={currentView === 'settings' ? 'text-purple-400' : 'text-zinc-400'} />
+                <Settings size={17} className={currentView === 'settings' ? 'text-purple-400' : 'text-purple-400/60'} />
                 Settings
               </button>
             </nav>
           </div>
 
           {/* User profile footer */}
-          <div className="pt-4 border-t border-white/10 space-y-3">
-            <div className="flex items-center gap-2.5 px-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center font-bold text-white text-xs shadow-md border border-purple-400/40">
+          <div className="pt-4 border-t border-purple-500/15 space-y-3">
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-purple-500/20 border border-purple-400/30">
                 B
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-xs text-white truncate">boks</div>
-                <div className="text-[10px] text-zinc-400 truncate">User</div>
+                <div className="font-bold text-xs text-purple-100 truncate">boks</div>
+                <div className="text-[10px] text-purple-300/50 truncate">User</div>
               </div>
             </div>
             <button
               onClick={() => triggerToast('Signed out')}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-purple-300/60 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
             >
               <LogOut size={14} />
               Log Out
@@ -315,16 +319,16 @@ export default function GenPreviewDashboard() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-4 md:p-8 pt-20 md:pt-8 max-w-6xl mx-auto min-w-0 pb-24 md:pb-12">
+        <main className="flex-1 p-4 md:p-8 pt-20 md:pt-8 max-w-5xl mx-auto min-w-0 pb-24 md:pb-12">
           {/* Header */}
           <div className="flex items-center gap-3.5 mb-6">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center font-bold text-white text-sm ring-2 ring-purple-500/40 shadow-lg">
+            <div className="w-10 h-10 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center font-bold text-white text-sm shadow-[0_0_20px_rgba(168,85,247,0.2)]">
               B
             </div>
             <div>
               <h1 className="text-xl font-extrabold tracking-tight text-white">Welcome back, boks</h1>
-              <p className="text-xs text-zinc-400 flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+              <p className="text-xs text-purple-300/60 flex items-center gap-1.5 mt-0.5 font-light">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400/60" />
                 No active licenses
               </p>
             </div>
@@ -332,25 +336,25 @@ export default function GenPreviewDashboard() {
 
           {/* ================= DASHBOARD VIEW ================= */}
           {currentView === 'dashboard' && (
-            <div className="space-y-5">
-              {/* Panel 1: Generator Panel */}
-              <section className="bg-[#161d25] border border-white/10 rounded-2xl p-5 shadow-xl">
+            <div className="space-y-6">
+              {/* Panel 1: Generator Panel matching screenshot layout with website glassmorphism theme */}
+              <section className="glass-panel rounded-2xl p-6 border border-purple-500/20 shadow-[0_0_30px_rgba(11,7,22,0.37)]">
                 {/* Panel Header */}
                 <div className="flex items-center gap-3 mb-5">
-                  <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300">
-                    <LayoutGrid size={14} />
+                  <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                    <LayoutGrid size={15} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-white">Generator</h2>
-                    <p className="text-[11px] text-zinc-400">Netflix Gen plan · expires Aug 19 2126</p>
+                    <h2 className="text-sm font-bold text-purple-100">Generator</h2>
+                    <p className="text-[11px] text-purple-300/60">Netflix Gen plan · expires Aug 19 2126</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   {/* Callout 1: Add Another Gen */}
-                  <div className="bg-[#1e2833] border border-white/10 rounded-xl p-4">
-                    <div className="text-xs font-bold text-white mb-0.5">Add Another Gen</div>
-                    <p className="text-[11px] text-zinc-400 mb-3">Gen keys and product license keys both work here.</p>
+                  <div className="glass-card rounded-xl p-4 border border-purple-500/20 bg-purple-950/20">
+                    <div className="text-xs font-bold text-purple-100 mb-0.5">Add Another Gen</div>
+                    <p className="text-[11px] text-purple-300/60 mb-3">Gen keys and product license keys both work here.</p>
                     <div className="flex gap-2">
                       <input
                         type="text"
@@ -358,11 +362,11 @@ export default function GenPreviewDashboard() {
                         onChange={(e) => setKeyInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleRedeemKey()}
                         placeholder="XXXX-XXXX-XXXX-XXXX"
-                        className="flex-1 bg-[#0e1319] border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition-colors"
+                        className="flex-1 bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3.5 py-2 text-xs font-mono text-purple-100 placeholder-purple-400/30 focus:outline-none focus:border-purple-400 transition-colors"
                       />
                       <button
                         onClick={handleRedeemKey}
-                        className="px-5 py-2 rounded-lg bg-[#6b8299] hover:bg-[#7a93ac] text-white font-semibold text-xs transition-colors shadow-sm"
+                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all active:scale-95"
                       >
                         Redeem
                       </button>
@@ -376,24 +380,24 @@ export default function GenPreviewDashboard() {
                   </div>
 
                   {/* Callout 2: Need More Generations? */}
-                  <div className="bg-[#1e2833] border border-white/10 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="glass-card rounded-xl p-4 border border-purple-500/20 bg-purple-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <div className="text-xs font-bold text-white mb-0.5">Need More Generations?</div>
-                      <p className="text-[11px] text-zinc-400">
-                        Pay with card via Stripe and <strong className="text-zinc-200">50 extra generations</strong> are added to your limit. They never expire and are used once your daily limit runs out.
+                      <div className="text-xs font-bold text-purple-100 mb-0.5">Need More Generations?</div>
+                      <p className="text-[11px] text-purple-300/60">
+                        Pay with card via Stripe and <strong className="text-purple-200">50 extra generations</strong> are added to your limit. They never expire and are used once your daily limit runs out.
                       </p>
                     </div>
                     <button
                       onClick={() => triggerToast('Redirecting to Stripe checkout...')}
-                      className="px-4 py-2 rounded-lg bg-[#6b8299] hover:bg-[#7a93ac] text-white font-semibold text-xs flex items-center gap-2 whitespace-nowrap self-start sm:self-auto shadow-sm"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs flex items-center gap-2 whitespace-nowrap self-start sm:self-auto shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all"
                     >
                       <CreditCard size={14} />
                       Buy 50 Gens
                     </button>
                   </div>
 
-                  {/* Horizontal Grid of Service Cards */}
-                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2 pt-2">
+                  {/* Horizontal Grid of 9 Service Cards */}
+                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2.5 pt-2">
                     {services.map((svc) => {
                       const IconComp = svc.icon;
                       const isOutOfStock = svc.leftCount === 0;
@@ -407,17 +411,19 @@ export default function GenPreviewDashboard() {
                               triggerToast(`Generated ${svc.name} Account!`);
                             }
                           }}
-                          className={`bg-[#1e2833] border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center text-center transition-all hover:bg-[#243039] hover:border-white/20 active:scale-95 group relative ${
-                            isOutOfStock ? 'opacity-60' : ''
+                          className={`glass-card p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all duration-200 group relative ${
+                            isOutOfStock
+                              ? 'border-purple-500/10 opacity-50 hover:bg-purple-950/20'
+                              : 'border-purple-500/20 hover:border-purple-500/50 hover:bg-purple-900/30 hover:-translate-y-1'
                           }`}
                         >
-                          <div className={`w-9 h-9 rounded-lg bg-[#161d25] border border-white/10 flex items-center justify-center mb-2 ${svc.color}`}>
+                          <div className={`w-9 h-9 rounded-xl bg-purple-950/60 border border-purple-500/20 flex items-center justify-center mb-2 ${svc.color}`}>
                             <IconComp className="w-4 h-4" />
                           </div>
-                          <div className="text-[11px] font-medium text-zinc-200 group-hover:text-white transition-colors truncate w-full">
+                          <div className="text-[11px] font-medium text-purple-100 group-hover:text-white transition-colors truncate w-full">
                             {svc.name}
                           </div>
-                          <div className={`text-[10px] mt-0.5 font-medium ${isOutOfStock ? 'text-rose-500 font-semibold' : 'text-zinc-400'}`}>
+                          <div className={`text-[10px] mt-0.5 font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-purple-300/50'}`}>
                             {isOutOfStock ? '0 left' : `${svc.leftCount} left`}
                           </div>
                         </button>
@@ -427,30 +433,30 @@ export default function GenPreviewDashboard() {
                 </div>
 
                 {/* Generator Panel Footer */}
-                <div className="flex items-center justify-between text-[11px] text-zinc-400 pt-4 mt-4 border-t border-white/10">
+                <div className="flex items-center justify-between text-[11px] text-purple-300/50 pt-4 mt-4 border-t border-purple-500/15">
                   <div>Daily: 50/50 Netflix</div>
                   <div>Resets at midnight</div>
                 </div>
               </section>
 
-              {/* Panel 2: Generation History Panel */}
-              <section className="bg-[#161d25] border border-white/10 rounded-2xl p-5 shadow-xl">
+              {/* Panel 2: Generation History Panel matching screenshot layout */}
+              <section className="glass-panel rounded-2xl p-6 border border-purple-500/20 shadow-[0_0_30px_rgba(11,7,22,0.37)]">
                 {/* Panel Header */}
                 <div className="flex items-center gap-3 mb-5">
-                  <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300">
-                    <Clock size={14} />
+                  <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                    <Clock size={15} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-white">Generation History</h2>
-                    <p className="text-[11px] text-zinc-400">Your last 100 generated accounts</p>
+                    <h2 className="text-sm font-bold text-purple-100">Generation History</h2>
+                    <p className="text-[11px] text-purple-300/60">Your last 100 generated accounts</p>
                   </div>
                 </div>
 
                 {/* Notice callout */}
-                <div className="bg-[#1e2833] border border-white/10 rounded-xl p-3.5 flex items-center gap-2.5 mb-4 text-xs text-zinc-300">
-                  <Info size={15} className="text-zinc-400 flex-shrink-0" />
+                <div className="glass-card rounded-xl p-3.5 border border-purple-500/20 bg-purple-950/20 flex items-center gap-2.5 mb-4 text-xs text-purple-200/80">
+                  <Info size={15} className="text-purple-400 flex-shrink-0" />
                   <span>
-                    History is automatically cleared every 5 days. <strong className="text-white">Download or copy anything you want to keep.</strong>
+                    History is automatically cleared every 5 days. <strong className="text-purple-100">Download or copy anything you want to keep.</strong>
                   </span>
                 </div>
 
@@ -460,15 +466,15 @@ export default function GenPreviewDashboard() {
                     <select
                       value={typeFilter}
                       onChange={(e) => setTypeFilter(e.target.value)}
-                      className="w-full sm:w-36 bg-[#0e1319] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-purple-500 appearance-none pr-8 cursor-pointer"
+                      className="w-full sm:w-36 bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-1.5 text-xs text-purple-100 focus:outline-none focus:border-purple-400 appearance-none pr-8 cursor-pointer"
                     >
-                      <option value="all">All types</option>
-                      <option value="netflix">Netflix</option>
-                      <option value="steam">Steam</option>
-                      <option value="rockstar">Rockstar</option>
-                      <option value="vpn">VPN</option>
+                      <option value="all" className="bg-[#0b0716] text-purple-100">All types</option>
+                      <option value="netflix" className="bg-[#0b0716] text-purple-100">Netflix</option>
+                      <option value="steam" className="bg-[#0b0716] text-purple-100">Steam</option>
+                      <option value="rockstar" className="bg-[#0b0716] text-purple-100">Rockstar</option>
+                      <option value="vpn" className="bg-[#0b0716] text-purple-100">VPN</option>
                     </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-2.5 text-zinc-400 pointer-events-none" />
+                    <ChevronDown size={14} className="absolute right-2.5 top-2.5 text-purple-400/50 pointer-events-none" />
                   </div>
 
                   <div className="relative flex-1">
@@ -477,20 +483,20 @@ export default function GenPreviewDashboard() {
                       value={historySearch}
                       onChange={(e) => setHistorySearch(e.target.value)}
                       placeholder="Search..."
-                      className="w-full bg-[#0e1319] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+                      className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3.5 py-1.5 text-xs text-purple-100 placeholder-purple-400/30 focus:outline-none focus:border-purple-400"
                     />
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleCopyText(filteredHistory.map((h) => h.dataText).join('\n'), 'All history copied to clipboard')}
-                      className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg bg-[#1e2833] border border-white/10 text-zinc-300 hover:text-white hover:bg-[#243039] text-xs font-semibold transition-colors"
+                      className="flex-1 sm:flex-none px-4 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-200 hover:text-white hover:bg-purple-900/40 text-xs font-semibold transition-colors"
                     >
                       Copy all
                     </button>
                     <button
                       onClick={() => triggerToast('Downloading history.txt file...')}
-                      className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg bg-[#6b8299] hover:bg-[#7a93ac] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                      className="flex-1 sm:flex-none px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                     >
                       <Download size={13} />
                       Download
@@ -499,7 +505,7 @@ export default function GenPreviewDashboard() {
                 </div>
 
                 {/* History Header Count */}
-                <div className="text-[11px] text-zinc-400 mb-2 font-medium">
+                <div className="text-[11px] text-purple-300/50 mb-2 font-medium">
                   {filteredHistory.length} accounts
                 </div>
 
@@ -509,10 +515,10 @@ export default function GenPreviewDashboard() {
                     filteredHistory.map((item) => (
                       <div
                         key={item.id}
-                        className="bg-[#1e2833] border border-white/10 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/20 transition-all"
+                        className="glass-card rounded-xl p-3 border border-purple-500/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-purple-500/35 transition-all"
                       >
                         <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
-                          <div className="w-8 h-8 rounded-lg bg-[#161d25] border border-white/10 flex items-center justify-center text-rose-500 flex-shrink-0 mt-0.5 sm:mt-0">
+                          <div className="w-8 h-8 rounded-xl bg-purple-950/60 border border-purple-500/20 flex items-center justify-center text-rose-500 flex-shrink-0 mt-0.5 sm:mt-0">
                             {item.service === 'Netflix' ? (
                               <NetflixIcon className="w-4 h-4" />
                             ) : item.service === 'Steam' ? (
@@ -523,24 +529,24 @@ export default function GenPreviewDashboard() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-white">{item.service}</span>
-                              <span className="text-[10px] text-zinc-400 font-mono">{item.date}</span>
+                              <span className="font-bold text-xs text-purple-100">{item.service}</span>
+                              <span className="text-[10px] text-purple-300/40 font-mono">{item.date}</span>
                             </div>
-                            <div className="text-[11px] text-zinc-300 font-mono mt-0.5 truncate select-all">
+                            <div className="text-[11px] text-purple-200/90 font-mono mt-0.5 truncate select-all">
                               {item.dataText}
                             </div>
                           </div>
                         </div>
                         <button
                           onClick={() => handleCopyText(item.dataText)}
-                          className="px-3 py-1 rounded-lg bg-[#161d25] border border-white/10 text-zinc-300 hover:text-white hover:bg-white/10 text-xs font-medium self-end sm:self-auto transition-colors"
+                          className="px-3.5 py-1 rounded-lg bg-purple-950/50 border border-purple-500/25 text-purple-200 hover:text-white hover:bg-purple-900/50 text-xs font-medium self-end sm:self-auto transition-colors"
                         >
                           Copy
                         </button>
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-xs text-zinc-500 bg-[#1e2833]/50 rounded-xl border border-white/5">
+                    <div className="text-center py-8 text-xs text-purple-300/40 glass-card rounded-xl border border-purple-500/10">
                       No matching account history found.
                     </div>
                   )}
@@ -553,24 +559,24 @@ export default function GenPreviewDashboard() {
           {currentView === 'settings' && (
             <div className="space-y-6">
               <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-300">
+                <div className="w-10 h-10 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
                   <Settings size={20} />
                 </div>
                 <div>
                   <h1 className="text-xl font-extrabold tracking-tight text-white">Settings</h1>
-                  <p className="text-xs text-zinc-400">Manage your preferences and API keys</p>
+                  <p className="text-xs text-purple-300/60">Manage your preferences and API keys</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 border-b border-white/10 pb-1">
+              <div className="flex items-center gap-1 border-b border-purple-500/15 pb-1">
                 {(['account', 'security', 'appearance', 'api', 'system'] as SettingsTab[]).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setSettingsTab(tab)}
-                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${
                       settingsTab === tab
-                        ? 'bg-white/10 text-white shadow-sm'
-                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                        ? 'bg-purple-600/20 text-purple-100 border border-purple-500/40 shadow-sm'
+                        : 'text-purple-300/50 hover:text-purple-200 hover:bg-purple-950/30'
                     }`}
                   >
                     {tab}
@@ -580,29 +586,29 @@ export default function GenPreviewDashboard() {
 
               <div className="max-w-xl">
                 {settingsTab === 'account' && (
-                  <div className="bg-[#161d25] border border-white/10 rounded-2xl p-5 space-y-4">
-                    <h2 className="text-xs font-bold text-white uppercase tracking-wider text-zinc-400">Account Details</h2>
+                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
+                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">Account Details</h2>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-medium text-zinc-400 mb-1">Display Name</label>
+                        <label className="block text-xs font-medium text-purple-300/70 mb-1">Display Name</label>
                         <input
                           type="text"
                           defaultValue="boks"
-                          className="w-full bg-[#0e1319] border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
+                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-zinc-400 mb-1">Email</label>
+                        <label className="block text-xs font-medium text-purple-300/70 mb-1">Email</label>
                         <input
                           type="email"
                           defaultValue="boks@example.com"
-                          className="w-full bg-[#0e1319] border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
+                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
                         />
                       </div>
                     </div>
                     <button
                       onClick={() => triggerToast('Changes saved')}
-                      className="px-4 py-2 rounded-lg bg-[#6b8299] hover:bg-[#7a93ac] text-white font-semibold text-xs transition-colors"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)]"
                     >
                       Save changes
                     </button>
@@ -610,29 +616,29 @@ export default function GenPreviewDashboard() {
                 )}
 
                 {settingsTab === 'security' && (
-                  <div className="bg-[#161d25] border border-white/10 rounded-2xl p-5 space-y-4">
-                    <h2 className="text-xs font-bold text-white uppercase tracking-wider text-zinc-400">Change Password</h2>
+                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
+                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">Change Password</h2>
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs font-medium text-zinc-400 mb-1">Current Password</label>
+                        <label className="block text-xs font-medium text-purple-300/70 mb-1">Current Password</label>
                         <input
                           type="password"
                           placeholder="••••••••"
-                          className="w-full bg-[#0e1319] border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
+                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-zinc-400 mb-1">New Password</label>
+                        <label className="block text-xs font-medium text-purple-300/70 mb-1">New Password</label>
                         <input
                           type="password"
                           placeholder="••••••••"
-                          className="w-full bg-[#0e1319] border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-purple-500"
+                          className="w-full bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs text-purple-100 focus:outline-none focus:border-purple-400"
                         />
                       </div>
                     </div>
                     <button
                       onClick={() => triggerToast('Password updated')}
-                      className="px-4 py-2 rounded-lg bg-[#6b8299] hover:bg-[#7a93ac] text-white font-semibold text-xs transition-colors"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-[0_0_15px_rgba(139,92,246,0.3)]"
                     >
                       Update password
                     </button>
@@ -640,9 +646,9 @@ export default function GenPreviewDashboard() {
                 )}
 
                 {settingsTab === 'appearance' && (
-                  <div className="bg-[#161d25] border border-white/10 rounded-2xl p-5 space-y-4">
-                    <h2 className="text-xs font-bold text-white uppercase tracking-wider text-zinc-400">Accent Color</h2>
-                    <p className="text-xs text-zinc-400">Pick the highlight color used across the dashboard.</p>
+                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
+                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">Accent Color</h2>
+                    <p className="text-xs text-purple-300/60">Pick the highlight color used across the dashboard.</p>
                     <div className="flex items-center gap-2.5">
                       {accentSwatches.map((swatch) => (
                         <button
@@ -662,26 +668,26 @@ export default function GenPreviewDashboard() {
                 )}
 
                 {settingsTab === 'api' && (
-                  <div className="bg-[#161d25] border border-white/10 rounded-2xl p-5 space-y-4">
-                    <h2 className="text-xs font-bold text-white uppercase tracking-wider text-zinc-400">API Access</h2>
-                    <p className="text-xs text-zinc-400">Use this secret key to authenticate requests. Keep it secret.</p>
+                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-4">
+                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">API Access</h2>
+                    <p className="text-xs text-purple-300/60">Use this secret key to authenticate requests. Keep it secret.</p>
                     <div className="flex gap-2">
                       <input
                         type={showApiKey ? 'text' : 'password'}
                         value={apiKey}
                         readOnly
-                        className="flex-1 bg-[#0e1319] border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 focus:outline-none"
+                        className="flex-1 bg-[#0b0716]/80 border border-purple-500/30 rounded-xl px-3 py-2 text-xs font-mono text-purple-100 focus:outline-none"
                       />
                       <button
                         onClick={() => setShowApiKey(!showApiKey)}
-                        className="px-3 py-1.5 rounded-lg bg-[#1e2833] border border-white/10 text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-200 hover:text-white text-xs font-medium flex items-center gap-1.5"
                       >
                         {showApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
                         {showApiKey ? 'Hide' : 'Reveal'}
                       </button>
                       <button
                         onClick={() => handleCopyText(apiKey, 'API Key copied to clipboard')}
-                        className="px-3 py-1.5 rounded-lg bg-[#1e2833] border border-white/10 text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-200 hover:text-white text-xs font-medium flex items-center gap-1.5"
                       >
                         <Copy size={13} />
                         Copy
@@ -689,7 +695,7 @@ export default function GenPreviewDashboard() {
                     </div>
                     <button
                       onClick={handleRotateApiKey}
-                      className="px-3.5 py-1.5 rounded-lg border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                      className="px-3.5 py-1.5 rounded-xl border border-rose-500/30 text-rose-300 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition-colors"
                     >
                       <RefreshCw size={13} />
                       Rotate key
@@ -698,24 +704,24 @@ export default function GenPreviewDashboard() {
                 )}
 
                 {settingsTab === 'system' && (
-                  <div className="bg-[#161d25] border border-white/10 rounded-2xl p-5 space-y-3">
-                    <h2 className="text-xs font-bold text-white uppercase tracking-wider text-zinc-400">System Information</h2>
-                    <div className="divide-y divide-white/5 text-xs">
+                  <div className="glass-panel rounded-2xl p-5 border border-purple-500/20 space-y-3">
+                    <h2 className="text-xs font-bold text-purple-200 uppercase tracking-wider">System Information</h2>
+                    <div className="divide-y divide-purple-500/10 text-xs">
                       <div className="flex justify-between py-2">
-                        <span className="text-zinc-400">Version</span>
-                        <span className="font-mono text-zinc-200">2.4.1</span>
+                        <span className="text-purple-300/60">Version</span>
+                        <span className="font-mono text-purple-100">2.4.1</span>
                       </div>
                       <div className="flex justify-between py-2">
-                        <span className="text-zinc-400">Plan</span>
-                        <span className="font-mono text-zinc-200">Standard</span>
+                        <span className="text-purple-300/60">Plan</span>
+                        <span className="font-mono text-purple-100">Standard</span>
                       </div>
                       <div className="flex justify-between py-2">
-                        <span className="text-zinc-400">Region</span>
-                        <span className="font-mono text-zinc-200">eu-central</span>
+                        <span className="text-purple-300/60">Region</span>
+                        <span className="font-mono text-purple-100">eu-central</span>
                       </div>
                       <div className="flex justify-between py-2">
-                        <span className="text-zinc-400">Member since</span>
-                        <span className="font-mono text-zinc-200">2024-11-02</span>
+                        <span className="text-purple-300/60">Member since</span>
+                        <span className="font-mono text-purple-100">2024-11-02</span>
                       </div>
                     </div>
                   </div>
@@ -727,11 +733,11 @@ export default function GenPreviewDashboard() {
       </div>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#131a22] border-t border-white/10 flex items-center justify-around px-2 z-40">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#120a24]/95 backdrop-blur-xl border-t border-purple-500/20 flex items-center justify-around px-2 z-40">
         <button
           onClick={() => setCurrentView('dashboard')}
           className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors ${
-            currentView === 'dashboard' ? 'text-purple-400' : 'text-zinc-400'
+            currentView === 'dashboard' ? 'text-purple-400' : 'text-purple-300/40'
           }`}
         >
           <LayoutGrid size={18} />
@@ -740,7 +746,7 @@ export default function GenPreviewDashboard() {
         <button
           onClick={() => setCurrentView('settings')}
           className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-colors ${
-            currentView === 'settings' ? 'text-purple-400' : 'text-zinc-400'
+            currentView === 'settings' ? 'text-purple-400' : 'text-purple-300/40'
           }`}
         >
           <Settings size={18} />
@@ -748,7 +754,7 @@ export default function GenPreviewDashboard() {
         </button>
         <button
           onClick={() => triggerToast('Signed out')}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-zinc-400 hover:text-rose-400 transition-colors"
+          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-purple-300/40 hover:text-rose-300 transition-colors"
         >
           <LogOut size={18} />
           <span>Logout</span>
@@ -757,7 +763,7 @@ export default function GenPreviewDashboard() {
 
       {/* Toast Notification Container */}
       {toast && (
-        <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 bg-[#243039] border border-white/15 text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl z-50 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 bg-[#1b0d35] border border-purple-500/40 text-purple-100 px-4.5 py-2.5 rounded-xl text-xs font-semibold shadow-[0_0_30px_rgba(139,92,246,0.3)] z-50 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200">
           <Sparkles size={14} className="text-purple-400" />
           <span>{toast}</span>
         </div>
