@@ -65,7 +65,7 @@ export default function Navbar() {
 
   const navItems = [
     { name: 'Home', href: '/', icon: Sparkles },
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Decrypt', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Generator', href: '/generator', icon: Key },
   ];
 

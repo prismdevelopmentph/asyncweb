@@ -409,7 +409,7 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                  Async Dashboard
+                  Async Decryptor
                 </h1>
               </div>
               <p className="text-xs text-purple-300/60 font-medium">
