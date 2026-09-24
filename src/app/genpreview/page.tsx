@@ -28,7 +28,12 @@ import {
   Layers,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Gamepad2,
+  MessageSquare,
+  Flame,
+  Tv,
+  Globe
 } from 'lucide-react';
 
 // --- Types ---
@@ -88,26 +93,23 @@ export default function GenPreviewDashboard() {
     }, 3000);
   };
 
-  // Modules Data
+  // Services Data (Account Generator Services)
   const modules: ModuleItem[] = [
-    { id: '1', name: 'Lua Decrypt', icon: FileCode, unlocked: true, remaining: 'Unlimited', color: 'text-purple-400' },
-    { id: '2', name: 'Asset Dumper', icon: Box, unlocked: true, remaining: '14 left today', color: 'text-indigo-400' },
-    { id: '3', name: 'NUI Clean', icon: Code2, unlocked: true, remaining: '50 credits', color: 'text-cyan-400' },
-    { id: '4', name: 'Lua Protect', icon: Shield, unlocked: true, remaining: 'Unlimited', color: 'text-emerald-400' },
-    { id: '5', name: 'Code Fixer', icon: Zap, unlocked: true, remaining: '8 left today', color: 'text-amber-400' },
-    { id: '6', name: 'Acc Gen', icon: Sparkles, unlocked: true, remaining: '5/5 claimed', color: 'text-pink-400' },
-    { id: '7', name: 'MLO Restorer', icon: Layers, unlocked: false, remaining: 'Pro Only', color: 'text-zinc-500' },
-    { id: '8', name: '3D Mesh Tool', icon: Box, unlocked: false, remaining: 'Pro Only', color: 'text-zinc-500' },
-    { id: '9', name: 'Enterprise API', icon: Cpu, unlocked: false, remaining: 'Enterprise', color: 'text-zinc-500' }
+    { id: '1', name: 'Steam', icon: Gamepad2, unlocked: true, remaining: '24 in stock', color: 'text-cyan-400' },
+    { id: '2', name: 'Discord', icon: MessageSquare, unlocked: true, remaining: '50 in stock', color: 'text-indigo-400' },
+    { id: '3', name: 'Rockstar', icon: Flame, unlocked: true, remaining: '8 in stock', color: 'text-amber-400' },
+    { id: '4', name: 'Netflix', icon: Tv, unlocked: true, remaining: '15 in stock', color: 'text-rose-400' },
+    { id: '5', name: 'VPN', icon: Globe, unlocked: true, remaining: '30 in stock', color: 'text-emerald-400' },
+    { id: '6', name: 'Spotify Premium', icon: Sparkles, unlocked: false, remaining: 'Out of stock', color: 'text-zinc-500' }
   ];
 
   // Activity Log Data
   const activities: ActivityItem[] = [
-    { id: 'act-1', time: '14:22:05', module: 'Acc Gen', status: 'Success', details: 'Claimed Account #40293' },
-    { id: 'act-2', time: '13:50:11', module: 'Lua Decrypt', status: 'Success', details: 'Decrypted jg-mechanic.zip' },
-    { id: 'act-3', time: '12:15:40', module: 'Asset Dumper', status: 'Success', details: 'Extracted 114 assets' },
-    { id: 'act-4', time: '11:04:19', module: 'NUI Clean', status: 'Processing', details: 'Formatting bundle.js' },
-    { id: 'act-5', time: '09:30:00', module: 'Lua Protect', status: 'Success', details: 'Obfuscated client.lua' }
+    { id: 'act-1', time: '14:22:05', module: 'Steam', status: 'Success', details: 'Claimed Account #40293' },
+    { id: 'act-2', time: '13:50:11', module: 'Discord', status: 'Success', details: 'Claimed Nitro Account #1102' },
+    { id: 'act-3', time: '12:15:40', module: 'Rockstar', status: 'Success', details: 'Claimed GTA V License #8821' },
+    { id: 'act-4', time: '11:04:19', module: 'VPN', status: 'Success', details: 'Claimed ExpressVPN #302' },
+    { id: 'act-5', time: '09:30:00', module: 'Netflix', status: 'Success', details: 'Claimed Premium Account #094' }
   ];
 
   // Filtered Activities
@@ -303,8 +305,8 @@ export default function GenPreviewDashboard() {
                         <Box size={16} />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-white">Modules & Services</h2>
-                        <p className="text-xs text-purple-300/50">Standard Plan · 6 of 9 unlocked</p>
+                        <h2 className="text-base font-bold text-white">Account Services</h2>
+                        <p className="text-xs text-purple-300/50">Select a service to generate or claim an account</p>
                       </div>
                     </div>
 
