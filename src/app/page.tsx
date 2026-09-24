@@ -4,96 +4,256 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import DiscordLoginButton from '@/components/DiscordLoginButton';
 import { createClient } from '@/lib/supabase-server';
-import { Shield, Sparkles, ArrowRight, Activity, Cpu, Wrench, Lock } from 'lucide-react';
+import { Shield, Sparkles, ArrowRight, Activity, Cpu, Wrench, Key, Check, Zap, Cloud } from 'lucide-react';
 
 export default async function HomePage() {
   const supabaseServer = await createClient();
   const { data: { user } } = await supabaseServer.auth.getUser();
 
+  const toolPricing = [
+    {
+      id: 'generator',
+      name: 'Account Generator',
+      badge: 'POPULAR FEATURE',
+      icon: Key,
+      price: '$0',
+      period: '/ free for now',
+      description: 'Instant multi-service account generation and key management suite.',
+      features: [
+        'Steam, Discord, Rockstar, VPN & Netflix',
+        'Real-time automated stock tracking',
+        'Instant key redemption system',
+        'Personal 5-day generation history log'
+      ],
+      href: '/generator',
+      ctaText: 'Open Generator',
+      highlight: true
+    },
+    {
+      id: 'decryption',
+      name: 'Lua Script Decryptor',
+      badge: 'CORE ENGINE',
+      icon: Cpu,
+      price: '$0',
+      period: '/ free for now',
+      description: 'High-speed automated FiveM Lua script unpacking and deobfuscation.',
+      features: [
+        'Lua 5.4 & bytecode deobfuscation',
+        'Instant pipeline execution',
+        'GoFile cloud storage host link',
+        'Discord log audit trail'
+      ],
+      href: '/dashboard',
+      ctaText: 'Launch Decryptor',
+      highlight: false
+    },
+    {
+      id: 'mesh-repair',
+      name: '3D Mesh & Vertex Repair',
+      badge: 'PRO TOOL',
+      icon: Wrench,
+      price: '$0',
+      period: '/ free for now',
+      description: 'Corrupted 3D mesh geometry repair and FiveM asset reconstruction.',
+      features: [
+        'Automated vertex normal fixing',
+        'Polygon mesh clean-up pipeline',
+        'GoFile storage download link',
+        'Instant batch zip processing'
+      ],
+      href: '/dashboard',
+      ctaText: 'Use Mesh Repair',
+      highlight: false
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden">
       <Navbar />
 
-      {/* Ambient glowing orbs */}
+      {/* Ambient glowing background orbs */}
       <div className="purple-glow-bg -top-20 left-1/2 -translate-x-1/2 opacity-70 w-[600px] h-[600px]"></div>
-      <div className="purple-glow-bg bottom-10 right-10 opacity-30"></div>
+      <div className="purple-glow-bg top-1/2 right-10 opacity-30"></div>
 
-      <main className="flex-1 max-w-5xl mx-auto px-4 lg:px-8 py-16 sm:py-24 flex flex-col items-center justify-center text-center relative z-10">
+      <main className="flex-1 max-w-6xl mx-auto px-4 lg:px-8 py-12 sm:py-20 flex flex-col items-center justify-center text-center relative z-10 space-y-20">
         
-        {/* Status Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card border border-purple-500/30 text-purple-300 text-xs font-mono mb-8 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>ONLINE • DISCORD BOT & WEB PIPELINE</span>
+        {/* HERO SECTION */}
+        <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+          {/* Status Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card border border-purple-500/30 text-purple-300 text-xs font-mono mb-8 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>ONLINE • DECRYPTION, MESH REPAIR & ACCOUNT GENERATOR</span>
+          </div>
+
+          {/* Brand Logo */}
+          <div className="relative w-28 h-28 sm:w-36 sm:h-36 mx-auto mb-8 rounded-3xl overflow-hidden glass-panel-glow border-2 border-purple-500/40 p-1.5 shadow-[0_0_60px_rgba(168,85,247,0.35)] transform hover:scale-105 transition-all duration-300">
+            <Image
+              src="/images/Profile.png"
+              alt="ASYNC DEVELOPMENT"
+              fill
+              className="object-cover rounded-2xl"
+              priority
+            />
+          </div>
+
+          {/* Hero Title */}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight mb-6 leading-tight">
+            ASYNC <span className="purple-gradient-text">DEVELOPMENT</span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="max-w-2xl mx-auto text-purple-200/80 text-base sm:text-lg mb-10 leading-relaxed font-light">
+            High-performance FiveM asset recovery, Lua script decryption, 3D vertex reconstruction, and multi-service Account Generator portal. Connect with Discord to access all tools.
+          </p>
+
+          {/* Call to Action Controls */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto mb-6">
+            {user ? (
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full">
+                <Link
+                  href="/dashboard"
+                  className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all flex items-center justify-center gap-2 group"
+                >
+                  <span>Dashboard</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <Link
+                  href="/generator"
+                  className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-purple-950/80 hover:bg-purple-900/80 border border-purple-500/40 text-purple-100 font-bold text-sm shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-all flex items-center justify-center gap-2"
+                >
+                  <Key className="w-4 h-4 text-purple-400" />
+                  <span>Generator</span>
+                </Link>
+              </div>
+            ) : (
+              <DiscordLoginButton size="lg" className="w-full sm:w-auto" />
+            )}
+          </div>
         </div>
 
-        {/* Brand Logo */}
-        <div className="relative w-28 h-28 sm:w-36 sm:h-36 mx-auto mb-8 rounded-3xl overflow-hidden glass-panel-glow border-2 border-purple-500/40 p-1.5 shadow-[0_0_60px_rgba(168,85,247,0.35)] transform hover:scale-105 transition-all duration-300">
-          <Image
-            src="/images/Profile.png"
-            alt="ASYNC DEVELOPMENT"
-            fill
-            className="object-cover rounded-2xl"
-            priority
-          />
-        </div>
-
-        {/* Hero Title */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight mb-6 leading-tight">
-          ASYNC <span className="purple-gradient-text">DEVELOPMENT</span>
-        </h1>
-
-        {/* Subtitle */}
-        <p className="max-w-2xl mx-auto text-purple-200/80 text-base sm:text-lg mb-10 leading-relaxed font-light">
-          High-performance asset recovery, FiveM Lua decryption, and 3D vertex reconstruction portal. Sign in with Discord to access your personal dashboard and files.
-        </p>
-
-        {/* Call to Action Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto mb-16">
-          {user ? (
-            <Link
-              href="/dashboard"
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-base shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all flex items-center justify-center gap-2 group"
-            >
-              <span>Go to Dashboard</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          ) : (
-            <DiscordLoginButton size="lg" className="w-full sm:w-auto" />
-          )}
-        </div>
-
-        {/* Clean Features Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-3xl">
-          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5">
+        {/* 4 CORE FEATURES SUMMARY */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
             <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
-              <Cpu className="w-5 h-5" />
+              <Key className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-purple-100">Account Generator</h3>
+              <p className="text-xs text-purple-300/70 mt-0.5">Steam, Discord, Rockstar, VPN & Netflix stock gen</p>
+            </div>
+          </div>
+
+          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
+            <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
+              <Cpu className="w-5 h-5 text-purple-400" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-purple-100">Lua Decryption</h3>
-              <p className="text-xs text-purple-300/70 mt-0.5">Automated script unpacking and deobfuscation</p>
+              <p className="text-xs text-purple-300/70 mt-0.5">Automated script unpacking & bytecode deobfuscation</p>
             </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5">
+          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
             <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
-              <Wrench className="w-5 h-5" />
+              <Wrench className="w-5 h-5 text-purple-400" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-purple-100">Vertex Repair</h3>
-              <p className="text-xs text-purple-300/70 mt-0.5">3D geometry reconstruction & corrupted mesh fix</p>
+              <p className="text-xs text-purple-300/70 mt-0.5">3D geometry reconstruction & mesh repair engine</p>
             </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5">
+          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
             <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
-              <Shield className="w-5 h-5" />
+              <Shield className="w-5 h-5 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-purple-100">Role & Cloud Sync</h3>
-              <p className="text-xs text-purple-300/70 mt-0.5">Instant Discord role perks & personal file storage</p>
+              <h3 className="text-sm font-bold text-purple-100">Discord OAuth</h3>
+              <p className="text-xs text-purple-300/70 mt-0.5">Instant role verification & cloud sync security</p>
             </div>
           </div>
         </div>
+
+        {/* TOOLS & PRICING LIST SECTION */}
+        <section className="w-full pt-6">
+          <div className="text-center max-w-xl mx-auto mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-xs font-mono mb-3">
+              <Zap className="w-3.5 h-3.5 text-purple-400" />
+              <span>TOOLS PRICING & ACCESS</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Tools & Features List
+            </h2>
+            <p className="text-purple-300/60 text-sm mt-2">
+              All tools are currently enabled for free testing and Discord role holders.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            {toolPricing.map((tool) => {
+              const IconComp = tool.icon;
+              return (
+                <div
+                  key={tool.id}
+                  className={`glass-ultra rounded-3xl p-6 sm:p-7 border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                    tool.highlight
+                      ? 'border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-purple-900/20 shadow-[0_0_35px_rgba(168,85,247,0.2)] scale-[1.02]'
+                      : 'border-white/[0.08] hover:border-purple-500/30'
+                  }`}
+                >
+                  <div>
+                    {/* Badge */}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-md bg-purple-900/60 border border-purple-500/30 text-purple-300 font-bold">
+                        {tool.badge}
+                      </span>
+                      <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                        <IconComp className="w-5 h-5 text-purple-400" />
+                      </div>
+                    </div>
+
+                    {/* Tool Name */}
+                    <h3 className="text-xl font-bold text-white mb-1">{tool.name}</h3>
+                    <p className="text-xs text-purple-300/60 mb-6 leading-relaxed">
+                      {tool.description}
+                    </p>
+
+                    {/* Price Header ($0 for now) */}
+                    <div className="flex items-baseline gap-1 mb-6 pb-6 border-b border-purple-500/15">
+                      <span className="text-4xl font-black text-white">{tool.price}</span>
+                      <span className="text-xs text-purple-300/50 font-mono">{tool.period}</span>
+                    </div>
+
+                    {/* Features List */}
+                    <div className="space-y-3 mb-8">
+                      {tool.features.map((feat, idx) => (
+                        <div key={idx} className="flex items-start gap-2.5 text-xs text-purple-200/90">
+                          <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                            <Check size={10} />
+                          </div>
+                          <span>{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Action Link Button */}
+                  <Link
+                    href={tool.href}
+                    className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                      tool.highlight
+                        ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                        : 'bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200'
+                    }`}
+                  >
+                    <span>{tool.ctaText}</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
       </main>
 
