@@ -218,7 +218,7 @@ export default function GenPreviewDashboard() {
       <Navbar />
 
       {/* Main Workspace Canvas aligned with /dashboard */}
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16">
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
         
         {/* Top Floating Status Ribbon */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 glass-ultra rounded-2xl p-4 sm:p-5 border border-white/[0.08] shadow-2xl">

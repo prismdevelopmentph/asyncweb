@@ -131,7 +131,7 @@ export default async function HomePage() {
       <div className="purple-glow-bg -top-20 left-1/2 -translate-x-1/2 opacity-70 w-[600px] h-[600px]"></div>
       <div className="purple-glow-bg top-1/2 right-10 opacity-30"></div>
 
-      <main className="flex-1 max-w-6xl mx-auto px-4 lg:px-8 py-12 sm:py-20 flex flex-col items-center justify-center text-center relative z-10 space-y-24">
+      <main className="flex-1 max-w-6xl mx-auto px-4 lg:px-8 pt-24 pb-12 sm:pb-20 flex flex-col items-center justify-center text-center relative z-10 space-y-24">
         
         {/* HERO SECTION */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto">

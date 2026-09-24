@@ -73,7 +73,7 @@ export default function Navbar() {
   const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Discord User';
 
   return (
-    <header className="sticky top-0 z-50 w-full glass-panel border-b border-purple-500/20 px-4 lg:px-8 py-3 transition-all duration-200">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full glass-panel border-b border-purple-500/20 px-4 lg:px-8 py-3 transition-all duration-200">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
         {/* Brand Logo */}
