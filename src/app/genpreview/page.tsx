@@ -7,34 +7,78 @@ import {
   LogOut,
   Menu,
   X,
-  Key,
   Copy,
   Eye,
   EyeOff,
   RefreshCw,
   Search,
-  Check,
   Lock,
-  User,
   Shield,
-  Palette,
-  Cpu,
   Activity,
   Sparkles,
   Zap,
-  Code2,
-  FileCode,
   Box,
-  Layers,
   CheckCircle2,
   Clock,
-  AlertCircle,
-  Gamepad2,
-  MessageSquare,
-  Flame,
-  Tv,
-  Globe
+  AlertCircle
 } from 'lucide-react';
+
+// --- Brand Icon Components matching reference ---
+const SteamIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.064 0 .125.009.188.012l2.845-4.123v-.058c0-2.36 1.914-4.274 4.273-4.274 2.36 0 4.274 1.914 4.274 4.274 0 2.36-1.914 4.274-4.274 4.274-.08 0-.156-.01-.235-.015l-4.048 2.893c.004.054.01.107.01.161 0 1.884-1.526 3.41-3.41 3.41-1.579 0-2.91-1.074-3.303-2.529L.3 15.282C1.69 20.354 6.402 24 11.979 24c6.627 0 12-5.373 12-12s-5.373-12-12-12zm-3.614 15.651c0-1.026.832-1.858 1.858-1.858s1.858.832 1.858 1.858-.832 1.858-1.858 1.858-1.858-.832-1.858-1.858zm9.324-6.697c-1.328 0-2.404-1.076-2.404-2.404s1.076-2.404 2.404-2.404 2.404 1.076 2.404 2.404-1.076 2.404-2.404 2.404z"/>
+  </svg>
+);
+
+const DiscordIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.076.076 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+  </svg>
+);
+
+const RockstarIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2.2 2.2h19.6v19.6H2.2V2.2zm12.5 13.8l-1.9-5.4h-2.6v5.4H8.4V8h5.3c2.1 0 3.6 1.2 3.6 3.1 0 1.4-.8 2.4-2.1 2.8l2.3 4.1h-2.8zm-1.9-7.3H10.2v2.4h2.6c1 0 1.6-.5 1.6-1.2 0-.8-.6-1.2-1.6-1.2z"/>
+  </svg>
+);
+
+const VpnIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <rect x="9" y="10" width="6" height="5" rx="1"/>
+    <path d="M12 8v2"/>
+  </svg>
+);
+
+const FortniteIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M7 2h10v3.5H11v3.5h5v3.5h-5V22H7V2z"/>
+  </svg>
+);
+
+const NetflixIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M5.398 0v24h4.195V10.247l5.441 13.753h4.168V0h-4.195v13.684L9.566 0z"/>
+  </svg>
+);
+
+const RobloxIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M5.164 0L0 18.836l18.836 5.164L24 5.164 5.164 0zm7.106 14.73l-3.003-.824.825-3.004 3.003.825-.825 3.003z"/>
+  </svg>
+);
+
+const ChatGptIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9 6.0651 6.0651 0 0 0-4.662-2.0104 6.06 6.06 0 0 0-5.764 4.053 6.0237 6.0237 0 0 0-4.4093 2.1332 6.04 6.04 0 0 0-.7428 5.535 6.0253 6.0253 0 0 0-.5155 4.9108 6.0461 6.0461 0 0 0 6.5097 2.9 6.065 6.065 0 0 0 4.662 2.0104 6.06 6.06 0 0 0 5.7641-4.053 6.0238 6.0238 0 0 0 4.4093-2.1332 6.04 6.04 0 0 0 .7427-5.535zm-9.022 12.6081a4.4555 4.4555 0 0 1-2.8727-1.0408l.1419-.0813 4.7792-2.7582a.79.79 0 0 0 .3927-.6813v-6.7369l2.023 1.168a.071.071 0 0 1 .038.052v5.5826a4.5045 4.5045 0 0 1-4.5021 4.4959zm-9.66-3.766a4.456 4.456 0 0 1-.5365-3.0037l.142.0833 4.783 2.7582a.795.795 0 0 0 .7928 0l5.8341-3.3688v2.336a.075.075 0 0 1-.0312.0612l-4.8345 2.7913a4.5026 4.5026 0 0 1-6.1497-1.6585zm-1.2052-10.354a4.4578 4.4578 0 0 1 2.336-1.963l-.0019.1637v5.5164a.7937.7937 0 0 0 .3959.6822l5.8342 3.3688-2.023 1.168a.071.071 0 0 1-.0692.0075l-4.8346-2.7913a4.5016 4.5016 0 0 1-1.6374-6.1523zm17.0974 4.582a4.458 4.458 0 0 1-2.336 1.963l.0019-.1637v-5.5164a.7937.7937 0 0 0-.3959-.6822l-5.8342-3.3688 2.023-1.168a.071.071 0 0 1 .0692-.0075l4.8346 2.7913a4.5017 4.5017 0 0 1 1.6374 6.1523zm1.2052 3.766a4.456 4.456 0 0 1 .5365 3.0037l-.142-.0833-4.783-2.7582a.795.795 0 0 0-.7928 0l-5.8341 3.3688v-2.336a.075.075 0 0 1 .0312-.0612l4.8345-2.7913a4.5026 4.5026 0 0 1 6.1497 1.6585zm-8.6006-8.7753l-4.7792 2.7582a.79.79 0 0 0-.3927.6813v6.7369l-2.023-1.168a.071.071 0 0 1-.038-.052v-5.5826a4.5045 4.5045 0 0 1 7.2329-3.4546l-.0001.0789z"/>
+  </svg>
+);
+
+const GeminiIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C12 6.627 6.627 12 0 12c6.627 0 12 5.373 12 12 0-6.627 5.373-12 12-12-6.627 0-12-5.373-12-12z"/>
+  </svg>
+);
 
 // --- Types ---
 type ViewMode = 'dashboard' | 'settings';
@@ -93,14 +137,17 @@ export default function GenPreviewDashboard() {
     }, 3000);
   };
 
-  // Services Data (Account Generator Services)
+  // Services Data (All 9 Account Generator Services matching generator.html)
   const modules: ModuleItem[] = [
-    { id: '1', name: 'Steam', icon: Gamepad2, unlocked: true, remaining: '24 in stock', color: 'text-cyan-400' },
-    { id: '2', name: 'Discord', icon: MessageSquare, unlocked: true, remaining: '50 in stock', color: 'text-indigo-400' },
-    { id: '3', name: 'Rockstar', icon: Flame, unlocked: true, remaining: '8 in stock', color: 'text-amber-400' },
-    { id: '4', name: 'Netflix', icon: Tv, unlocked: true, remaining: '15 in stock', color: 'text-rose-400' },
-    { id: '5', name: 'VPN', icon: Globe, unlocked: true, remaining: '30 in stock', color: 'text-emerald-400' },
-    { id: '6', name: 'Spotify Premium', icon: Sparkles, unlocked: false, remaining: 'Out of stock', color: 'text-zinc-500' }
+    { id: '1', name: 'Steam', icon: SteamIcon, unlocked: true, remaining: '24 in stock', color: 'text-cyan-400' },
+    { id: '2', name: 'Discord', icon: DiscordIcon, unlocked: true, remaining: '50 in stock', color: 'text-indigo-400' },
+    { id: '3', name: 'Rockstar', icon: RockstarIcon, unlocked: true, remaining: '8 in stock', color: 'text-amber-400' },
+    { id: '4', name: 'VPN', icon: VpnIcon, unlocked: true, remaining: '30 in stock', color: 'text-emerald-400' },
+    { id: '5', name: 'Fortnite', icon: FortniteIcon, unlocked: true, remaining: '12 in stock', color: 'text-purple-400' },
+    { id: '6', name: 'Netflix', icon: NetflixIcon, unlocked: true, remaining: '15 in stock', color: 'text-rose-500' },
+    { id: '7', name: 'Roblox', icon: RobloxIcon, unlocked: false, remaining: 'Pro Only', color: 'text-zinc-500' },
+    { id: '8', name: 'ChatGPT', icon: ChatGptIcon, unlocked: false, remaining: 'Pro Only', color: 'text-zinc-500' },
+    { id: '9', name: 'Gemini', icon: GeminiIcon, unlocked: false, remaining: 'Pro Only', color: 'text-zinc-500' }
   ];
 
   // Activity Log Data
@@ -305,7 +352,7 @@ export default function GenPreviewDashboard() {
                         <Box size={16} />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-white">Account Services</h2>
+                        <h2 className="text-base font-bold text-white">Account Generator Services</h2>
                         <p className="text-xs text-purple-300/50">Select a service to generate or claim an account</p>
                       </div>
                     </div>
@@ -338,7 +385,7 @@ export default function GenPreviewDashboard() {
                       )}
                     </div>
 
-                    {/* Module Tile Grid */}
+                    {/* Service Cards Tile Grid */}
                     <div className="grid grid-cols-3 sm:grid-cols-3 gap-3">
                       {modules.map((mod) => {
                         const IconComponent = mod.icon;
@@ -347,7 +394,7 @@ export default function GenPreviewDashboard() {
                             key={mod.id}
                             onClick={() => {
                               if (mod.unlocked) {
-                                triggerToast(`Selected ${mod.name} Module`);
+                                triggerToast(`Claiming ${mod.name} Account...`);
                               } else {
                                 triggerToast(`${mod.name} requires Pro tier upgrade`);
                               }
@@ -360,7 +407,7 @@ export default function GenPreviewDashboard() {
                           >
                             <div className="relative mb-2">
                               <div className={`p-2.5 rounded-xl bg-purple-950/50 border border-purple-500/20 ${mod.color}`}>
-                                <IconComponent size={22} />
+                                <IconComponent className="w-5 h-5" />
                               </div>
                               {!mod.unlocked && (
                                 <div className="absolute -top-1 -right-1 p-1 bg-zinc-900 border border-zinc-700 rounded-full text-zinc-400">
@@ -421,7 +468,7 @@ export default function GenPreviewDashboard() {
                         <thead>
                           <tr className="border-b border-purple-500/15 text-purple-300/40 text-[11px]">
                             <th className="pb-2 font-medium">Time</th>
-                            <th className="pb-2 font-medium">Module</th>
+                            <th className="pb-2 font-medium">Service</th>
                             <th className="pb-2 font-medium text-right">Status</th>
                           </tr>
                         </thead>
@@ -647,7 +694,7 @@ export default function GenPreviewDashboard() {
                         <span className="text-purple-300/50">Server Region</span>
                         <span className="font-mono text-purple-100">eu-central-1</span>
                       </div>
-                        <div className="flex justify-between py-2.5">
+                      <div className="flex justify-between py-2.5">
                         <span className="text-purple-300/50">Member Since</span>
                         <span className="font-mono text-purple-100">2024-11-02</span>
                       </div>
