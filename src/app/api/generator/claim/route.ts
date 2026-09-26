@@ -37,15 +37,17 @@ export async function POST(request: Request) {
 
     // Determine daily limit: NULL daily_limit falls back to guild_config or default 15
     let dailyLimit = 15;
+    let fallbackGuildId: string | null = null;
     if (license.daily_limit !== null && license.daily_limit !== undefined) {
       dailyLimit = license.daily_limit;
     } else {
       const { data: guildData } = await supabaseAdmin
         .from('guild_config')
-        .select('generate_limit')
+        .select('guild_id, generate_limit')
         .limit(1);
-      if (guildData && guildData.length > 0 && guildData[0].generate_limit) {
-        dailyLimit = guildData[0].generate_limit;
+      if (guildData && guildData.length > 0) {
+        if (guildData[0].generate_limit) dailyLimit = guildData[0].generate_limit;
+        if (guildData[0].guild_id) fallbackGuildId = String(guildData[0].guild_id);
       }
     }
 
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
     const currentCount = limitData?.[0]?.count || 0;
     if (dailyLimit > 0 && currentCount >= dailyLimit) {
       return NextResponse.json({
-        error: `You have reached your daily generation limit (${currentCount}/${dailyLimit}). Resets at midnight.`
+        error: `You have reached your daily generation limit (${currentCount}/${dailyLimit}). Resets at 12AM PHT.`
       }, { status: 429 });
     }
 
@@ -79,6 +81,41 @@ export async function POST(request: Request) {
 
     const matchedSvcName = serviceData[0].name;
     const tableName = getServiceTableName(matchedSvcName);
+
+    // 3.5 Check per-service limit in guild_service_limits
+    const targetGuildId = license.redeemed_guild_id || fallbackGuildId;
+    if (targetGuildId && serviceData[0].id) {
+      const { data: svcLimitRes } = await supabaseAdmin
+        .from('guild_service_limits')
+        .select('daily_limit')
+        .eq('guild_id', String(targetGuildId))
+        .eq('service_id', serviceData[0].id)
+        .limit(1);
+
+      if (svcLimitRes && svcLimitRes.length > 0 && svcLimitRes[0].daily_limit !== null && svcLimitRes[0].daily_limit !== undefined) {
+        const perSvcDailyLimit = svcLimitRes[0].daily_limit;
+
+        if (perSvcDailyLimit > 0) {
+          // Start of today 12AM PHT
+          const phtDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+          const phtMidnightIso = new Date(`${phtDateStr}T00:00:00+08:00`).toISOString();
+
+          // Count claims by this user today for this specific service table
+          const { count: svcClaimsCount } = await supabaseAdmin
+            .from(tableName)
+            .select('id', { count: 'exact', head: true })
+            .eq('claimed_by', userId)
+            .gte('claimed_at', phtMidnightIso);
+
+          const currentSvcCount = svcClaimsCount || 0;
+          if (currentSvcCount >= perSvcDailyLimit) {
+            return NextResponse.json({
+              error: `You've reached the ${matchedSvcName} daily limit (${currentSvcCount}/${perSvcDailyLimit}). Resets at 12AM PHT.`
+            }, { status: 429 });
+          }
+        }
+      }
+    }
 
     // 4. Atomically claim 1 unused account from the per-service accounts table
     const { data: accountData, error: findAccErr } = await supabaseAdmin
