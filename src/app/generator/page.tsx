@@ -8,15 +8,11 @@ import {
   Copy,
   Search,
   Clock,
-  CreditCard,
-  Download,
   Info,
   ChevronDown,
   Sparkles,
   Key,
   RefreshCw,
-  CheckCircle2,
-  AlertCircle,
   Lock,
   LogIn
 } from 'lucide-react';
@@ -46,9 +42,15 @@ const NetflixIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const VpnIcon = ({ className }: { className?: string }) => (
+const CyberGhostIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M11.705 2.349a4.874 4.874 0 00-4.39 2.797L6.033 7.893h14.606c.41 0 .692.308.692.668 0 .359-.282.666-.692.666H2.592L0 14.772h2.824c-.796 1.72-1.002 2.567-1.002 3.26 0 2.105 1.72 3.62 4.416 3.62h8.239c1.771 0 3.337-1.412 3.337-3.03 0-1.411-1.206-2.515-2.772-2.515H5.596c-.873 0-1.284-.59-.924-1.335h11.859c4.004 0 7.469-3.029 7.469-6.802 0-3.183-2.618-5.621-6.16-5.621z" />
+  </svg>
+);
+
+const ValorantIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M4.053 0l7.632 17.509h-3.41L.643 0h3.41zm15.894 0L12.316 17.509h3.41L23.357 0h-3.41zM11.973 24l-3.864-8.868h7.728L11.973 24z" />
   </svg>
 );
 
@@ -68,7 +70,6 @@ export default function AccountGeneratorPage() {
   // Live Generator State
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [redeeming, setRedeeming] = useState(false);
 
   const [userPlan, setUserPlan] = useState<{
     hasPlan: boolean;
@@ -88,15 +89,14 @@ export default function AccountGeneratorPage() {
     steam: 0,
     discord: 0,
     rockstar: 0,
-    vpn: 0,
+    cyberghost: 0,
     netflix: 0,
+    valorant: 0,
   });
 
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
 
   // UI Component States
-  const [keyInput, setKeyInput] = useState('');
-  const [keyFeedback, setKeyFeedback] = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
   const [historySearch, setHistorySearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [toast, setToast] = useState<string | null>(null);
@@ -169,46 +169,6 @@ export default function AccountGeneratorPage() {
     });
   };
 
-  // Key Redeem Handler
-  const handleRedeemKey = async () => {
-    if (!discordUserId) {
-      setKeyFeedback({ msg: 'Please log in with Discord to redeem keys.', type: 'err' });
-      return;
-    }
-    if (!keyInput.trim()) {
-      setKeyFeedback({ msg: 'Please enter a valid license key.', type: 'err' });
-      return;
-    }
-
-    setRedeeming(true);
-    setKeyFeedback(null);
-
-    try {
-      const res = await fetch('/api/generator/redeem', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: discordUserId,
-          key: keyInput.trim()
-        })
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setKeyFeedback({ msg: json.error || 'Failed to redeem key.', type: 'err' });
-      } else {
-        setKeyFeedback({ msg: json.message || 'Key redeemed successfully!', type: 'ok' });
-        triggerToast('License key redeemed successfully!');
-        setKeyInput('');
-        fetchStatus(discordUserId);
-      }
-    } catch (err: any) {
-      setKeyFeedback({ msg: err.message || 'Network error.', type: 'err' });
-    } finally {
-      setRedeeming(false);
-    }
-  };
-
   // Account Claim / Generation Handler
   const handleClaimAccount = async (serviceName: string, currentStock: number) => {
     if (!user) {
@@ -217,7 +177,7 @@ export default function AccountGeneratorPage() {
     }
 
     if (!userPlan.hasPlan) {
-      triggerToast('No active plan found. Please redeem a key first.');
+      triggerToast('No active plan found. Redeem a key or check roles.');
       return;
     }
 
@@ -261,26 +221,7 @@ export default function AccountGeneratorPage() {
     triggerToast(label);
   };
 
-  // Download history helper
-  const handleDownloadHistory = () => {
-    if (filteredHistory.length === 0) {
-      triggerToast('History is empty.');
-      return;
-    }
-    const textData = filteredHistory
-      .map((h) => `[${h.date}] ${h.service}: ${h.dataText}`)
-      .join('\n');
-    const blob = new Blob([textData], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `async-generator-history-${new Date().toISOString().slice(0, 10)}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    triggerToast('Downloaded history text file');
-  };
-
-  // Services Config Grid
+  // Services Config Grid (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant)
   const servicesConfig = [
     {
       id: 'steam',
@@ -307,10 +248,10 @@ export default function AccountGeneratorPage() {
       bgGlow: 'hover:border-[#ffab00]/50 hover:shadow-[0_0_20px_rgba(255,171,0,0.15)]'
     },
     {
-      id: 'vpn',
-      name: 'VPN',
-      icon: VpnIcon,
-      leftCount: stock.vpn,
+      id: 'cyberghost',
+      name: 'CyberGhost',
+      icon: CyberGhostIcon,
+      leftCount: stock.cyberghost,
       color: 'text-[#10b981]',
       bgGlow: 'hover:border-[#10b981]/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]'
     },
@@ -321,13 +262,21 @@ export default function AccountGeneratorPage() {
       leftCount: stock.netflix,
       color: 'text-[#e50914]',
       bgGlow: 'hover:border-[#e50914]/50 hover:shadow-[0_0_20px_rgba(229,9,20,0.15)]'
+    },
+    {
+      id: 'valorant',
+      name: 'Valorant',
+      icon: ValorantIcon,
+      leftCount: stock.valorant,
+      color: 'text-[#ff4655]',
+      bgGlow: 'hover:border-[#ff4655]/50 hover:shadow-[0_0_20px_rgba(255,70,85,0.15)]'
     }
   ];
 
   // Filtered History
   const filteredHistory = useMemo(() => {
     return historyList.filter((item) => {
-      const matchesType = typeFilter === 'all' || item.service.toLowerCase() === typeFilter.toLowerCase();
+      const matchesType = typeFilter === 'all' || item.service.toLowerCase().includes(typeFilter.toLowerCase());
       const matchesSearch =
         !historySearch.trim() ||
         item.service.toLowerCase().includes(historySearch.toLowerCase()) ||
@@ -428,8 +377,8 @@ export default function AccountGeneratorPage() {
               </div>
 
               <div className="space-y-5">
-                {/* 5 Core Service Cards (Steam, Discord, Rockstar, VPN, Netflix) */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-2">
+                {/* 6 Core Service Cards Grid (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant) */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-2">
                   {servicesConfig.map((svc) => {
                     const IconComp = svc.icon;
                     const isOutOfStock = svc.leftCount === 0;
@@ -486,11 +435,11 @@ export default function AccountGeneratorPage() {
               <div className="glass-card rounded-2xl p-4 border border-purple-500/20 bg-purple-950/20 flex items-center gap-3 mb-6 text-xs text-purple-200/90">
                 <Info size={16} className="text-purple-400 shrink-0" />
                 <div>
-                  History is automatically cleared every 5 days. <strong className="text-white font-semibold">Download or copy anything you want to keep.</strong>
+                  History is automatically cleared every 5 days. <strong className="text-white font-semibold">Copy anything you want to keep.</strong>
                 </div>
               </div>
 
-              {/* History Toolbar */}
+              {/* History Toolbar (Filter & Search) */}
               <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6">
                 <div className="flex items-center gap-3 flex-1">
                   {/* Type Filter Select */}
@@ -498,14 +447,15 @@ export default function AccountGeneratorPage() {
                     <select
                       value={typeFilter}
                       onChange={(e) => setTypeFilter(e.target.value)}
-                      className="appearance-none bg-purple-950/40 border border-purple-500/30 rounded-xl px-4 py-2.5 pr-8 text-xs font-medium text-purple-100 focus:outline-none focus:border-purple-400 cursor-pointer min-w-[120px]"
+                      className="appearance-none bg-purple-950/40 border border-purple-500/30 rounded-xl px-4 py-2.5 pr-8 text-xs font-medium text-purple-100 focus:outline-none focus:border-purple-400 cursor-pointer min-w-[130px]"
                     >
                       <option value="all" className="bg-[#120a24]">All types</option>
-                      <option value="netflix" className="bg-[#120a24]">Netflix</option>
                       <option value="steam" className="bg-[#120a24]">Steam</option>
-                      <option value="rockstar" className="bg-[#120a24]">Rockstar</option>
-                      <option value="vpn" className="bg-[#120a24]">VPN</option>
                       <option value="discord" className="bg-[#120a24]">Discord</option>
+                      <option value="rockstar" className="bg-[#120a24]">Rockstar</option>
+                      <option value="cyberghost" className="bg-[#120a24]">CyberGhost</option>
+                      <option value="netflix" className="bg-[#120a24]">Netflix</option>
+                      <option value="valorant" className="bg-[#120a24]">Valorant</option>
                     </select>
                     <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
                   </div>
@@ -521,31 +471,6 @@ export default function AccountGeneratorPage() {
                       className="w-full bg-purple-950/40 border border-purple-500/30 rounded-xl pl-9 pr-4 py-2.5 text-xs text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400 transition-all"
                     />
                   </div>
-                </div>
-
-                {/* Download / Copy All Buttons */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      if (filteredHistory.length === 0) {
-                        triggerToast('History is empty.');
-                        return;
-                      }
-                      const allText = filteredHistory.map((h) => h.dataText).join('\n');
-                      handleCopyText(allText, 'All history copied to clipboard');
-                    }}
-                    className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all"
-                  >
-                    <Copy size={14} />
-                    Copy all
-                  </button>
-                  <button
-                    onClick={handleDownloadHistory}
-                    className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(168,85,247,0.25)]"
-                  >
-                    <Download size={14} />
-                    Download
-                  </button>
                 </div>
               </div>
 

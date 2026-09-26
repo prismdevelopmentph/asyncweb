@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// Helper to normalize service name to table name matching PostgreSQL function
 function getServiceTableName(svcName: string): string {
   const normalized = svcName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   return `accounts_${normalized}`;
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
-    // Default response structure matching new DB schema
+    // Response structure supporting CyberGhost and Valorant
     const response = {
       userPlan: {
         hasPlan: false,
@@ -26,8 +25,9 @@ export async function GET(request: Request) {
         steam: 0,
         discord: 0,
         rockstar: 0,
-        vpn: 0,
+        cyberghost: 0,
         netflix: 0,
+        valorant: 0,
       },
       history: [] as Array<{
         id: string;
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       }>
     };
 
-    // 1. Fetch live stock counts using RPC get_service_stock (recommended approach)
+    // 1. Fetch live stock counts using RPC get_service_stock
     try {
       const { data: servicesData } = await supabaseAdmin
         .from('services')
@@ -47,8 +47,7 @@ export async function GET(request: Request) {
         for (const svc of servicesData) {
           const svcNameLower = svc.name.toLowerCase();
 
-          // Call Supabase RPC get_service_stock
-          const { data: stockCount, error: rpcErr } = await supabaseAdmin.rpc('get_service_stock', {
+          const { data: stockCount } = await supabaseAdmin.rpc('get_service_stock', {
             p_service_name: svc.name
           });
 
@@ -57,8 +56,9 @@ export async function GET(request: Request) {
           if (svcNameLower.includes('steam')) response.stock.steam = totalStock;
           else if (svcNameLower.includes('discord')) response.stock.discord = totalStock;
           else if (svcNameLower.includes('rockstar')) response.stock.rockstar = totalStock;
-          else if (svcNameLower.includes('vpn')) response.stock.vpn = totalStock;
+          else if (svcNameLower.includes('cyberghost') || svcNameLower.includes('vpn')) response.stock.cyberghost = totalStock;
           else if (svcNameLower.includes('netflix')) response.stock.netflix = totalStock;
+          else if (svcNameLower.includes('valorant')) response.stock.valorant = totalStock;
         }
       }
     } catch (err) {
@@ -85,11 +85,9 @@ export async function GET(request: Request) {
           response.userPlan.expiresAt = lic.expires_at || 'Never';
           response.userPlan.guildLock = lic.redeemed_guild_id || null;
 
-          // Determine daily limit: if NULL, check guild_config or fallback to 15
           if (lic.daily_limit !== null && lic.daily_limit !== undefined) {
             response.userPlan.dailyLimit = lic.daily_limit;
           } else {
-            // Check guild_config or default
             const { data: guildData } = await supabaseAdmin
               .from('guild_config')
               .select('generate_limit')
@@ -98,7 +96,6 @@ export async function GET(request: Request) {
             response.userPlan.dailyLimit = guildData?.[0]?.generate_limit || 15;
           }
 
-          // Fetch user daily count from user_limits (keyed by discord_user_id & license_id)
           const { data: limitData } = await supabaseAdmin
             .from('user_limits')
             .select('count')
@@ -114,7 +111,7 @@ export async function GET(request: Request) {
         console.warn('[Generator Status] Licenses fetch warning:', err);
       }
 
-      // 3. Fetch User Generation History from per-service account tables
+      // 3. Fetch User Generation History from per-service tables
       try {
         const { data: servicesData } = await supabaseAdmin.from('services').select('name');
         const historyItems: Array<{ id: string; service: string; date: string; timestamp: number; dataText: string }> = [];
@@ -141,7 +138,6 @@ export async function GET(request: Request) {
                     minute: '2-digit'
                   });
 
-                  // Extract raw account string from JSONB data (e.g. data->>'raw')
                   let rawText = '';
                   if (acc.data && typeof acc.data === 'object') {
                     rawText = acc.data.raw || acc.data.data || JSON.stringify(acc.data);
@@ -164,12 +160,11 @@ export async function GET(request: Request) {
                 }
               }
             } catch (tableErr) {
-              // Table for service may not be created yet if 0 accounts added
+              // Table may not exist yet if 0 accounts added
             }
           }
         }
 
-        // Sort combined history items by timestamp descending
         historyItems.sort((a, b) => b.timestamp - a.timestamp);
         response.history = historyItems.slice(0, 100).map(({ id, service, date, dataText }) => ({
           id,
