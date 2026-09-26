@@ -173,7 +173,7 @@ export async function GET(request: Request) {
 
           const combinedHistory = historyPerService.flat();
           combinedHistory.sort((a, b) => b.timestamp - a.timestamp);
-          response.history = combinedHistory.slice(0, 100).map(({ id, service, date, dataText }) => ({
+          response.history = combinedHistory.slice(0, 50).map(({ id, service, date, dataText }) => ({
             id,
             service,
             date,

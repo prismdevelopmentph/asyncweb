@@ -462,7 +462,7 @@ export default function AccountGeneratorPage() {
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">Generation History</h2>
-                  <p className="text-xs text-purple-300/60">Your last 100 generated accounts</p>
+                  <p className="text-xs text-purple-300/60">Your last 50 generated accounts</p>
                 </div>
               </div>
 
@@ -514,8 +514,8 @@ export default function AccountGeneratorPage() {
                 {filteredHistory.length} account{filteredHistory.length !== 1 ? 's' : ''}
               </div>
 
-              {/* History Items List */}
-              <div className="space-y-3">
+              {/* History Items List (Fixed max-height scrollable list) */}
+              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2 custom-scrollbar">
                 {filteredHistory.length === 0 ? (
                   <div className="p-8 text-center text-xs text-purple-300/40 border border-dashed border-purple-500/20 rounded-2xl">
                     No generation history found.
