@@ -114,7 +114,7 @@ export default function AccountGeneratorPage() {
     return user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
   }, [user]);
 
-  // Fetch Live Status from Supabase API Route
+  // Fast Parallel Status Fetcher
   const fetchStatus = useCallback(async (uid: string | null) => {
     setLoadingStatus(true);
     try {
@@ -133,15 +133,20 @@ export default function AccountGeneratorPage() {
     }
   }, []);
 
-  // Check Auth State on Mount
+  // Instant Mount Execution: Fetch stock immediately in parallel on mount
   useEffect(() => {
+    // 1. Trigger stock fetch immediately without waiting for auth
+    fetchStatus(null);
+
+    // 2. Resolve Auth concurrently
     const initAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       setAuthLoading(false);
-
-      const uid = user ? (user.user_metadata?.provider_id || user.user_metadata?.sub || user.id) : null;
-      fetchStatus(uid);
+      if (user) {
+        const uid = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
+        fetchStatus(uid);
+      }
     };
 
     initAuth();
@@ -377,7 +382,7 @@ export default function AccountGeneratorPage() {
               </div>
 
               <div className="space-y-5">
-                {/* 6 Core Service Cards Grid (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant) */}
+                {/* 6 Core Service Cards Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-2">
                   {servicesConfig.map((svc) => {
                     const IconComp = svc.icon;

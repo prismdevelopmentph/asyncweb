@@ -11,7 +11,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
-    // Response structure supporting CyberGhost and Valorant
     const response = {
       userPlan: {
         hasPlan: false,
@@ -37,36 +36,43 @@ export async function GET(request: Request) {
       }>
     };
 
-    // 1. Fetch live stock counts using RPC get_service_stock
-    try {
-      const { data: servicesData } = await supabaseAdmin
-        .from('services')
-        .select('id, name');
+    // 1. Parallel Stock Queries across all services
+    const stockPromise = (async () => {
+      try {
+        const { data: servicesData } = await supabaseAdmin
+          .from('services')
+          .select('id, name');
 
-      if (servicesData && servicesData.length > 0) {
-        for (const svc of servicesData) {
-          const svcNameLower = svc.name.toLowerCase();
+        if (servicesData && servicesData.length > 0) {
+          const stockResults = await Promise.all(
+            servicesData.map(async (svc) => {
+              const { data: stockCount } = await supabaseAdmin.rpc('get_service_stock', {
+                p_service_name: svc.name
+              });
+              return {
+                name: svc.name.toLowerCase(),
+                count: typeof stockCount === 'number' ? stockCount : 0
+              };
+            })
+          );
 
-          const { data: stockCount } = await supabaseAdmin.rpc('get_service_stock', {
-            p_service_name: svc.name
-          });
-
-          const totalStock = typeof stockCount === 'number' ? stockCount : 0;
-
-          if (svcNameLower.includes('steam')) response.stock.steam = totalStock;
-          else if (svcNameLower.includes('discord')) response.stock.discord = totalStock;
-          else if (svcNameLower.includes('rockstar')) response.stock.rockstar = totalStock;
-          else if (svcNameLower.includes('cyberghost') || svcNameLower.includes('vpn')) response.stock.cyberghost = totalStock;
-          else if (svcNameLower.includes('netflix')) response.stock.netflix = totalStock;
-          else if (svcNameLower.includes('valorant')) response.stock.valorant = totalStock;
+          for (const item of stockResults) {
+            if (item.name.includes('steam')) response.stock.steam = item.count;
+            else if (item.name.includes('discord')) response.stock.discord = item.count;
+            else if (item.name.includes('rockstar')) response.stock.rockstar = item.count;
+            else if (item.name.includes('cyberghost') || item.name.includes('vpn')) response.stock.cyberghost = item.count;
+            else if (item.name.includes('netflix')) response.stock.netflix = item.count;
+            else if (item.name.includes('valorant')) response.stock.valorant = item.count;
+          }
         }
+      } catch (err) {
+        console.warn('[Generator Status] Parallel stock fetch warning:', err);
       }
-    } catch (err) {
-      console.warn('[Generator Status] Services RPC stock fetch warning:', err);
-    }
+    })();
 
-    // 2. Fetch User Active License & Daily Limit
-    if (userId) {
+    // 2. Parallel User License & Plan Query
+    const userPlanPromise = (async () => {
+      if (!userId) return;
       try {
         const { data: licenseData } = await supabaseAdmin
           .from('licenses')
@@ -85,50 +91,51 @@ export async function GET(request: Request) {
           response.userPlan.expiresAt = lic.expires_at || 'Never';
           response.userPlan.guildLock = lic.redeemed_guild_id || null;
 
-          if (lic.daily_limit !== null && lic.daily_limit !== undefined) {
-            response.userPlan.dailyLimit = lic.daily_limit;
-          } else {
-            const { data: guildData } = await supabaseAdmin
-              .from('guild_config')
-              .select('generate_limit')
-              .limit(1);
+          // Fetch limit & user daily count in parallel
+          const [limitConfigRes, userLimitRes] = await Promise.all([
+            lic.daily_limit !== null && lic.daily_limit !== undefined
+              ? Promise.resolve({ limit: lic.daily_limit })
+              : supabaseAdmin.from('guild_config').select('generate_limit').limit(1),
+            supabaseAdmin.from('user_limits').select('count').eq('discord_user_id', userId).eq('license_id', String(lic.id)).limit(1)
+          ]);
 
-            response.userPlan.dailyLimit = guildData?.[0]?.generate_limit || 15;
+          if ('limit' in limitConfigRes) {
+            response.userPlan.dailyLimit = limitConfigRes.limit;
+          } else if (limitConfigRes.data && limitConfigRes.data.length > 0 && limitConfigRes.data[0].generate_limit) {
+            response.userPlan.dailyLimit = limitConfigRes.data[0].generate_limit;
+          } else {
+            response.userPlan.dailyLimit = 15;
           }
 
-          const { data: limitData } = await supabaseAdmin
-            .from('user_limits')
-            .select('count')
-            .eq('discord_user_id', userId)
-            .eq('license_id', String(lic.id))
-            .limit(1);
-
-          if (limitData && limitData.length > 0) {
-            response.userPlan.dailyUsed = limitData[0].count || 0;
+          if (userLimitRes.data && userLimitRes.data.length > 0) {
+            response.userPlan.dailyUsed = userLimitRes.data[0].count || 0;
           }
         }
       } catch (err) {
-        console.warn('[Generator Status] Licenses fetch warning:', err);
+        console.warn('[Generator Status] User plan fetch warning:', err);
       }
+    })();
 
-      // 3. Fetch User Generation History from per-service tables
+    // 3. Parallel User History Query across all per-service account tables
+    const userHistoryPromise = (async () => {
+      if (!userId) return;
       try {
         const { data: servicesData } = await supabaseAdmin.from('services').select('name');
-        const historyItems: Array<{ id: string; service: string; date: string; timestamp: number; dataText: string }> = [];
-
         if (servicesData && servicesData.length > 0) {
-          for (const svc of servicesData) {
-            const tableName = getServiceTableName(svc.name);
-            try {
-              const { data: accLogs } = await supabaseAdmin
-                .from(tableName)
-                .select('id, data, claimed_at')
-                .eq('claimed_by', userId)
-                .order('claimed_at', { ascending: false })
-                .limit(20);
+          const historyPerService = await Promise.all(
+            servicesData.map(async (svc) => {
+              const tableName = getServiceTableName(svc.name);
+              try {
+                const { data: accLogs } = await supabaseAdmin
+                  .from(tableName)
+                  .select('id, data, claimed_at')
+                  .eq('claimed_by', userId)
+                  .order('claimed_at', { ascending: false })
+                  .limit(15);
 
-              if (accLogs && accLogs.length > 0) {
-                for (const acc of accLogs) {
+                if (!accLogs) return [];
+
+                return accLogs.map((acc: any) => {
                   const dateObj = acc.claimed_at ? new Date(acc.claimed_at) : new Date();
                   const dateStr = dateObj.toLocaleDateString('en-US', {
                     month: 'short',
@@ -150,32 +157,36 @@ export async function GET(request: Request) {
                     }
                   }
 
-                  historyItems.push({
+                  return {
                     id: acc.id,
                     service: svc.name,
                     date: dateStr,
                     timestamp: dateObj.getTime(),
                     dataText: rawText || 'No account credentials details found.'
-                  });
-                }
+                  };
+                });
+              } catch {
+                return [];
               }
-            } catch (tableErr) {
-              // Table may not exist yet if 0 accounts added
-            }
-          }
-        }
+            })
+          );
 
-        historyItems.sort((a, b) => b.timestamp - a.timestamp);
-        response.history = historyItems.slice(0, 100).map(({ id, service, date, dataText }) => ({
-          id,
-          service,
-          date,
-          dataText
-        }));
+          const combinedHistory = historyPerService.flat();
+          combinedHistory.sort((a, b) => b.timestamp - a.timestamp);
+          response.history = combinedHistory.slice(0, 100).map(({ id, service, date, dataText }) => ({
+            id,
+            service,
+            date,
+            dataText
+          }));
+        }
       } catch (err) {
         console.warn('[Generator Status] User history fetch warning:', err);
       }
-    }
+    })();
+
+    // Await all 3 major operations concurrently in parallel
+    await Promise.all([stockPromise, userPlanPromise, userHistoryPromise]);
 
     return NextResponse.json(response);
   } catch (error: any) {
