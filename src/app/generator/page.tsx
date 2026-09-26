@@ -585,14 +585,11 @@ export default function AccountGeneratorPage() {
               <X size={16} />
             </button>
 
-            {/* Modal Title & Subtitle */}
+            {/* Modal Title */}
             <div className="pr-8 mb-5">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 {generatedModal.service} Account Generated
               </h3>
-              <p className="text-xs text-purple-300/60 mt-0.5 font-medium">
-                {Math.max(0, userPlan.dailyLimit - userPlan.dailyUsed)} {generatedModal.service} generations remaining today
-              </p>
             </div>
 
             {/* Inner Raw Account Code Box */}
