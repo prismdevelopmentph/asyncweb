@@ -15,11 +15,11 @@ export async function POST(request: Request) {
 
     const trimmedKey = key.trim();
 
-    // 1. Query licenses table for key
+    // 1. Query licenses table by column 'license_key'
     const { data: licenseData, error: fetchErr } = await supabaseAdmin
       .from('licenses')
       .select('*')
-      .eq('key', trimmedKey)
+      .eq('license_key', trimmedKey)
       .limit(1);
 
     if (fetchErr) {

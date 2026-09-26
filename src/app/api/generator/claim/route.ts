@@ -28,14 +28,28 @@ export async function POST(request: Request) {
     }
 
     const license = licenseData[0];
-    const dailyLimit = license.daily_limit || 15;
+    
+    // Determine daily limit: NULL daily_limit falls back to server config or default 15
+    let dailyLimit = 15;
+    if (license.daily_limit !== null && license.daily_limit !== undefined) {
+      dailyLimit = license.daily_limit;
+    } else {
+      const { data: configData } = await supabaseAdmin
+        .from('config')
+        .select('value')
+        .ilike('key', 'generate_limit%')
+        .limit(1);
+      if (configData && configData.length > 0) {
+        dailyLimit = parseInt(configData[0].value, 10) || 15;
+      }
+    }
 
-    // 2. Check user limits today
+    // 2. Check user limits today in user_limits
     const { data: limitData } = await supabaseAdmin
       .from('user_limits')
       .select('id, count')
       .eq('discord_user_id', userId)
-      .eq('license_id', license.id)
+      .eq('license_id', String(license.id))
       .limit(1);
 
     const currentCount = limitData?.[0]?.count || 0;
@@ -48,7 +62,7 @@ export async function POST(request: Request) {
     // 3. Find service ID
     const { data: serviceData } = await supabaseAdmin
       .from('services')
-      .select('id, name')
+      .select('id, name, fields')
       .ilike('name', serviceName)
       .limit(1);
 
@@ -60,7 +74,7 @@ export async function POST(request: Request) {
 
     const serviceId = serviceData[0].id;
 
-    // 4. Atomically claim 1 unused account
+    // 4. Atomically claim 1 unused account from accounts table
     const { data: accountData } = await supabaseAdmin
       .from('accounts')
       .select('id, data')
@@ -75,15 +89,15 @@ export async function POST(request: Request) {
     }
 
     const account = accountData[0];
-
-    // Mark as used
     const nowStr = new Date().toISOString();
+
+    // Mark account as claimed: set is_used = true, claimed_by = userId, claimed_at = nowStr
     const { error: updateAccErr } = await supabaseAdmin
       .from('accounts')
       .update({
         is_used: true,
-        used_by: userId,
-        used_at: nowStr
+        claimed_by: userId,
+        claimed_at: nowStr
       })
       .eq('id', account.id);
 
@@ -92,27 +106,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to claim account.' }, { status: 500 });
     }
 
-    // Update user limit count
+    // 5. Update user_limits count
     if (limitData && limitData.length > 0) {
       await supabaseAdmin
         .from('user_limits')
-        .update({ count: currentCount + 1 })
+        .update({
+          count: currentCount + 1,
+          updated_at: nowStr
+        })
         .eq('id', limitData[0].id);
     } else {
       await supabaseAdmin
         .from('user_limits')
         .insert({
           discord_user_id: userId,
-          license_id: license.id,
+          license_id: String(license.id),
           service_id: serviceId,
-          count: 1
+          count: 1,
+          updated_at: nowStr
         });
+    }
+
+    // Extract raw account string from JSONB data (data->>'raw')
+    let accountText = '';
+    if (account.data && typeof account.data === 'object') {
+      accountText = account.data.raw || account.data.data || JSON.stringify(account.data);
+    } else if (typeof account.data === 'string') {
+      try {
+        const parsed = JSON.parse(account.data);
+        accountText = parsed.raw || parsed.data || account.data;
+      } catch {
+        accountText = account.data;
+      }
     }
 
     return NextResponse.json({
       success: true,
       service: serviceData[0].name,
-      accountData: account.data,
+      accountData: accountText,
       date: new Date().toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',

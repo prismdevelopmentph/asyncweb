@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
-    // Default response structure for fresh database / unauthenticated state
+    // Default response structure matching exact DB schema
     const response = {
       userPlan: {
         hasPlan: false,
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     try {
       const { data: servicesData } = await supabaseAdmin
         .from('services')
-        .select('id, name');
+        .select('id, name, fields, generate_limit');
 
       if (servicesData && servicesData.length > 0) {
         for (const svc of servicesData) {
@@ -54,10 +54,10 @@ export async function GET(request: Request) {
         }
       }
     } catch (err) {
-      console.warn('[Generator Status] Services/Accounts fetch failed (fresh DB expected):', err);
+      console.warn('[Generator Status] Services/Accounts stock fetch warning:', err);
     }
 
-    // 2. Fetch User Plan & Daily Limits if userId is provided
+    // 2. Fetch User Active License & Daily Limit
     if (userId) {
       try {
         const { data: licenseData } = await supabaseAdmin
@@ -71,16 +71,31 @@ export async function GET(request: Request) {
         if (licenseData && licenseData.length > 0) {
           const lic = licenseData[0];
           response.userPlan.hasPlan = true;
-          response.userPlan.name = lic.tier ? `${lic.tier.charAt(0).toUpperCase() + lic.tier.slice(1)} Gen Plan` : 'Active Gen Plan';
+          response.userPlan.name = lic.tier
+            ? `${lic.tier.charAt(0).toUpperCase() + lic.tier.slice(1)} Gen Plan`
+            : 'Active Gen Plan';
           response.userPlan.expiresAt = lic.expires_at || 'Never';
-          response.userPlan.dailyLimit = lic.daily_limit || 15;
+
+          // Handle nullable daily_limit: if NULL, check config table or fallback
+          if (lic.daily_limit !== null && lic.daily_limit !== undefined) {
+            response.userPlan.dailyLimit = lic.daily_limit;
+          } else {
+            // Check server config default limit
+            const { data: configData } = await supabaseAdmin
+              .from('config')
+              .select('value')
+              .ilike('key', 'generate_limit%')
+              .limit(1);
+
+            response.userPlan.dailyLimit = configData?.[0]?.value ? parseInt(configData[0].value, 10) : 15;
+          }
 
           // Fetch user limits count today
           const { data: limitData } = await supabaseAdmin
             .from('user_limits')
             .select('count')
             .eq('discord_user_id', userId)
-            .eq('license_id', lic.id)
+            .eq('license_id', String(lic.id))
             .limit(1);
 
           if (limitData && limitData.length > 0) {
@@ -88,23 +103,23 @@ export async function GET(request: Request) {
           }
         }
       } catch (err) {
-        console.warn('[Generator Status] Licenses fetch failed:', err);
+        console.warn('[Generator Status] Licenses fetch warning:', err);
       }
 
-      // 3. Fetch User Generation History
+      // 3. Fetch User Generation History (claimed_by & claimed_at, reading data->>'raw')
       try {
         const { data: historyData } = await supabaseAdmin
           .from('accounts')
-          .select('id, data, used_at, service_id, services(name)')
-          .eq('used_by', userId)
-          .order('used_at', { ascending: false })
+          .select('id, data, claimed_at, service_id, services(name)')
+          .eq('claimed_by', userId)
+          .order('claimed_at', { ascending: false })
           .limit(100);
 
         if (historyData && historyData.length > 0) {
           response.history = historyData.map((acc: any) => {
             const svcName = acc.services?.name || 'Account';
-            const dateStr = acc.used_at
-              ? new Date(acc.used_at).toLocaleDateString('en-US', {
+            const dateStr = acc.claimed_at
+              ? new Date(acc.claimed_at).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
                   year: 'numeric',
@@ -112,16 +127,30 @@ export async function GET(request: Request) {
                   minute: '2-digit'
                 })
               : 'Recently';
+
+            // Extract string from JSONB data (e.g. data->>'raw')
+            let rawText = '';
+            if (acc.data && typeof acc.data === 'object') {
+              rawText = acc.data.raw || acc.data.data || JSON.stringify(acc.data);
+            } else if (typeof acc.data === 'string') {
+              try {
+                const parsed = JSON.parse(acc.data);
+                rawText = parsed.raw || parsed.data || acc.data;
+              } catch {
+                rawText = acc.data;
+              }
+            }
+
             return {
               id: acc.id,
               service: svcName,
               date: dateStr,
-              dataText: acc.data || 'No account credentials details found.'
+              dataText: rawText || 'No account credentials details found.'
             };
           });
         }
       } catch (err) {
-        console.warn('[Generator Status] User history fetch failed:', err);
+        console.warn('[Generator Status] User history fetch warning:', err);
       }
     }
 
