@@ -14,13 +14,15 @@ import {
   Key,
   RefreshCw,
   Lock,
-  LogIn
+  LogIn,
+  X,
+  CheckCircle2
 } from 'lucide-react';
 
 // --- Official Brand Icon Components (SimpleIcons Vectors) ---
 const SteamIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.253 0-2.265-1.014-2.265-2.265z" />
+    <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.5 1.009 2.455-.397.957-1.497 1.41-2.454 1.012H7.54zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.265 2.265-1.253 0-2.265-1.014-2.265-2.265z" />
   </svg>
 );
 
@@ -70,6 +72,12 @@ export default function AccountGeneratorPage() {
   // Live Generator State
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [claiming, setClaiming] = useState(false);
+
+  // Account Generated Popup Modal State
+  const [generatedModal, setGeneratedModal] = useState<{
+    service: string;
+    dataText: string;
+  } | null>(null);
 
   const [userPlan, setUserPlan] = useState<{
     hasPlan: boolean;
@@ -133,12 +141,29 @@ export default function AccountGeneratorPage() {
     }
   }, []);
 
+  // Block background scrolling and handle Escape key when Modal is open
+  useEffect(() => {
+    if (generatedModal) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setGeneratedModal(null);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [generatedModal]);
+
   // Instant Mount Execution: Fetch stock immediately in parallel on mount
   useEffect(() => {
-    // 1. Trigger stock fetch immediately without waiting for auth
     fetchStatus(null);
 
-    // 2. Resolve Auth concurrently
     const initAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -210,6 +235,11 @@ export default function AccountGeneratorPage() {
       if (!res.ok) {
         triggerToast(json.error || `Failed to generate ${serviceName}`);
       } else {
+        // Open Popup Modal with raw account details
+        setGeneratedModal({
+          service: json.service || serviceName,
+          dataText: json.accountData
+        });
         triggerToast(`Successfully generated ${serviceName} account!`);
         fetchStatus(discordUserId);
       }
@@ -221,7 +251,7 @@ export default function AccountGeneratorPage() {
   };
 
   // Copy text helper
-  const handleCopyText = (text: string, label = 'Copied to clipboard') => {
+  const handleCopyText = (text: string, label = 'Copied to clipboard!') => {
     navigator.clipboard.writeText(text);
     triggerToast(label);
   };
@@ -529,6 +559,67 @@ export default function AccountGeneratorPage() {
 
       {/* Main Site Footer */}
       <Footer />
+
+      {/* Account Generated Modal (Disables/Blocks Background Input) */}
+      {generatedModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden"
+        >
+          {/* Backdrop Click Dismiss */}
+          <div
+            className="absolute inset-0 z-0"
+            onClick={() => setGeneratedModal(null)}
+          />
+
+          {/* Modal Container */}
+          <div className="relative z-10 w-full max-w-lg glass-ultra rounded-3xl p-6 sm:p-8 border border-purple-500/40 shadow-[0_0_50px_rgba(168,85,247,0.3)] animate-in fade-in zoom-in-95 duration-200 text-left">
+            
+            {/* Top Close Icon Button */}
+            <button
+              onClick={() => setGeneratedModal(null)}
+              className="absolute top-5 right-5 p-2 rounded-xl bg-purple-950/40 border border-purple-500/20 text-purple-300 hover:text-white hover:bg-purple-900/40 transition-all"
+              aria-label="Close Modal"
+            >
+              <X size={16} />
+            </button>
+
+            {/* Modal Title & Subtitle */}
+            <div className="pr-8 mb-5">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                {generatedModal.service} Account Generated
+              </h3>
+              <p className="text-xs text-purple-300/60 mt-0.5 font-medium">
+                {Math.max(0, userPlan.dailyLimit - userPlan.dailyUsed)} {generatedModal.service} generations remaining today
+              </p>
+            </div>
+
+            {/* Inner Raw Account Code Box */}
+            <div className="bg-purple-950/70 border border-purple-500/30 rounded-2xl p-4 font-mono text-xs text-purple-100 break-all select-all leading-relaxed shadow-inner my-5">
+              {generatedModal.dataText}
+            </div>
+
+            {/* Action Buttons: Copy & Close */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={() => handleCopyText(generatedModal.dataText, 'Account credentials copied!')}
+                className="flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(168,85,247,0.35)] hover:scale-[1.02] active:scale-95"
+              >
+                <Copy size={15} />
+                Copy
+              </button>
+
+              <button
+                onClick={() => setGeneratedModal(null)}
+                className="flex-1 py-3 rounded-xl bg-purple-950/70 hover:bg-purple-900/70 border border-purple-500/30 text-purple-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating Toast Notification */}
       {toast && (
