@@ -19,6 +19,7 @@ export async function GET(request: Request) {
         dailyUsed: 0,
         dailyLimit: 0,
         guildLock: null as string | null,
+        allowedServices: [] as string[] | 'all',
       },
       stock: {
         steam: 0,
@@ -111,13 +112,43 @@ export async function GET(request: Request) {
           response.userPlan.expiresAt = isLifetime ? 'Never' : (maxExpiresAt ? maxExpiresAt.toISOString() : 'Never');
           response.userPlan.guildLock = userGuildLock;
 
-          // Fetch user limits across all active licenses
+          // Fetch user limits across all active licenses & license_services
           const activeLicIds = activeLicenses.map((lic: any) => String(lic.id));
-          const { data: userLimitRows } = await supabaseAdmin
-            .from('user_limits')
-            .select('license_id, count')
-            .eq('discord_user_id', userId)
-            .in('license_id', activeLicIds);
+          const [{ data: userLimitRows }, { data: licServicesData }] = await Promise.all([
+            supabaseAdmin.from('user_limits').select('license_id, count').eq('discord_user_id', userId).in('license_id', activeLicIds),
+            supabaseAdmin.from('license_services').select('license_id, service_id').in('license_id', activeLicIds)
+          ]);
+
+          let hasAllAccess = false;
+          const allowedServiceIdsSet = new Set<string>();
+
+          for (const lic of activeLicenses) {
+            const licIdStr = String(lic.id);
+            const rowsForLic = licServicesData?.filter(r => String(r.license_id) === licIdStr) || [];
+            if (rowsForLic.length === 0) {
+              hasAllAccess = true;
+              break;
+            } else {
+              for (const r of rowsForLic) {
+                allowedServiceIdsSet.add(String(r.service_id));
+              }
+            }
+          }
+
+          if (hasAllAccess) {
+            response.userPlan.allowedServices = 'all';
+          } else {
+            const { data: servicesTable } = await supabaseAdmin.from('services').select('id, name');
+            const allowedNames: string[] = [];
+            if (servicesTable) {
+              for (const s of servicesTable) {
+                if (allowedServiceIdsSet.has(String(s.id))) {
+                  allowedNames.push(s.name.toLowerCase());
+                }
+              }
+            }
+            response.userPlan.allowedServices = allowedNames;
+          }
 
           const limitMap = new Map<string, number>();
           if (userLimitRows) {
