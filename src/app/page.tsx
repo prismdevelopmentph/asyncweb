@@ -11,64 +11,60 @@ export default async function HomePage() {
   const { data: { user } } = await supabaseServer.auth.getUser();
 
   // Tools Summary List
-  // Tools Summary List
   const toolPricing = [
     {
+      id: 'generator',
+      name: 'Account Generator',
+      badge: 'POPULAR FEATURE',
+      icon: Key,
+      price: '$0',
+      period: '/ free for now',
+      description: 'Instant multi-service account generation and key management suite.',
+      features: [
+        'Steam, Discord, Rockstar, VPN & Netflix',
+        'Real-time automated stock tracking',
+        'Instant key redemption system',
+        'Personal 5-day generation history log'
+      ],
+      href: '/generator',
+      ctaText: 'Open Generator',
+      highlight: true
+    },
+    {
       id: 'decryption',
-      name: 'Lua/Stream Script Decryptor',
+      name: 'Lua Script Decryptor',
       badge: 'CORE ENGINE',
       icon: Cpu,
-      lifetimePrice: '$60',
-      lifetimePeriod: '/ lifetime access',
-      monthlyOption: 'or $25 / monthly',
-      description: 'High-speed automated FiveM Lua script unpacking, stream decryption and deobfuscation.',
+      price: '$0',
+      period: '/ free for now',
+      description: 'High-speed automated FiveM Lua script unpacking and deobfuscation.',
       features: [
         'Lua 5.4 & bytecode deobfuscation',
-        'Stream & resource script unpacking',
+        'Instant pipeline execution',
         'GoFile cloud storage host link',
-        'Discord log audit & role sync'
+        'Discord log audit trail'
       ],
       href: '/decrypt',
-      ctaText: 'Get Decryptor Access',
+      ctaText: 'Launch Decryptor',
       highlight: false
     },
     {
-      id: 'dumper',
-      name: 'Dumper Only',
+      id: 'mesh-repair',
+      name: '3D Mesh & Vertex Repair',
       badge: 'PRO TOOL',
       icon: Wrench,
-      lifetimePrice: '$60',
-      lifetimePeriod: '/ lifetime access',
-      monthlyOption: 'or $25 / monthly',
-      description: 'Automated FiveM asset dumper, mesh geometry repair, and vertex reconstruction.',
+      price: '$0',
+      period: '/ free for now',
+      description: 'Corrupted 3D mesh geometry repair and FiveM asset reconstruction.',
       features: [
-        'Automated FiveM asset dumper engine',
-        'Vertex normal & geometry repair',
+        'Automated vertex normal fixing',
         'Polygon mesh clean-up pipeline',
-        'Instant batch download processing'
+        'GoFile storage download link',
+        'Instant batch zip processing'
       ],
       href: '/decrypt',
-      ctaText: 'Get Dumper Access',
+      ctaText: 'Use Mesh Repair',
       highlight: false
-    },
-    {
-      id: 'combo',
-      name: 'Combo (Decryptor + Dumper)',
-      badge: 'BEST VALUE',
-      icon: Layers,
-      lifetimePrice: '$75',
-      lifetimePeriod: '/ lifetime access',
-      monthlyOption: 'or $35 / monthly',
-      description: 'Full suite access combining Lua/Stream Script Decryptor and FiveM Dumper Engine.',
-      features: [
-        'Lua & Stream Script Decryptor included',
-        'Full FiveM Asset Dumper engine included',
-        'Priority execution queue & fast processing',
-        'Complete suite features & lifetime pass'
-      ],
-      href: '/decrypt',
-      ctaText: 'Get Combo Access',
-      highlight: true
     }
   ];
 
@@ -78,14 +74,14 @@ export default async function HomePage() {
       id: 'per-service',
       name: 'Per Service Tier',
       badge: 'SINGLE ACCESS',
-      price: '$0',
-      period: '/ free for now',
-      description: 'Access to individual account generation service of your choice (Rockstar, Steam, Discord, VPN, or Netflix).',
+      price: '$20',
+      period: '/ per service',
+      description: 'Access to individual account generation service of your choice (Rockstar, Steam, Discord, CyberGhost, or Netflix).',
       features: [
-        'Rockstar, Steam, Discord, VPN or Netflix each access',
+        'Choice of single service access (Rockstar, Steam, Discord, etc.)',
         'Standard daily generation limits',
         'Automated real-time stock updates',
-        'Clean 5-day generation history log'
+        'Clean 50-item generation history log'
       ],
       href: '/generator',
       ctaText: 'Get Single Access',
@@ -93,28 +89,28 @@ export default async function HomePage() {
     },
     {
       id: 'fivem-bundle',
-      name: 'FiveM Gen Tier',
+      name: 'FiveM Package Bundle',
       badge: 'FIVEM BUNDLE',
-      price: '$0',
-      period: '/ free for now',
-      description: 'Complete FiveM package access including Rockstar, Steam, Discord, and VPN account generation.',
+      price: '$45',
+      period: '/ package bundle',
+      description: 'Complete FiveM package access including Rockstar, Steam, Discord, and CyberGhost VPN account generation.',
       features: [
-        'Rockstar, Steam, Discord & VPN package access',
+        'Rockstar, Steam, Discord & CyberGhost package access',
         'Elevated daily generation limit',
         'Priority stock allocation',
         'Instant key redemption system'
       ],
       href: '/generator',
-      ctaText: 'Get FiveM Package',
+      ctaText: 'Get FiveM Bundle',
       highlight: false
     },
     {
       id: 'all-access',
-      name: 'All Access Tier',
+      name: 'All Access Bundle',
       badge: 'MOST POPULAR',
-      price: '$0',
-      period: '/ free for now',
-      description: 'Complete unlimited access to ALL Account Generator services (Steam, Discord, Rockstar, VPN, Netflix + future additions).',
+      price: '$75',
+      period: '/ all access',
+      description: 'Complete unlimited access to ALL Account Generator services (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant + future additions).',
       features: [
         'All Account Gen Access (Every service unlocked)',
         'Highest daily generation limit & priority',
@@ -350,15 +346,10 @@ export default async function HomePage() {
                       {tool.description}
                     </p>
 
-                    {/* Price Header (Lifetime Priority) */}
-                    <div className="mb-6 pb-6 border-b border-purple-500/15">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-4xl font-black text-white">{tool.lifetimePrice}</span>
-                        <span className="text-xs text-purple-300/60 font-mono font-medium">{tool.lifetimePeriod}</span>
-                      </div>
-                      <div className="mt-1.5 text-xs text-purple-300/50 font-mono">
-                        {tool.monthlyOption}
-                      </div>
+                    {/* Price Header ($0 for now) */}
+                    <div className="flex items-baseline gap-1 mb-6 pb-6 border-b border-purple-500/15">
+                      <span className="text-4xl font-black text-white">{tool.price}</span>
+                      <span className="text-xs text-purple-300/50 font-mono">{tool.period}</span>
                     </div>
 
                     {/* Features List */}
