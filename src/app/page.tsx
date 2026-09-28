@@ -11,60 +11,61 @@ export default async function HomePage() {
   const { data: { user } } = await supabaseServer.auth.getUser();
 
   // Tools Summary List
+  // Tools Summary List
   const toolPricing = [
     {
-      id: 'generator',
-      name: 'Account Generator',
-      badge: 'POPULAR FEATURE',
-      icon: Key,
-      price: '$0',
-      period: '/ free for now',
-      description: 'Instant multi-service account generation and key management suite.',
-      features: [
-        'Steam, Discord, Rockstar, VPN & Netflix',
-        'Real-time automated stock tracking',
-        'Instant key redemption system',
-        'Personal 5-day generation history log'
-      ],
-      href: '/generator',
-      ctaText: 'Open Generator',
-      highlight: true
-    },
-    {
       id: 'decryption',
-      name: 'Lua Script Decryptor',
+      name: 'Lua/Stream Script Decryptor',
       badge: 'CORE ENGINE',
       icon: Cpu,
-      price: '$0',
-      period: '/ free for now',
-      description: 'High-speed automated FiveM Lua script unpacking and deobfuscation.',
+      price: '$25',
+      period: '/ Monthly ($60 Lifetime)',
+      description: 'High-speed automated FiveM Lua script unpacking, stream decryption and deobfuscation.',
       features: [
         'Lua 5.4 & bytecode deobfuscation',
-        'Instant pipeline execution',
+        'Stream & resource script unpacking',
         'GoFile cloud storage host link',
-        'Discord log audit trail'
+        'Discord log audit & role sync'
       ],
       href: '/decrypt',
-      ctaText: 'Launch Decryptor',
+      ctaText: 'Get Decryptor Access',
       highlight: false
     },
     {
-      id: 'mesh-repair',
-      name: '3D Mesh & Vertex Repair',
+      id: 'dumper',
+      name: 'Dumper Only',
       badge: 'PRO TOOL',
       icon: Wrench,
-      price: '$0',
-      period: '/ free for now',
-      description: 'Corrupted 3D mesh geometry repair and FiveM asset reconstruction.',
+      price: '$25',
+      period: '/ Monthly ($60 Lifetime)',
+      description: 'Automated FiveM asset dumper, mesh geometry repair, and vertex reconstruction.',
       features: [
-        'Automated vertex normal fixing',
+        'Automated FiveM asset dumper engine',
+        'Vertex normal & geometry repair',
         'Polygon mesh clean-up pipeline',
-        'GoFile storage download link',
-        'Instant batch zip processing'
+        'Instant batch download processing'
       ],
       href: '/decrypt',
-      ctaText: 'Use Mesh Repair',
+      ctaText: 'Get Dumper Access',
       highlight: false
+    },
+    {
+      id: 'combo',
+      name: 'Combo (Decryptor + Dumper)',
+      badge: 'BEST VALUE',
+      icon: Layers,
+      price: '$35',
+      period: '/ Monthly ($75 Lifetime)',
+      description: 'Full suite access combining Lua/Stream Script Decryptor and FiveM Dumper Engine.',
+      features: [
+        'Lua & Stream Script Decryptor included',
+        'Full FiveM Asset Dumper engine included',
+        'Priority execution queue & fast processing',
+        'Complete suite features & lifetime option'
+      ],
+      href: '/decrypt',
+      ctaText: 'Get Combo Access',
+      highlight: true
     }
   ];
 
@@ -74,14 +75,14 @@ export default async function HomePage() {
       id: 'per-service',
       name: 'Per Service Tier',
       badge: 'SINGLE ACCESS',
-      price: '$0',
-      period: '/ free for now',
-      description: 'Access to individual account generation service of your choice (Rockstar, Steam, Discord, VPN, or Netflix).',
+      price: '$20',
+      period: '/ tier access',
+      description: 'Access to individual account generation service of your choice (Rockstar, Steam, Discord, CyberGhost, or Netflix).',
       features: [
-        'Rockstar, Steam, Discord, VPN or Netflix each access',
+        'Choice of single service access (Rockstar, Steam, Discord, etc.)',
         'Standard daily generation limits',
         'Automated real-time stock updates',
-        'Clean 5-day generation history log'
+        'Clean 50-item generation history log'
       ],
       href: '/generator',
       ctaText: 'Get Single Access',
@@ -89,28 +90,28 @@ export default async function HomePage() {
     },
     {
       id: 'fivem-bundle',
-      name: 'FiveM Gen Tier',
+      name: 'FiveM Package Bundle',
       badge: 'FIVEM BUNDLE',
-      price: '$0',
-      period: '/ free for now',
-      description: 'Complete FiveM package access including Rockstar, Steam, Discord, and VPN account generation.',
+      price: '$45',
+      period: '/ package bundle',
+      description: 'Complete FiveM package access including Rockstar, Steam, Discord, and CyberGhost VPN account generation.',
       features: [
-        'Rockstar, Steam, Discord & VPN package access',
+        'Rockstar, Steam, Discord & CyberGhost package access',
         'Elevated daily generation limit',
         'Priority stock allocation',
         'Instant key redemption system'
       ],
       href: '/generator',
-      ctaText: 'Get FiveM Package',
+      ctaText: 'Get FiveM Bundle',
       highlight: false
     },
     {
       id: 'all-access',
-      name: 'All Access Tier',
+      name: 'All Access Bundle',
       badge: 'MOST POPULAR',
-      price: '$0',
-      period: '/ free for now',
-      description: 'Complete unlimited access to ALL Account Generator services (Steam, Discord, Rockstar, VPN, Netflix + future additions).',
+      price: '$75',
+      period: '/ all access',
+      description: 'Complete unlimited access to ALL Account Generator services (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant + future additions).',
       features: [
         'All Account Gen Access (Every service unlocked)',
         'Highest daily generation limit & priority',
@@ -235,7 +236,7 @@ export default async function HomePage() {
               Account Generator Tiers
             </h2>
             <p className="text-purple-300/60 text-sm mt-2">
-              Choose your account generation access plan. All tiers are currently $0 for early access.
+              Choose your account generation access plan. Flexible tier options for every requirement.
             </p>
           </div>
 
@@ -313,7 +314,7 @@ export default async function HomePage() {
               Tools & Features List
             </h2>
             <p className="text-purple-300/60 text-sm mt-2">
-              All tools are currently enabled for free testing and Discord role holders.
+              Select standalone tool access or get the complete combo package.
             </p>
           </div>
 

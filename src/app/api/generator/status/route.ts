@@ -19,7 +19,6 @@ export async function GET(request: Request) {
         dailyUsed: 0,
         dailyLimit: 0,
         guildLock: null as string | null,
-        allowedServices: [] as string[] | 'all',
       },
       stock: {
         steam: 0,
@@ -71,105 +70,46 @@ export async function GET(request: Request) {
       }
     })();
 
-    // 2. Parallel User License & Plan Query (Schema v2)
+    // 2. Parallel User License & Plan Query
     const userPlanPromise = (async () => {
       if (!userId) return;
       try {
-        const now = new Date();
-        const [{ data: lockData }, { data: licenseData }, { data: guildConfigData }] = await Promise.all([
-          supabaseAdmin.from('user_guild_locks').select('guild_id').eq('discord_user_id', userId).limit(1),
-          supabaseAdmin.from('licenses').select('*').eq('redeemed_by', userId).eq('is_active', true).order('created_at', { ascending: false }),
-          supabaseAdmin.from('guild_config').select('generate_limit').limit(1)
-        ]);
+        const { data: licenseData } = await supabaseAdmin
+          .from('licenses')
+          .select('*')
+          .eq('redeemed_by', userId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-        const userGuildLock = lockData?.[0]?.guild_id ? String(lockData[0].guild_id) : null;
-        const defaultGuildLimit = guildConfigData?.[0]?.generate_limit || 15;
-
-        const activeLicenses = (licenseData || []).filter((lic: any) => {
-          if (!lic.expires_at) return true;
-          return new Date(lic.expires_at) > now;
-        });
-
-        if (activeLicenses.length > 0) {
+        if (licenseData && licenseData.length > 0) {
+          const lic = licenseData[0];
           response.userPlan.hasPlan = true;
-          const mainLic = activeLicenses[0];
-          response.userPlan.name = mainLic.tier
-            ? `${mainLic.tier.charAt(0).toUpperCase() + mainLic.tier.slice(1)} Gen Plan`
+          response.userPlan.name = lic.tier
+            ? `${lic.tier.charAt(0).toUpperCase() + lic.tier.slice(1)} Gen Plan`
             : 'Active Gen Plan';
+          response.userPlan.expiresAt = lic.expires_at || 'Never';
+          response.userPlan.guildLock = lic.redeemed_guild_id || null;
 
-          // Determine latest expiration date
-          let isLifetime = false;
-          let maxExpiresAt: Date | null = null;
-          for (const lic of activeLicenses) {
-            if (!lic.expires_at) {
-              isLifetime = true;
-              break;
-            } else {
-              const exp = new Date(lic.expires_at);
-              if (!maxExpiresAt || exp > maxExpiresAt) maxExpiresAt = exp;
-            }
-          }
-          response.userPlan.expiresAt = isLifetime ? 'Never' : (maxExpiresAt ? maxExpiresAt.toISOString() : 'Never');
-          response.userPlan.guildLock = userGuildLock;
-
-          // Fetch user limits across all active licenses & license_services
-          const activeLicIds = activeLicenses.map((lic: any) => String(lic.id));
-          const [{ data: userLimitRows }, { data: licServicesData }] = await Promise.all([
-            supabaseAdmin.from('user_limits').select('license_id, count').eq('discord_user_id', userId).in('license_id', activeLicIds),
-            supabaseAdmin.from('license_services').select('license_id, service_id').in('license_id', activeLicIds)
+          // Fetch limit & user daily count in parallel
+          const [limitConfigRes, userLimitRes] = await Promise.all([
+            lic.daily_limit !== null && lic.daily_limit !== undefined
+              ? Promise.resolve({ limit: lic.daily_limit })
+              : supabaseAdmin.from('guild_config').select('generate_limit').limit(1),
+            supabaseAdmin.from('user_limits').select('count').eq('discord_user_id', userId).eq('license_id', String(lic.id)).limit(1)
           ]);
 
-          let hasAllAccess = false;
-          const allowedServiceIdsSet = new Set<string>();
-
-          for (const lic of activeLicenses) {
-            const licIdStr = String(lic.id);
-            const rowsForLic = licServicesData?.filter(r => String(r.license_id) === licIdStr) || [];
-            if (rowsForLic.length === 0) {
-              hasAllAccess = true;
-              break;
-            } else {
-              for (const r of rowsForLic) {
-                allowedServiceIdsSet.add(String(r.service_id));
-              }
-            }
-          }
-
-          if (hasAllAccess) {
-            response.userPlan.allowedServices = 'all';
+          if ('limit' in limitConfigRes) {
+            response.userPlan.dailyLimit = limitConfigRes.limit;
+          } else if (limitConfigRes.data && limitConfigRes.data.length > 0 && limitConfigRes.data[0].generate_limit) {
+            response.userPlan.dailyLimit = limitConfigRes.data[0].generate_limit;
           } else {
-            const { data: servicesTable } = await supabaseAdmin.from('services').select('id, name');
-            const allowedNames: string[] = [];
-            if (servicesTable) {
-              for (const s of servicesTable) {
-                if (allowedServiceIdsSet.has(String(s.id))) {
-                  allowedNames.push(s.name.toLowerCase());
-                }
-              }
-            }
-            response.userPlan.allowedServices = allowedNames;
+            response.userPlan.dailyLimit = 15;
           }
 
-          const limitMap = new Map<string, number>();
-          if (userLimitRows) {
-            for (const row of userLimitRows) {
-              limitMap.set(String(row.license_id), Number(row.count) || 0);
-            }
+          if (userLimitRes.data && userLimitRes.data.length > 0) {
+            response.userPlan.dailyUsed = userLimitRes.data[0].count || 0;
           }
-
-          let totalLimit = 0;
-          let totalUsed = 0;
-          for (const lic of activeLicenses) {
-            const licLimit = (lic.daily_limit !== null && lic.daily_limit !== undefined)
-              ? Number(lic.daily_limit)
-              : defaultGuildLimit;
-            const used = limitMap.get(String(lic.id)) || 0;
-            totalLimit += licLimit;
-            totalUsed += used;
-          }
-
-          response.userPlan.dailyLimit = totalLimit;
-          response.userPlan.dailyUsed = totalUsed;
         }
       } catch (err) {
         console.warn('[Generator Status] User plan fetch warning:', err);
