@@ -18,8 +18,9 @@ export default async function HomePage() {
       name: 'Lua/Stream Script Decryptor',
       badge: 'CORE ENGINE',
       icon: Cpu,
-      price: '$25',
-      period: '/ Monthly ($60 Lifetime)',
+      lifetimePrice: '$60',
+      lifetimePeriod: '/ lifetime access',
+      monthlyOption: 'or $25 / monthly',
       description: 'High-speed automated FiveM Lua script unpacking, stream decryption and deobfuscation.',
       features: [
         'Lua 5.4 & bytecode deobfuscation',
@@ -36,8 +37,9 @@ export default async function HomePage() {
       name: 'Dumper Only',
       badge: 'PRO TOOL',
       icon: Wrench,
-      price: '$25',
-      period: '/ Monthly ($60 Lifetime)',
+      lifetimePrice: '$60',
+      lifetimePeriod: '/ lifetime access',
+      monthlyOption: 'or $25 / monthly',
       description: 'Automated FiveM asset dumper, mesh geometry repair, and vertex reconstruction.',
       features: [
         'Automated FiveM asset dumper engine',
@@ -54,14 +56,15 @@ export default async function HomePage() {
       name: 'Combo (Decryptor + Dumper)',
       badge: 'BEST VALUE',
       icon: Layers,
-      price: '$35',
-      period: '/ Monthly ($75 Lifetime)',
+      lifetimePrice: '$75',
+      lifetimePeriod: '/ lifetime access',
+      monthlyOption: 'or $35 / monthly',
       description: 'Full suite access combining Lua/Stream Script Decryptor and FiveM Dumper Engine.',
       features: [
         'Lua & Stream Script Decryptor included',
         'Full FiveM Asset Dumper engine included',
         'Priority execution queue & fast processing',
-        'Complete suite features & lifetime option'
+        'Complete suite features & lifetime pass'
       ],
       href: '/decrypt',
       ctaText: 'Get Combo Access',
@@ -75,14 +78,14 @@ export default async function HomePage() {
       id: 'per-service',
       name: 'Per Service Tier',
       badge: 'SINGLE ACCESS',
-      price: '$20',
-      period: '/ tier access',
-      description: 'Access to individual account generation service of your choice (Rockstar, Steam, Discord, CyberGhost, or Netflix).',
+      price: '$0',
+      period: '/ free for now',
+      description: 'Access to individual account generation service of your choice (Rockstar, Steam, Discord, VPN, or Netflix).',
       features: [
-        'Choice of single service access (Rockstar, Steam, Discord, etc.)',
+        'Rockstar, Steam, Discord, VPN or Netflix each access',
         'Standard daily generation limits',
         'Automated real-time stock updates',
-        'Clean 50-item generation history log'
+        'Clean 5-day generation history log'
       ],
       href: '/generator',
       ctaText: 'Get Single Access',
@@ -90,28 +93,28 @@ export default async function HomePage() {
     },
     {
       id: 'fivem-bundle',
-      name: 'FiveM Package Bundle',
+      name: 'FiveM Gen Tier',
       badge: 'FIVEM BUNDLE',
-      price: '$45',
-      period: '/ package bundle',
-      description: 'Complete FiveM package access including Rockstar, Steam, Discord, and CyberGhost VPN account generation.',
+      price: '$0',
+      period: '/ free for now',
+      description: 'Complete FiveM package access including Rockstar, Steam, Discord, and VPN account generation.',
       features: [
-        'Rockstar, Steam, Discord & CyberGhost package access',
+        'Rockstar, Steam, Discord & VPN package access',
         'Elevated daily generation limit',
         'Priority stock allocation',
         'Instant key redemption system'
       ],
       href: '/generator',
-      ctaText: 'Get FiveM Bundle',
+      ctaText: 'Get FiveM Package',
       highlight: false
     },
     {
       id: 'all-access',
-      name: 'All Access Bundle',
+      name: 'All Access Tier',
       badge: 'MOST POPULAR',
-      price: '$75',
-      period: '/ all access',
-      description: 'Complete unlimited access to ALL Account Generator services (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant + future additions).',
+      price: '$0',
+      period: '/ free for now',
+      description: 'Complete unlimited access to ALL Account Generator services (Steam, Discord, Rockstar, VPN, Netflix + future additions).',
       features: [
         'All Account Gen Access (Every service unlocked)',
         'Highest daily generation limit & priority',
@@ -236,7 +239,7 @@ export default async function HomePage() {
               Account Generator Tiers
             </h2>
             <p className="text-purple-300/60 text-sm mt-2">
-              Choose your account generation access plan. Flexible tier options for every requirement.
+              Choose your account generation access plan. All tiers are currently $0 for early access.
             </p>
           </div>
 
@@ -314,7 +317,7 @@ export default async function HomePage() {
               Tools & Features List
             </h2>
             <p className="text-purple-300/60 text-sm mt-2">
-              Select standalone tool access or get the complete combo package.
+              All tools are currently enabled for free testing and Discord role holders.
             </p>
           </div>
 
@@ -347,10 +350,15 @@ export default async function HomePage() {
                       {tool.description}
                     </p>
 
-                    {/* Price Header ($0 for now) */}
-                    <div className="flex items-baseline gap-1 mb-6 pb-6 border-b border-purple-500/15">
-                      <span className="text-4xl font-black text-white">{tool.price}</span>
-                      <span className="text-xs text-purple-300/50 font-mono">{tool.period}</span>
+                    {/* Price Header (Lifetime Priority) */}
+                    <div className="mb-6 pb-6 border-b border-purple-500/15">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-4xl font-black text-white">{tool.lifetimePrice}</span>
+                        <span className="text-xs text-purple-300/60 font-mono font-medium">{tool.lifetimePeriod}</span>
+                      </div>
+                      <div className="mt-1.5 text-xs text-purple-300/50 font-mono">
+                        {tool.monthlyOption}
+                      </div>
                     </div>
 
                     {/* Features List */}
