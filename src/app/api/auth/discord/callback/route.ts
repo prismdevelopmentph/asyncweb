@@ -16,43 +16,46 @@ export async function GET(request: Request) {
   const clientId = process.env.DISCORD_CLIENT_ID || process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '1535517291473797130';
   const clientSecret = process.env.DISCORD_CLIENT_SECRET || process.env.DISCORD_SECRET || '';
 
+  if (!clientSecret) {
+    console.error('[Discord OAuth Error]: DISCORD_CLIENT_SECRET environment variable is missing on Vercel.');
+    return NextResponse.redirect(`${protocol}://${host}/generator?error=missing_client_secret`);
+  }
+
   try {
     let discordUser: any = null;
 
-    if (clientSecret) {
-      const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: redirectUri
-        })
-      });
+    const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri
+      })
+    });
 
-      if (!tokenRes.ok) {
-        const errJson = await tokenRes.json();
-        console.error('[Discord OAuth Token Error]:', errJson);
-        return NextResponse.redirect(`${protocol}://${host}/generator?error=token_exchange_failed`);
-      }
+    if (!tokenRes.ok) {
+      const errJson = await tokenRes.json();
+      console.error('[Discord OAuth Token Error]:', errJson);
+      return NextResponse.redirect(`${protocol}://${host}/generator?error=token_exchange_failed`);
+    }
 
-      const tokenData = await tokenRes.json();
-      const accessToken = tokenData.access_token;
+    const tokenData = await tokenRes.json();
+    const accessToken = tokenData.access_token;
 
-      // Fetch Discord user profile
-      const userRes = await fetch('https://discord.com/api/v10/users/@me', {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
+    // Fetch Discord user profile
+    const userRes = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
 
-      if (userRes.ok) {
-        discordUser = await userRes.json();
-      }
+    if (userRes.ok) {
+      discordUser = await userRes.json();
     }
 
     if (!discordUser) {
-      return NextResponse.redirect(`${protocol}://${host}/generator`);
+      return NextResponse.redirect(`${protocol}://${host}/generator?error=user_fetch_failed`);
     }
 
     const userEmail = discordUser.email || `${discordUser.id}@discord.user`;
