@@ -17,22 +17,9 @@ export default function DiscordLoginButton({
 }: DiscordLoginButtonProps) {
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
     setLoading(true);
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const redirectTarget = `${origin}/auth/callback`;
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'discord',
-      options: {
-        redirectTo: redirectTarget,
-      },
-    });
-
-    if (error) {
-      console.error('Discord login error:', error.message);
-      setLoading(false);
-    }
+    window.location.href = '/api/auth/discord/login';
   };
 
   const sizeStyles = {

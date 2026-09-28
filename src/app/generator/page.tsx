@@ -188,15 +188,9 @@ export default function AccountGeneratorPage() {
   }, [fetchStatus]);
 
   // Discord OAuth Login Handler
-  const handleDiscordLogin = async () => {
+  const handleDiscordLogin = () => {
     setAuthLoading(true);
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    await supabase.auth.signInWithOAuth({
-      provider: 'discord',
-      options: {
-        redirectTo: `${origin}/auth/callback`,
-      },
-    });
+    window.location.href = '/api/auth/discord/login';
   };
 
   // Account Claim / Generation Handler
