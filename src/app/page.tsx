@@ -10,61 +10,64 @@ export default async function HomePage() {
   const supabaseServer = await createClient();
   const { data: { user } } = await supabaseServer.auth.getUser();
 
-  // Tools Summary List
+  // Tools Summary List (Lifetime Priority)
   const toolPricing = [
     {
-      id: 'generator',
-      name: 'Account Generator',
-      badge: 'POPULAR FEATURE',
-      icon: Key,
-      price: '$0',
-      period: '/ free for now',
-      description: 'Instant multi-service account generation and key management suite.',
-      features: [
-        'Steam, Discord, Rockstar, VPN & Netflix',
-        'Real-time automated stock tracking',
-        'Instant key redemption system',
-        'Personal 5-day generation history log'
-      ],
-      href: '/generator',
-      ctaText: 'Open Generator',
-      highlight: true
-    },
-    {
       id: 'decryption',
-      name: 'Lua Script Decryptor',
+      name: 'Lua/Stream Script Decryptor',
       badge: 'CORE ENGINE',
       icon: Cpu,
-      price: '$0',
-      period: '/ free for now',
-      description: 'High-speed automated FiveM Lua script unpacking and deobfuscation.',
+      lifetimePrice: '$60',
+      lifetimePeriod: '/ lifetime access',
+      monthlyOption: 'or $25 / monthly',
+      description: 'High-speed automated FiveM Lua script unpacking, stream decryption and deobfuscation.',
       features: [
         'Lua 5.4 & bytecode deobfuscation',
-        'Instant pipeline execution',
+        'Stream & resource script unpacking',
         'GoFile cloud storage host link',
-        'Discord log audit trail'
+        'Discord log audit & role sync'
       ],
       href: '/decrypt',
-      ctaText: 'Launch Decryptor',
+      ctaText: 'Get Decryptor Access',
       highlight: false
     },
     {
-      id: 'mesh-repair',
-      name: '3D Mesh & Vertex Repair',
+      id: 'dumper',
+      name: 'Dumper Only',
       badge: 'PRO TOOL',
       icon: Wrench,
-      price: '$0',
-      period: '/ free for now',
-      description: 'Corrupted 3D mesh geometry repair and FiveM asset reconstruction.',
+      lifetimePrice: '$60',
+      lifetimePeriod: '/ lifetime access',
+      monthlyOption: 'or $25 / monthly',
+      description: 'Automated FiveM asset dumper, mesh geometry repair, and vertex reconstruction.',
       features: [
-        'Automated vertex normal fixing',
+        'Automated FiveM asset dumper engine',
+        'Vertex normal & geometry repair',
         'Polygon mesh clean-up pipeline',
-        'GoFile storage download link',
-        'Instant batch zip processing'
+        'Instant batch download processing'
       ],
       href: '/decrypt',
-      ctaText: 'Use Mesh Repair',
+      ctaText: 'Get Dumper Access',
       highlight: false
+    },
+    {
+      id: 'combo',
+      name: 'Combo (Decryptor + Dumper)',
+      badge: 'BEST VALUE',
+      icon: Layers,
+      lifetimePrice: '$75',
+      lifetimePeriod: '/ lifetime access',
+      monthlyOption: 'or $35 / monthly',
+      description: 'Full suite access combining Lua/Stream Script Decryptor and FiveM Dumper Engine.',
+      features: [
+        'Lua & Stream Script Decryptor included',
+        'Full FiveM Asset Dumper engine included',
+        'Priority execution queue & fast processing',
+        'Complete suite features & lifetime pass'
+      ],
+      href: '/decrypt',
+      ctaText: 'Get Combo Access',
+      highlight: true
     }
   ];
 
@@ -235,7 +238,7 @@ export default async function HomePage() {
               Account Generator Tiers
             </h2>
             <p className="text-purple-300/60 text-sm mt-2">
-              Choose your account generation access plan. All tiers are currently $0 for early access.
+              Choose your account generation access plan. Flexible tier options for every requirement.
             </p>
           </div>
 
@@ -313,7 +316,7 @@ export default async function HomePage() {
               Tools & Features List
             </h2>
             <p className="text-purple-300/60 text-sm mt-2">
-              All tools are currently enabled for free testing and Discord role holders.
+              Select standalone tool access or get the complete combo package.
             </p>
           </div>
 
@@ -346,10 +349,15 @@ export default async function HomePage() {
                       {tool.description}
                     </p>
 
-                    {/* Price Header ($0 for now) */}
-                    <div className="flex items-baseline gap-1 mb-6 pb-6 border-b border-purple-500/15">
-                      <span className="text-4xl font-black text-white">{tool.price}</span>
-                      <span className="text-xs text-purple-300/50 font-mono">{tool.period}</span>
+                    {/* Price Header (Lifetime Priority) */}
+                    <div className="mb-6 pb-6 border-b border-purple-500/15">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-4xl font-black text-white">{tool.lifetimePrice}</span>
+                        <span className="text-xs text-purple-300/60 font-mono font-medium">{tool.lifetimePeriod}</span>
+                      </div>
+                      <div className="mt-1.5 text-xs text-purple-300/50 font-mono">
+                        {tool.monthlyOption}
+                      </div>
                     </div>
 
                     {/* Features List */}
