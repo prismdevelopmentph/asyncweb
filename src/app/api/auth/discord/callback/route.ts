@@ -5,7 +5,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
 
-  const host = request.headers.get('host') || 'asyncdevph.xyz';
+  let host = request.headers.get('host') || 'asyncdevph.xyz';
+  host = host.replace(/^www\./, '');
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
 
