@@ -85,12 +85,14 @@ export default function AccountGeneratorPage() {
     expiresAt: string | null;
     dailyUsed: number;
     dailyLimit: number;
+    allowedServices?: string[] | 'all';
   }>({
     hasPlan: false,
     name: 'No active plan',
     expiresAt: null,
     dailyUsed: 0,
     dailyLimit: 0,
+    allowedServices: [],
   });
 
   const [stock, setStock] = useState({
@@ -411,15 +413,25 @@ export default function AccountGeneratorPage() {
                   {servicesConfig.map((svc) => {
                     const IconComp = svc.icon;
                     const isOutOfStock = svc.leftCount === 0;
+                    const isAllowed = userPlan.hasPlan && (
+                      userPlan.allowedServices === 'all' ||
+                      (Array.isArray(userPlan.allowedServices) && (
+                        userPlan.allowedServices.includes(svc.id) ||
+                        userPlan.allowedServices.includes(svc.name.toLowerCase())
+                      ))
+                    );
+
                     return (
                       <button
                         key={svc.id}
-                        disabled={claiming}
+                        disabled={claiming || !isAllowed}
                         onClick={() => handleClaimAccount(svc.name, svc.leftCount)}
                         className={`glass-card p-4 rounded-2xl border border-purple-500/20 flex flex-col items-center justify-center text-center transition-all duration-200 group relative ${svc.bgGlow} ${
-                          isOutOfStock
-                            ? 'opacity-60 hover:bg-purple-950/30'
-                            : 'hover:bg-purple-900/30 hover:-translate-y-1'
+                          !isAllowed
+                            ? 'opacity-50 grayscale-[35%] cursor-not-allowed border-purple-500/10'
+                            : isOutOfStock
+                            ? 'opacity-60 hover:bg-purple-950/30 cursor-pointer'
+                            : 'hover:bg-purple-900/30 hover:-translate-y-1 cursor-pointer'
                         }`}
                       >
                         <div className={`w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center mb-3 shadow-inner ${svc.color}`}>
@@ -428,8 +440,17 @@ export default function AccountGeneratorPage() {
                         <div className="text-xs font-semibold text-white group-hover:text-purple-200 transition-colors truncate w-full">
                           {svc.name}
                         </div>
-                        <div className={`text-[11px] mt-1 font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-purple-300/60'}`}>
-                          {isOutOfStock ? '0 left' : `${svc.leftCount.toLocaleString()} left`}
+
+                        {/* Always show stock count + No Access badge if unlicensed */}
+                        <div className="flex flex-col items-center gap-0.5 mt-1">
+                          <div className={`text-[11px] font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-purple-300/60'}`}>
+                            {isOutOfStock ? '0 left' : `${svc.leftCount.toLocaleString()} left`}
+                          </div>
+                          {!isAllowed && (
+                            <span className="text-[9px] font-bold tracking-wider uppercase text-purple-300/60 bg-purple-950/80 border border-purple-500/30 px-2 py-0.5 rounded-full mt-0.5">
+                              No Access
+                            </span>
+                          )}
                         </div>
                       </button>
                     );

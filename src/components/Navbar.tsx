@@ -33,9 +33,26 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleDiscordLogin = () => {
+  const handleDiscordLogin = async () => {
     setLoading(true);
-    window.location.href = '/api/auth/discord/login';
+
+    // Dynamically determine the redirect URL based on the current origin
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const redirectTarget = `${origin}/auth/callback`;
+
+    console.log('[Auth] Initiating Discord PKCE login with redirect:', redirectTarget);
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: redirectTarget,
+      },
+    });
+
+    if (error) {
+      console.error('Discord login error:', error.message);
+      setLoading(false);
+    }
   };
 
   const handleSignOut = async () => {
