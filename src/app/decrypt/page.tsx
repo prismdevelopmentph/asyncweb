@@ -41,6 +41,8 @@ import {
   Info
 } from 'lucide-react';
 
+const IS_MAINTENANCE_MODE = true;
+
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -134,11 +136,57 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && !IS_MAINTENANCE_MODE) {
       const discordUserId = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
       fetchDashboardData(discordUserId);
     }
   }, [user]);
+
+  if (IS_MAINTENANCE_MODE) {
+    return (
+      <div className="min-h-screen bg-[#07050e] text-white flex flex-col font-sans relative overflow-hidden">
+        <Navbar />
+
+        <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 w-full flex flex-col items-center justify-center py-20 text-center relative z-10">
+          <div className="glass-ultra border border-amber-500/30 rounded-3xl p-8 sm:p-12 max-w-xl w-full shadow-[0_0_50px_rgba(245,158,11,0.15)] relative overflow-hidden">
+            {/* Glowing Status Badge */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono mb-6">
+              <Wrench className="w-3.5 h-3.5 animate-pulse" />
+              <span>SYSTEM MAINTENANCE</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-4 tracking-tight">
+              Decrypt Engine Under Maintenance
+            </h1>
+
+            <p className="text-purple-200/70 text-sm sm:text-base leading-relaxed mb-8">
+              The Lua Script Decryptor and 3D Vertex Repair tools are currently undergoing scheduled maintenance and upgrades. Decryption services will be back online shortly.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
+              <Link
+                href="/"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)] flex items-center justify-center gap-2"
+              >
+                <ArrowRight className="w-4 h-4 rotate-180" />
+                <span>Back to Home</span>
+              </Link>
+
+              <Link
+                href="/generator"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200 font-bold text-xs transition-all flex items-center justify-center gap-2"
+              >
+                <Key className="w-4 h-4 text-purple-400" />
+                <span>Open Generator</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+
+        <Footer />
+      </div>
+    );
+  }
 
   // Auto-scroll terminal log
   useEffect(() => {
