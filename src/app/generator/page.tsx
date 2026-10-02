@@ -485,7 +485,7 @@ export default function AccountGeneratorPage() {
               <div className="glass-card rounded-2xl p-4 border border-purple-500/20 bg-purple-950/20 flex items-center gap-3 mb-6 text-xs text-purple-200/90">
                 <Info size={16} className="text-purple-400 shrink-0" />
                 <div>
-                  History is automatically cleared every 5 days. <strong className="text-white font-semibold">Copy anything you want to keep.</strong>
+                  History is automatically cleared every 24 hours. <strong className="text-white font-semibold">Copy anything you want to keep.</strong>
                 </div>
               </div>
 

@@ -181,6 +181,7 @@ export async function GET(request: Request) {
       if (!userId) return;
       try {
         const { data: servicesData } = await supabaseAdmin.from('services').select('name');
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         if (servicesData && servicesData.length > 0) {
           const historyPerService = await Promise.all(
             servicesData.map(async (svc) => {
@@ -190,6 +191,7 @@ export async function GET(request: Request) {
                   .from(tableName)
                   .select('id, data, claimed_at')
                   .eq('claimed_by', userId)
+                  .gte('claimed_at', twentyFourHoursAgo)
                   .order('claimed_at', { ascending: false })
                   .limit(15);
 
