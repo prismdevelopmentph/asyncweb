@@ -2,29 +2,39 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 const BLOCKED_USER_AGENTS = [
-  'gptbot',
-  'chatgpt-user',
+  'claude',
   'claudebot',
-  'anthropic-ai',
-  'perplexitybot',
+  'claude-web',
+  'anthropic',
+  'gpt',
+  'gptbot',
+  'chatgpt',
+  'openai',
+  'perplexity',
   'bytespider',
   'bytedance',
   'ccbot',
+  'commoncrawl',
   'google-extended',
-  'cohere-ai',
+  'cohere',
   'diffbot',
   'facebookbot',
-  'omgilibot',
-  'python-requests',
+  'meta-externalagent',
+  'omgili',
+  'python',
   'curl',
   'wget',
   'scrapy',
   'go-http-client',
-  'headlesschrome',
+  'headless',
   'aiohttp',
   'node-fetch',
   'axios',
-  'httpclient'
+  'httpclient',
+  'puppeteer',
+  'playwright',
+  'selenium',
+  'phantom'
 ];
 
 export function middleware(req: NextRequest) {
