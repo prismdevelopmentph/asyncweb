@@ -40,23 +40,49 @@ const BLOCKED_USER_AGENTS = [
 export function middleware(req: NextRequest) {
   const userAgent = (req.headers.get('user-agent') || '').toLowerCase();
 
-  // Check if User-Agent matches any known AI crawler or automated scraping tool
-  const isBlockedBot = BLOCKED_USER_AGENTS.some((bot) => userAgent.includes(bot));
+  // 1. Block missing or empty User-Agent
+  if (!userAgent || userAgent.trim() === '') {
+    return new NextResponse(
+      JSON.stringify({
+        error: 'Forbidden',
+        message: 'Access denied: Empty User-Agent header.'
+      }),
+      { status: 403, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex, nofollow' } }
+    );
+  }
 
+  // 2. Block known AI crawlers & scraping tool User-Agents
+  const isBlockedBot = BLOCKED_USER_AGENTS.some((bot) => userAgent.includes(bot));
   if (isBlockedBot) {
     return new NextResponse(
       JSON.stringify({
         error: 'Forbidden',
         message: 'Access denied: Automated bots and AI scrapers are restricted.'
       }),
-      {
-        status: 403,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Robots-Tag': 'noindex, nofollow'
-        }
-      }
+      { status: 403, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex, nofollow' } }
     );
+  }
+
+  // 3. Browser Header Signature Validation for HTML Page Requests
+  const acceptHeader = req.headers.get('accept') || '';
+  const isHtmlPageRequest = acceptHeader.includes('text/html');
+
+  if (isHtmlPageRequest) {
+    const hasSecFetchDest = req.headers.has('sec-fetch-dest');
+    const hasSecChUa = req.headers.has('sec-ch-ua');
+    const hasAcceptLang = req.headers.has('accept-language');
+
+    // Real modern browsers fetching web pages always send accept-language or sec-fetch-dest or sec-ch-ua.
+    // Raw HTTP fetch scripts lacking all three browser signature headers are blocked.
+    if (!hasSecFetchDest && !hasSecChUa && !hasAcceptLang) {
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Forbidden',
+          message: 'Access denied: Non-browser HTTP client signature detected.'
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex, nofollow' } }
+      );
+    }
   }
 
   return NextResponse.next();
