@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ShieldAlert, RefreshCw, AlertOctagon, Terminal, MessageSquare } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -9,6 +9,7 @@ export default function DevToolsProtection() {
   const [userIp, setUserIp] = useState<string>('Resolving IP...');
   const [triggerReason, setTriggerReason] = useState<string>('DevTools Inspection Detected');
   const [triggerTime, setTriggerTime] = useState<string>('');
+  const isLockedRef = useRef(false);
 
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
@@ -41,31 +42,22 @@ export default function DevToolsProtection() {
     let checkInterval: NodeJS.Timeout;
 
     const triggerLockout = (reason: string) => {
+      if (isLockedRef.current) return;
+      isLockedRef.current = true;
+
       setTriggerReason(reason);
       const timeStr = new Date().toUTCString();
       setTriggerTime(timeStr);
       setIsTriggered(true);
       document.body.style.overflow = 'hidden';
 
-      // Persist locally & send payload to server DB
-      try {
-        localStorage.setItem('async_security_locked', JSON.stringify({ reason, timestamp: timeStr }));
-      } catch {}
-
       dispatchSecurityLockout(reason);
     };
 
-    // Check existing local lock state on mount
-    try {
-      const storedLock = localStorage.getItem('async_security_locked');
-      if (storedLock) {
-        const parsed = JSON.parse(storedLock);
-        triggerLockout(parsed.reason || 'Persistent DevTools Violation');
-      }
-    } catch {}
-
     // A. Keystroke Interception
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.isTrusted) return; // Ignore synthetic/extension key events
+
       const isF12 = e.key === 'F12' || e.keyCode === 123;
       const isInspectKey =
         (e.ctrlKey || e.metaKey) &&
@@ -96,50 +88,30 @@ export default function DevToolsProtection() {
       e.preventDefault();
     };
 
-    // C. Dimension Differential Polling
+    // C. DevTools Dock & Resize Differential Polling
     const checkDimensions = () => {
-      const widthThreshold = window.outerWidth - window.innerWidth > 160;
-      const heightThreshold = window.outerHeight - window.innerHeight > 160;
+      // DevTools docked open causes substantial differential (> 220px) on both axes or extreme delta
+      const widthDiff = window.outerWidth - window.innerWidth;
+      const heightDiff = window.outerHeight - window.innerHeight;
 
-      if (widthThreshold || heightThreshold) {
+      // Ensure browser sidebars (typically < 180px) don't trigger false positives
+      if (widthDiff > 240 || heightDiff > 240) {
         triggerLockout('DevTools Dock Differential Detected');
-      }
-    };
-
-    // D. Console Object Getter Trap
-    const consoleTrap = () => {
-      const trap = new Image();
-      Object.defineProperty(trap, 'id', {
-        get: () => {
-          triggerLockout('Console Inspection Execution Trap');
-        },
-      });
-      console.log('%c', trap);
-    };
-
-    // E. Debugger Execution Timing Trap
-    const checkDebugger = () => {
-      const startTime = performance.now();
-      // eslint-disable-next-line no-debugger
-      debugger;
-      const endTime = performance.now();
-      if (endTime - startTime > 100) {
-        triggerLockout('Execution Breakpoint / Debugger Trap');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('contextmenu', handleContextMenu, true);
+    window.addEventListener('resize', checkDimensions, true);
 
     checkInterval = setInterval(() => {
       checkDimensions();
-      consoleTrap();
-      checkDebugger();
-    }, 1000);
+    }, 1500);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('contextmenu', handleContextMenu, true);
+      window.removeEventListener('resize', checkDimensions, true);
       clearInterval(checkInterval);
     };
   }, []);
