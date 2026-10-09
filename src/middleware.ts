@@ -114,16 +114,37 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // 4. Persistent Database IP Lockout Enforcement
+  // 4. Persistent Database IP & Account Lockout Enforcement
   const ip = getClientIp(req.headers);
 
-  if (ip && ip !== '127.0.0.1' && ip !== '::1') {
+  // Extract logged-in Discord User ID from Supabase auth cookie if present
+  let discordUserId: string | null = null;
+  try {
+    const authCookie = req.cookies.getAll().find((c) => c.name.includes('-auth-token'));
+    if (authCookie && authCookie.value) {
+      const parsed = JSON.parse(authCookie.value);
+      discordUserId = parsed?.user?.id || (Array.isArray(parsed) ? parsed[0]?.user?.id || parsed[0] : null) || null;
+    }
+  } catch {}
+
+  const hasValidIp = ip && ip !== '127.0.0.1' && ip !== '::1';
+
+  if (hasValidIp || discordUserId) {
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rlkssffuloxxsgbucuhc.supabase.co';
       const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+      let queryFilter = 'is_banned=eq.true';
+      if (hasValidIp && discordUserId) {
+        queryFilter += `&or=(ip_address.eq.${encodeURIComponent(ip)},discord_user_id.eq.${encodeURIComponent(discordUserId)})`;
+      } else if (hasValidIp) {
+        queryFilter += `&ip_address=eq.${encodeURIComponent(ip)}`;
+      } else if (discordUserId) {
+        queryFilter += `&discord_user_id=eq.${encodeURIComponent(discordUserId)}`;
+      }
+
       const checkRes = await fetch(
-        `${supabaseUrl}/rest/v1/security_lockouts?ip_address=eq.${encodeURIComponent(ip)}&is_banned=eq.true&select=id,reason`,
+        `${supabaseUrl}/rest/v1/security_lockouts?${queryFilter}&select=id,reason,ip_address,discord_user_id`,
         {
           headers: {
             apikey: supabaseKey,
@@ -161,9 +182,9 @@ export async function middleware(req: NextRequest) {
   <div class="card">
     <div class="badge">🛡️ SECURITY LOCKOUT ACTIVATED</div>
     <h1>Access Restricted</h1>
-    <p>Your IP address has been flagged for a security violation and is currently locked out of ASYNC DEVELOPMENT.</p>
+    <p>Your account or IP address has been flagged for a security violation and is currently locked out of ASYNC DEVELOPMENT.</p>
     <div class="info">
-      <div class="info-item"><span class="label">Banned IP:</span><span class="val">${ip}</span></div>
+      <div class="info-item"><span class="label">Visitor IP:</span><span class="val">${ip}</span></div>
       <div class="info-item"><span class="label">Trigger Reason:</span><span style="color: #fff;">${reason}</span></div>
       <div class="info-item"><span class="label">Status:</span><span class="val">PERMANENTLY LOCKED</span></div>
     </div>
