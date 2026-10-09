@@ -33,7 +33,13 @@ function getClientIp(headers: Headers): string {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { reason = 'DevTools Inspection Detected', url = 'https://asyncdevph.xyz', userAgent = '', userId = null } = body;
+    const {
+      reason = 'DevTools Inspection Detected',
+      url = 'https://asyncdevph.xyz',
+      userAgent = '',
+      userId = null,
+      deviceId = null,
+    } = body;
 
     // Resolve visitor IP address using Cloudflare & Vercel headers
     let ip = getClientIp(request.headers);
@@ -43,6 +49,8 @@ export async function POST(request: Request) {
     }
 
     // Insert or update lockout record in Supabase security_lockouts
+    const targetUserId = userId || deviceId || null;
+
     const { data, error } = await supabaseAdmin
       .from('security_lockouts')
       .upsert(
@@ -51,7 +59,7 @@ export async function POST(request: Request) {
           reason,
           user_agent: userAgent || request.headers.get('user-agent') || 'Unknown',
           url,
-          discord_user_id: userId,
+          discord_user_id: targetUserId,
           is_banned: true,
           notified_discord: false,
           created_at: new Date().toISOString()

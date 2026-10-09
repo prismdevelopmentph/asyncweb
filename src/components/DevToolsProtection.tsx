@@ -24,11 +24,33 @@ export default function DevToolsProtection() {
     );
   };
 
+  // Helper to generate or retrieve persistent guest device token
+  const getOrCreateDeviceId = () => {
+    if (typeof window === 'undefined') return null;
+    let devId: string | null = null;
+    try {
+      devId = localStorage.getItem('async_device_id');
+    } catch {}
+
+    if (!devId) {
+      devId = 'dev_' + Math.random().toString(36).substring(2, 12) + Math.random().toString(36).substring(2, 12);
+      try {
+        localStorage.setItem('async_device_id', devId);
+      } catch {}
+    }
+
+    if (typeof document !== 'undefined') {
+      document.cookie = `async_device_id=${devId}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    }
+    return devId;
+  };
+
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const userId = getDiscordId(user);
+      const deviceId = getOrCreateDeviceId();
 
       if (userId && typeof document !== 'undefined') {
         document.cookie = `async_security_uid=${userId}; Path=/; Max-Age=31536000; SameSite=Lax`;
@@ -42,6 +64,7 @@ export default function DevToolsProtection() {
           url: typeof window !== 'undefined' ? window.location.href : 'https://asyncdevph.xyz',
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
           userId,
+          deviceId,
         }),
       });
 
@@ -57,6 +80,9 @@ export default function DevToolsProtection() {
   // 2. DevTools & Keystroke Interception Engine
   useEffect(() => {
     let checkInterval: NodeJS.Timeout;
+
+    // Ensure device token cookie is active on page load
+    getOrCreateDeviceId();
 
     const triggerLockout = (reason: string) => {
       if (isLockedRef.current) return;

@@ -117,8 +117,10 @@ export async function middleware(req: NextRequest) {
   // 4. Persistent Database IP & Account Lockout Enforcement
   const ip = getClientIp(req.headers);
 
-  // Extract logged-in Discord User ID from security cookie or Supabase auth cookie
+  // Extract logged-in Discord User ID or persistent Guest Device ID from cookies
   let discordUserId: string | null = req.cookies.get('async_security_uid')?.value || null;
+  const deviceId: string | null = req.cookies.get('async_device_id')?.value || null;
+
   if (!discordUserId) {
     try {
       const authCookie = req.cookies.getAll().find((c) => c.name.includes('-auth-token'));
@@ -136,18 +138,22 @@ export async function middleware(req: NextRequest) {
 
   const hasValidIp = ip && ip !== '127.0.0.1' && ip !== '::1';
 
-  if (hasValidIp || discordUserId) {
+  if (hasValidIp || discordUserId || deviceId) {
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://rlkssffuloxxsgbucuhc.supabase.co';
       const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+      const searchTargets = [
+        hasValidIp ? `ip_address.eq.${encodeURIComponent(ip)}` : null,
+        discordUserId ? `discord_user_id.eq.${encodeURIComponent(discordUserId)}` : null,
+        deviceId ? `discord_user_id.eq.${encodeURIComponent(deviceId)}` : null,
+      ].filter(Boolean);
+
       let queryFilter = 'is_banned=eq.true';
-      if (hasValidIp && discordUserId) {
-        queryFilter += `&or=(ip_address.eq.${encodeURIComponent(ip)},discord_user_id.eq.${encodeURIComponent(discordUserId)})`;
-      } else if (hasValidIp) {
-        queryFilter += `&ip_address=eq.${encodeURIComponent(ip)}`;
-      } else if (discordUserId) {
-        queryFilter += `&discord_user_id=eq.${encodeURIComponent(discordUserId)}`;
+      if (searchTargets.length > 1) {
+        queryFilter += `&or=(${searchTargets.join(',')})`;
+      } else if (searchTargets.length === 1) {
+        queryFilter += `&${searchTargets[0]}`;
       }
 
       const checkRes = await fetch(
