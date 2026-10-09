@@ -14,11 +14,30 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const syncSecurityCookie = (userObj: any) => {
+    if (typeof document === 'undefined') return;
+    if (userObj) {
+      const discordId =
+        userObj.user_metadata?.provider_id ||
+        userObj.user_metadata?.sub ||
+        userObj.identities?.find((i: any) => i.provider === 'discord')?.identity_data?.sub ||
+        userObj.identities?.find((i: any) => i.provider === 'discord')?.id ||
+        userObj.id ||
+        null;
+      if (discordId) {
+        document.cookie = `async_security_uid=${discordId}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      }
+    } else {
+      document.cookie = 'async_security_uid=; Path=/; Max-Age=0; SameSite=Lax';
+    }
+  };
+
   useEffect(() => {
     // Check initial user session
     const getInitialUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      syncSecurityCookie(user);
       setLoading(false);
     };
 
@@ -26,7 +45,9 @@ export default function Navbar() {
 
     // Listen to Auth State Changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      syncSecurityCookie(currentUser);
       setLoading(false);
     });
 
@@ -41,6 +62,7 @@ export default function Navbar() {
   const handleSignOut = async () => {
     setLoading(true);
     await supabase.auth.signOut();
+    syncSecurityCookie(null);
     setUser(null);
     setLoading(false);
     router.push('/');

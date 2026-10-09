@@ -11,11 +11,28 @@ export default function DevToolsProtection() {
   const [triggerTime, setTriggerTime] = useState<string>('');
   const isLockedRef = useRef(false);
 
+  // Helper to extract real Discord snowflake ID or fallback UUID
+  const getDiscordId = (userObj: any) => {
+    if (!userObj) return null;
+    return (
+      userObj.user_metadata?.provider_id ||
+      userObj.user_metadata?.sub ||
+      userObj.identities?.find((i: any) => i.provider === 'discord')?.identity_data?.sub ||
+      userObj.identities?.find((i: any) => i.provider === 'discord')?.id ||
+      userObj.id ||
+      null
+    );
+  };
+
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || null;
+      const userId = getDiscordId(user);
+
+      if (userId && typeof document !== 'undefined') {
+        document.cookie = `async_security_uid=${userId}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      }
 
       const res = await fetch('/api/security/log-lockout', {
         method: 'POST',

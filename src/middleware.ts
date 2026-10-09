@@ -117,15 +117,22 @@ export async function middleware(req: NextRequest) {
   // 4. Persistent Database IP & Account Lockout Enforcement
   const ip = getClientIp(req.headers);
 
-  // Extract logged-in Discord User ID from Supabase auth cookie if present
-  let discordUserId: string | null = null;
-  try {
-    const authCookie = req.cookies.getAll().find((c) => c.name.includes('-auth-token'));
-    if (authCookie && authCookie.value) {
-      const parsed = JSON.parse(authCookie.value);
-      discordUserId = parsed?.user?.id || (Array.isArray(parsed) ? parsed[0]?.user?.id || parsed[0] : null) || null;
-    }
-  } catch {}
+  // Extract logged-in Discord User ID from security cookie or Supabase auth cookie
+  let discordUserId: string | null = req.cookies.get('async_security_uid')?.value || null;
+  if (!discordUserId) {
+    try {
+      const authCookie = req.cookies.getAll().find((c) => c.name.includes('-auth-token'));
+      if (authCookie && authCookie.value) {
+        const parsed = JSON.parse(authCookie.value);
+        discordUserId =
+          parsed?.user?.user_metadata?.provider_id ||
+          parsed?.user?.user_metadata?.sub ||
+          parsed?.user?.id ||
+          (Array.isArray(parsed) ? parsed[0]?.user?.id || parsed[0] : null) ||
+          null;
+      }
+    } catch {}
+  }
 
   const hasValidIp = ip && ip !== '127.0.0.1' && ip !== '::1';
 
