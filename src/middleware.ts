@@ -37,6 +37,35 @@ const BLOCKED_USER_AGENTS = [
   'phantom'
 ];
 
+function getClientIp(headers: Headers): string {
+  // 1. Cloudflare real visitor IP header (Highest priority)
+  const cfIp = headers.get('cf-connecting-ip');
+  if (cfIp && cfIp.trim()) return cfIp.trim();
+
+  // 2. Standard forwarded-for header
+  const forwarded = headers.get('x-forwarded-for');
+  if (forwarded) {
+    const ips = forwarded.split(',').map((i) => i.trim());
+    // Filter out Cloudflare proxy IP ranges (172.68.x.x - 172.71.x.x, 108.162.x.x)
+    const realVisitorIp = ips.find(
+      (i) =>
+        !i.startsWith('172.68.') &&
+        !i.startsWith('172.69.') &&
+        !i.startsWith('172.70.') &&
+        !i.startsWith('172.71.') &&
+        !i.startsWith('108.162.')
+    );
+    if (realVisitorIp) return realVisitorIp;
+    return ips[0];
+  }
+
+  // 3. Real IP header fallback
+  const realIp = headers.get('x-real-ip');
+  if (realIp && realIp.trim()) return realIp.trim();
+
+  return '';
+}
+
 export async function middleware(req: NextRequest) {
   const userAgent = (req.headers.get('user-agent') || '').toLowerCase();
 
@@ -86,9 +115,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // 4. Persistent Database IP Lockout Enforcement
-  const forwarded = req.headers.get('x-forwarded-for');
-  const realIp = req.headers.get('x-real-ip');
-  let ip = forwarded ? forwarded.split(',')[0].trim() : realIp || '';
+  const ip = getClientIp(req.headers);
 
   if (ip && ip !== '127.0.0.1' && ip !== '::1') {
     try {

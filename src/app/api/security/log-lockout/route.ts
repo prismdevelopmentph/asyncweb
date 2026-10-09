@@ -1,15 +1,42 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+function getClientIp(headers: Headers): string {
+  // 1. Cloudflare real visitor IP header (Highest priority)
+  const cfIp = headers.get('cf-connecting-ip');
+  if (cfIp && cfIp.trim()) return cfIp.trim();
+
+  // 2. Standard forwarded-for header
+  const forwarded = headers.get('x-forwarded-for');
+  if (forwarded) {
+    const ips = forwarded.split(',').map((i) => i.trim());
+    // Filter out Cloudflare proxy IP ranges (172.68.x.x - 172.71.x.x, 108.162.x.x)
+    const realVisitorIp = ips.find(
+      (i) =>
+        !i.startsWith('172.68.') &&
+        !i.startsWith('172.69.') &&
+        !i.startsWith('172.70.') &&
+        !i.startsWith('172.71.') &&
+        !i.startsWith('108.162.')
+    );
+    if (realVisitorIp) return realVisitorIp;
+    return ips[0];
+  }
+
+  // 3. Real IP header fallback
+  const realIp = headers.get('x-real-ip');
+  if (realIp && realIp.trim()) return realIp.trim();
+
+  return '127.0.0.1';
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const { reason = 'DevTools Inspection Detected', url = 'https://asyncdevph.xyz', userAgent = '', userId = null } = body;
 
-    // Resolve visitor IP address from request headers
-    const forwarded = request.headers.get('x-forwarded-for');
-    const realIp = request.headers.get('x-real-ip');
-    let ip = forwarded ? forwarded.split(',')[0].trim() : realIp || '127.0.0.1';
+    // Resolve visitor IP address using Cloudflare & Vercel headers
+    let ip = getClientIp(request.headers);
 
     if (ip === '::1' || ip === '127.0.0.1') {
       ip = '112.204.180.1'; // fallback development IP
