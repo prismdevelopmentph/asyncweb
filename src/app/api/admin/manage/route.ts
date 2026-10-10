@@ -117,13 +117,31 @@ export async function POST(request: NextRequest) {
       const { lockoutId, ipAddress } = body;
       if (!lockoutId && !ipAddress) return NextResponse.json({ error: 'Missing lockoutId or ipAddress' }, { status: 400 });
 
-      let query = supabaseAdmin.from('security_lockouts').update({ is_banned: false });
-      if (lockoutId) query = query.eq('id', lockoutId);
-      else query = query.eq('ip_address', ipAddress);
+      // First fetch the target lockout record to get linked device token / discord ID
+      let targetRecord: any = null;
+      if (lockoutId) {
+        const { data } = await supabaseAdmin.from('security_lockouts').select('ip_address, discord_user_id').eq('id', lockoutId).single();
+        targetRecord = data;
+      }
 
-      const { error } = await query;
+      const targetIp = ipAddress || targetRecord?.ip_address;
+      const targetUid = targetRecord?.discord_user_id;
+
+      // Update all lockout records matching either target IP OR target Discord/Device ID
+      let updateQuery = supabaseAdmin.from('security_lockouts').update({ is_banned: false });
+      
+      const filterConditions: string[] = [];
+      if (targetIp) filterConditions.push(`ip_address.eq.${targetIp}`);
+      if (targetUid) filterConditions.push(`discord_user_id.eq.${targetUid}`);
+
+      if (filterConditions.length > 0) {
+        updateQuery = updateQuery.or(filterConditions.join(','));
+      }
+
+      const { error } = await updateQuery;
       if (error) throw error;
-      return NextResponse.json({ success: true, message: `Security Lockout lifted for ${ipAddress || 'record #' + lockoutId}.` });
+
+      return NextResponse.json({ success: true, message: `Security Lockout lifted for ${targetIp || 'device ' + targetUid}.` });
     }
 
     if (action === 'ban_security_ip') {
