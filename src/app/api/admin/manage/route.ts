@@ -183,6 +183,50 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === 'edit_generator_license') {
+      const { licenseId, dailyLimit } = body;
+      if (!licenseId) return NextResponse.json({ error: 'Missing licenseId' }, { status: 400 });
+
+      const newLimit = parseInt(dailyLimit);
+      if (isNaN(newLimit) || newLimit < 1) {
+        return NextResponse.json({ error: 'Invalid daily limit' }, { status: 400 });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('licenses')
+        .update({ daily_limit: newLimit })
+        .eq('id', licenseId);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: `Daily limit updated to ${newLimit} accounts/day.` });
+    }
+
+    if (action === 'reset_generator_usage') {
+      const { licenseId, targetUserId } = body;
+      if (!licenseId && !targetUserId) return NextResponse.json({ error: 'Missing licenseId or targetUserId' }, { status: 400 });
+
+      if (targetUserId) {
+        await supabaseAdmin.from('claims').delete().eq('user_id', String(targetUserId));
+      }
+
+      return NextResponse.json({ success: true, message: `User generation claims reset successfully.` });
+    }
+
+    if (action === 'delete_generator_license') {
+      const { licenseId } = body;
+      if (!licenseId) return NextResponse.json({ error: 'Missing licenseId' }, { status: 400 });
+
+      await supabaseAdmin.from('license_services').delete().eq('license_id', licenseId);
+
+      const { error } = await supabaseAdmin
+        .from('licenses')
+        .delete()
+        .eq('id', licenseId);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: `Generator License deleted permanently.` });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (err: any) {
     console.error('Admin management error:', err);

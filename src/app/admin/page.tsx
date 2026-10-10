@@ -28,7 +28,12 @@ import {
   Layers,
   Terminal,
   Activity,
-  UserCheck
+  UserCheck,
+  MoreVertical,
+  Edit3,
+  RotateCcw,
+  Trash2,
+  X
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -53,6 +58,12 @@ export default function AdminPage() {
   const [genLicKey, setGenLicKey] = useState('');
   const [genLicUserId, setGenLicUserId] = useState('');
   const [genLicDailyLimit, setGenLicDailyLimit] = useState('15');
+
+  // Dropdown & Edit Limit Modal State
+  const [activeDropdownId, setActiveDropdownId] = useState<number | null>(null);
+  const [showEditLimitModal, setShowEditLimitModal] = useState(false);
+  const [editingLic, setEditingLic] = useState<any>(null);
+  const [editLimitValue, setEditLimitValue] = useState('15');
 
   // Form Inputs: Plan Assignment (Decrypt VIP)
   const [planUserId, setPlanUserId] = useState('');
@@ -255,6 +266,95 @@ export default function AdminPage() {
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to toggle license');
+
+      setActionMessage(json.message);
+      fetchAdminData(true);
+    } catch (err: any) {
+      setActionError(err.message);
+    }
+  };
+
+  // Edit Generator License Daily Limit
+  const handleEditGenLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLic) return;
+    setActionMessage('');
+    setActionError('');
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit_generator_license',
+          ownerUserId,
+          licenseId: editingLic.id,
+          dailyLimit: editLimitValue,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to update daily limit');
+
+      setActionMessage(json.message);
+      setShowEditLimitModal(false);
+      setEditingLic(null);
+      fetchAdminData(true);
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Reset User Generation Claims
+  const handleResetGenUsage = async (lic: any) => {
+    if (!confirm(`Reset daily generation count for license key ${lic.license_key}?`)) return;
+    setActionMessage('');
+    setActionError('');
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reset_generator_usage',
+          ownerUserId,
+          licenseId: lic.id,
+          targetUserId: lic.redeemed_by || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to reset usage');
+
+      setActionMessage(json.message);
+      fetchAdminData(true);
+    } catch (err: any) {
+      setActionError(err.message);
+    }
+  };
+
+  // Delete Generator License Key
+  const handleDeleteGenLicense = async (lic: any) => {
+    if (!confirm(`PERMANENTLY DELETE license key ${lic.license_key}? This cannot be undone.`)) return;
+    setActionMessage('');
+    setActionError('');
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_generator_license',
+          ownerUserId,
+          licenseId: lic.id,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to delete license');
 
       setActionMessage(json.message);
       fetchAdminData(true);
@@ -760,13 +860,76 @@ export default function AdminPage() {
                                 {lic.is_active ? 'ACTIVE' : 'INACTIVE'}
                               </span>
                             </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <button
-                                onClick={() => handleToggleGenLicense(lic.id, lic.is_active)}
-                                className="px-3 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-purple-200 text-xs font-semibold glass-spring-btn"
-                              >
-                                {lic.is_active ? 'Disable' : 'Enable'}
-                              </button>
+                            <td className="py-3.5 px-4 text-right relative">
+                              <div className="inline-block text-left">
+                                <button
+                                  onClick={() => setActiveDropdownId(activeDropdownId === lic.id ? null : lic.id)}
+                                  className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-purple-200 text-xs font-semibold flex items-center gap-1.5 ml-auto transition-all"
+                                >
+                                  <span>Actions</span>
+                                  <MoreVertical className="w-3.5 h-3.5 text-purple-400" />
+                                </button>
+
+                                {activeDropdownId === lic.id && (
+                                  <>
+                                    <div
+                                      className="fixed inset-0 z-20"
+                                      onClick={() => setActiveDropdownId(null)}
+                                    />
+                                    <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#0f0a1c] border border-purple-500/30 shadow-2xl z-30 py-1.5 divide-y divide-white/[0.06] text-xs font-medium text-purple-200 animate-in fade-in zoom-in-95">
+                                      <div className="py-1">
+                                        <button
+                                          onClick={() => {
+                                            setActiveDropdownId(null);
+                                            handleToggleGenLicense(lic.id, lic.is_active);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 hover:bg-white/[0.06] flex items-center gap-2 text-purple-200"
+                                        >
+                                          <Ban className="w-3.5 h-3.5 text-amber-400" />
+                                          <span>{lic.is_active ? 'Disable License' : 'Enable License'}</span>
+                                        </button>
+
+                                        <button
+                                          onClick={() => {
+                                            setActiveDropdownId(null);
+                                            setEditingLic(lic);
+                                            setEditLimitValue(String(lic.daily_limit || 15));
+                                            setShowEditLimitModal(true);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 hover:bg-white/[0.06] flex items-center gap-2 text-purple-200"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5 text-blue-400" />
+                                          <span>Edit Daily Limit</span>
+                                        </button>
+
+                                        <button
+                                          onClick={() => {
+                                            setActiveDropdownId(null);
+                                            handleResetGenUsage(lic);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 hover:bg-white/[0.06] flex items-center gap-2 text-purple-200"
+                                        >
+                                          <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                                          <span>Reset Generation</span>
+                                        </button>
+                                      </div>
+
+                                      <div className="py-1">
+                                        <button
+                                          onClick={() => {
+                                            setActiveDropdownId(null);
+                                            handleDeleteGenLicense(lic);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 text-red-400 flex items-center gap-2 font-bold"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                          <span>Delete License</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -966,6 +1129,70 @@ export default function AdminPage() {
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(245,158,11,0.4)] disabled:opacity-50 glass-spring-btn"
                 >
                   {submitting ? 'Creating...' : 'Generate Key'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: EDIT DAILY LIMIT ── */}
+      {showEditLimitModal && editingLic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="relative w-full max-w-md glass-ultra rounded-3xl border border-blue-500/30 p-6 sm:p-8 shadow-[0_0_50px_rgba(59,130,246,0.25)] space-y-5">
+            <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Edit Daily Limit</h3>
+                  <p className="text-xs text-purple-300/60 font-mono">{editingLic.license_key}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditLimitModal(false);
+                  setEditingLic(null);
+                }}
+                className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-purple-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditGenLicense} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Max Daily Generation Limit (Accounts / Day)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  required
+                  value={editLimitValue}
+                  onChange={(e) => setEditLimitValue(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-blue-400 font-mono"
+                  placeholder="15"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditLimitModal(false);
+                    setEditingLic(null);
+                  }}
+                  className="px-4 py-2 rounded-xl glass-ultra text-purple-300/70 text-xs font-semibold hover:text-white glass-spring-btn"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(59,130,246,0.4)] disabled:opacity-50 glass-spring-btn"
+                >
+                  {submitting ? 'Updating...' : 'Update Limit'}
                 </button>
               </div>
             </form>
