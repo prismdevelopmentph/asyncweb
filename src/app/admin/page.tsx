@@ -61,6 +61,7 @@ export default function AdminPage() {
 
   // Dropdown & Edit Limit Modal State
   const [activeDropdownId, setActiveDropdownId] = useState<number | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number } | null>(null);
   const [showEditLimitModal, setShowEditLimitModal] = useState(false);
   const [editingLic, setEditingLic] = useState<any>(null);
   const [editLimitValue, setEditLimitValue] = useState('15');
@@ -687,7 +688,7 @@ export default function AdminPage() {
                 <span className="text-[10px] text-purple-300/60 font-mono">Edge Middleware Enforced</span>
               </div>
 
-              <div className="overflow-x-auto custom-scrollbar">
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
@@ -812,7 +813,7 @@ export default function AdminPage() {
               </h3>
 
               <div className="glass-ultra rounded-3xl border border-amber-500/30 overflow-hidden shadow-xl">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
@@ -865,27 +866,46 @@ export default function AdminPage() {
                                 {lic.is_active ? 'ACTIVE' : 'INACTIVE'}
                               </span>
                             </td>
-                            <td className="py-3.5 px-4 text-right relative">
+                            <td className="py-3.5 px-4 text-right">
                               <div className="inline-block text-left">
                                 <button
-                                  onClick={() => setActiveDropdownId(activeDropdownId === lic.id ? null : lic.id)}
+                                  onClick={(e) => {
+                                    if (activeDropdownId === lic.id) {
+                                      setActiveDropdownId(null);
+                                      setDropdownPos(null);
+                                    } else {
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setDropdownPos({
+                                        top: rect.bottom + 6,
+                                        right: window.innerWidth - rect.right,
+                                      });
+                                      setActiveDropdownId(lic.id);
+                                    }
+                                  }}
                                   className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-purple-200 text-xs font-semibold flex items-center gap-1.5 ml-auto transition-all"
                                 >
                                   <span>Actions</span>
                                   <MoreVertical className="w-3.5 h-3.5 text-purple-400" />
                                 </button>
 
-                                {activeDropdownId === lic.id && (
+                                {activeDropdownId === lic.id && dropdownPos && (
                                   <>
                                     <div
-                                      className="fixed inset-0 z-20"
-                                      onClick={() => setActiveDropdownId(null)}
+                                      className="fixed inset-0 z-[99998]"
+                                      onClick={() => {
+                                        setActiveDropdownId(null);
+                                        setDropdownPos(null);
+                                      }}
                                     />
-                                    <div className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#0f0a1c] border border-purple-500/30 shadow-2xl z-30 py-1.5 divide-y divide-white/[0.06] text-xs font-medium text-purple-200 animate-in fade-in zoom-in-95">
+                                    <div
+                                      style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
+                                      className="fixed w-48 rounded-2xl bg-[#0f0a1c] border border-purple-500/30 shadow-2xl z-[99999] py-1.5 divide-y divide-white/[0.06] text-xs font-medium text-purple-200 animate-in fade-in zoom-in-95"
+                                    >
                                       <div className="py-1">
                                         <button
                                           onClick={() => {
                                             setActiveDropdownId(null);
+                                            setDropdownPos(null);
                                             handleToggleGenLicense(lic.id, lic.is_active);
                                           }}
                                           className="w-full text-left px-3.5 py-2 hover:bg-white/[0.06] flex items-center gap-2 text-purple-200"
@@ -897,6 +917,7 @@ export default function AdminPage() {
                                         <button
                                           onClick={() => {
                                             setActiveDropdownId(null);
+                                            setDropdownPos(null);
                                             setEditingLic(lic);
                                             setEditLimitValue(String(lic.daily_limit || 15));
                                             setShowEditLimitModal(true);
@@ -910,6 +931,7 @@ export default function AdminPage() {
                                         <button
                                           onClick={() => {
                                             setActiveDropdownId(null);
+                                            setDropdownPos(null);
                                             handleResetGenUsage(lic);
                                           }}
                                           className="w-full text-left px-3.5 py-2 hover:bg-white/[0.06] flex items-center gap-2 text-purple-200"
@@ -923,6 +945,7 @@ export default function AdminPage() {
                                         <button
                                           onClick={() => {
                                             setActiveDropdownId(null);
+                                            setDropdownPos(null);
                                             handleDeleteGenLicense(lic);
                                           }}
                                           className="w-full text-left px-3.5 py-2 hover:bg-red-500/10 text-red-400 flex items-center gap-2 font-bold"
