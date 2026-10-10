@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // If Owner requests Admin Panel Data: Fetch global database records
     if (isAdminRequest && isOwner) {
-      const [lockoutsRes, generatorLicensesRes, servicesRes, apiLicensesRes, plansRes, decryptionsRes, fixesRes] = await Promise.all([
+      const [lockoutsRes, generatorLicensesRes, servicesRes, apiLicensesRes, plansRes, decryptionsRes, fixesRes, userLimitsRes] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
           .select('*')
@@ -50,12 +50,30 @@ export async function GET(request: NextRequest) {
           .select('*')
           .order('created_at', { ascending: false })
           .limit(100),
+        supabaseAdmin
+          .from('user_limits')
+          .select('*'),
       ]);
+
+      const limitsMap = new Map();
+      (userLimitsRes.data || []).forEach((ul: any) => {
+        if (ul.license_id) limitsMap.set(String(ul.license_id), ul.count || 0);
+        if (ul.discord_user_id) limitsMap.set(String(ul.discord_user_id), Math.max(ul.count || 0, limitsMap.get(String(ul.discord_user_id)) || 0));
+      });
+
+      const augmentedGenLicenses = (generatorLicensesRes.data || []).map((lic: any) => {
+        const usedByLicId = limitsMap.get(String(lic.id)) || 0;
+        const usedByUserId = lic.redeemed_by ? (limitsMap.get(String(lic.redeemed_by)) || 0) : 0;
+        return {
+          ...lic,
+          used_today: Math.max(usedByLicId, usedByUserId),
+        };
+      });
 
       return NextResponse.json({
         isOwner: true,
         securityLockouts: lockoutsRes.data || [],
-        generatorLicenses: generatorLicensesRes.data || [],
+        generatorLicenses: augmentedGenLicenses,
         services: servicesRes.data || [],
         licenses: apiLicensesRes.data || [],
         plans: plansRes.data || [],

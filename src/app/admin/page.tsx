@@ -818,7 +818,7 @@ export default function AdminPage() {
                       <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
                         <th className="py-3.5 px-4">License Key</th>
                         <th className="py-3.5 px-4">Redeemed By (User ID)</th>
-                        <th className="py-3.5 px-4">Daily Limit</th>
+                        <th className="py-3.5 px-4">Daily Usage / Limit</th>
                         <th className="py-3.5 px-4">Created At</th>
                         <th className="py-3.5 px-4">Status</th>
                         <th className="py-3.5 px-4 text-right">Actions</th>
@@ -849,8 +849,13 @@ export default function AdminPage() {
                                 <span className="text-purple-300/50">UNREDEEMED</span>
                               )}
                             </td>
-                            <td className="py-3.5 px-4 font-mono text-purple-300">
-                              {lic.daily_limit || 15} accounts/day
+                            <td className="py-3.5 px-4 font-mono">
+                              <div className="inline-flex items-center gap-1.5">
+                                <span className={`font-bold ${ (lic.used_today || 0) >= (lic.daily_limit || 15) ? 'text-rose-400' : 'text-amber-300' }`}>
+                                  {lic.used_today || 0} / {lic.daily_limit || 15}
+                                </span>
+                                <span className="text-purple-300/60 text-[11px]">generated</span>
+                              </div>
                             </td>
                             <td className="py-3.5 px-4 font-mono text-purple-300/70 text-[11px]">
                               {new Date(lic.created_at || Date.now()).toLocaleDateString()}
