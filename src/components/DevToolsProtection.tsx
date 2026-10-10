@@ -45,6 +45,15 @@ export default function DevToolsProtection() {
     return devId;
   };
 
+  // Helper to detect mobile phone / tablet devices
+  const isMobileDevice = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const isTouch = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+    const isMobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(ua);
+    return isMobileUa || (isTouch && window.innerWidth < 1024);
+  };
+
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
     try {
@@ -133,12 +142,15 @@ export default function DevToolsProtection() {
 
     // C. DevTools Dock & Resize Differential Polling
     const checkDimensions = () => {
-      // DevTools docked open causes substantial differential (> 220px) on both axes or extreme delta
+      // Mobile browsers dynamically shrink innerHeight for address bars/touch keyboards, causing false differentials (>300px)
+      if (isMobileDevice()) return;
+
+      // Desktop browsers: DevTools docked open causes substantial differential (> 280px)
       const widthDiff = window.outerWidth - window.innerWidth;
       const heightDiff = window.outerHeight - window.innerHeight;
 
-      // Ensure browser sidebars (typically < 180px) don't trigger false positives
-      if (widthDiff > 240 || heightDiff > 240) {
+      // Ensure browser sidebars and DPI scaling don't trigger false positives
+      if (widthDiff > 280 || heightDiff > 280) {
         triggerLockout('DevTools Dock Differential Detected');
       }
     };
