@@ -227,7 +227,14 @@ export default function AccountGeneratorPage() {
         })
       });
 
-      const json = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let json: any = {};
+      if (contentType.includes('application/json')) {
+        json = await res.json().catch(() => ({}));
+      } else {
+        json = { error: 'Security Lockout Active. Refresh the page or appeal on Discord.' };
+      }
+
       if (!res.ok) {
         triggerToast(json.error || `Failed to generate ${serviceName}`);
       } else {

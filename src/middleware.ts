@@ -206,6 +206,13 @@ export async function middleware(req: NextRequest) {
   </div>
 </body>
 </html>`;
+          if (req.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json(
+              { error: `Security Lockout Active: ${reason}` },
+              { status: 403, headers: { 'Content-Type': 'application/json', 'X-Robots-Tag': 'noindex, nofollow' } }
+            );
+          }
+
           return new NextResponse(lockoutHtml, {
             status: 403,
             headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow' }
