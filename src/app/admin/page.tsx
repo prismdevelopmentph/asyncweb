@@ -690,8 +690,8 @@ export default function AdminPage() {
 
               <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
+                  <thead className="sticky top-0 z-10 bg-[#0c0717] backdrop-blur-md">
+                    <tr className="border-b border-white/[0.08] bg-[#0c0717] text-[11px] font-semibold text-purple-300/80 uppercase tracking-wider font-mono">
                       <th className="py-3.5 px-4">Visitor IP Address</th>
                       <th className="py-3.5 px-4">Linked Account / Device</th>
                       <th className="py-3.5 px-4">Detection Reason</th>
@@ -815,8 +815,8 @@ export default function AdminPage() {
               <div className="glass-ultra rounded-3xl border border-amber-500/30 overflow-hidden shadow-xl">
                 <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
+                    <thead className="sticky top-0 z-10 bg-[#0c0717] backdrop-blur-md">
+                      <tr className="border-b border-white/[0.08] bg-[#0c0717] text-[11px] font-semibold text-purple-300/80 uppercase tracking-wider font-mono">
                         <th className="py-3.5 px-4">License Key</th>
                         <th className="py-3.5 px-4">Redeemed By (User ID)</th>
                         <th className="py-3.5 px-4">Daily Usage / Limit</th>
@@ -981,10 +981,10 @@ export default function AdminPage() {
               </h3>
 
               <div className="glass-ultra rounded-3xl border border-white/[0.08] overflow-hidden shadow-xl">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
+                    <thead className="sticky top-0 z-10 bg-[#0c0717] backdrop-blur-md">
+                      <tr className="border-b border-white/[0.08] bg-[#0c0717] text-[11px] font-semibold text-purple-300/80 uppercase tracking-wider font-mono">
                         <th className="py-3.5 px-4">Timestamp</th>
                         <th className="py-3.5 px-4">User ID</th>
                         <th className="py-3.5 px-4">Resource File</th>
