@@ -617,13 +617,13 @@ export default function AdminPage() {
                             </td>
                             <td className="py-3.5 px-4">
                               <span
-                                className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                                className={`px-2.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                                   isBanned
                                     ? 'bg-red-500/20 text-red-300 border border-red-500/30'
                                     : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                 }`}
                               >
-                                {isBanned ? 'PERMANENTLY LOCKED' : 'UNBANNED / RESTORED'}
+                                {isBanned ? 'PERMANENTLY LOCKED' : 'RESTORED'}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-right">
