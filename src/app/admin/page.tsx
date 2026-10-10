@@ -33,7 +33,10 @@ import {
   Edit3,
   RotateCcw,
   Trash2,
-  X
+  X,
+  Upload,
+  FileText,
+  PackagePlus
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -65,6 +68,12 @@ export default function AdminPage() {
   const [showEditLimitModal, setShowEditLimitModal] = useState(false);
   const [editingLic, setEditingLic] = useState<any>(null);
   const [editLimitValue, setEditLimitValue] = useState('15');
+
+  // Restock Modal State
+  const [showRestockModal, setShowRestockModal] = useState(false);
+  const [restockService, setRestockService] = useState('');
+  const [restockContent, setRestockContent] = useState('');
+  const [restockFileName, setRestockFileName] = useState('');
 
   // Form Inputs: Plan Assignment (Decrypt VIP)
   const [planUserId, setPlanUserId] = useState('');
@@ -364,6 +373,62 @@ export default function AdminPage() {
     }
   };
 
+  // Bulk Stock Restock Handler
+  const handleRestockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!restockService || !restockContent.trim()) return;
+
+    setActionMessage('');
+    setActionError('');
+    setSubmitting(true);
+
+    const lines = restockContent
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    try {
+      const res = await fetch('/api/admin/restock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerUserId,
+          serviceName: restockService,
+          lines,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to restock service stock');
+
+      setActionMessage(json.message);
+      setShowRestockModal(false);
+      setRestockService('');
+      setRestockContent('');
+      setRestockFileName('');
+      fetchAdminData(true);
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRestockFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setRestockFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        setRestockContent(text);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   // Assign Decrypt VIP Plan
   const handleAssignPlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -655,13 +720,23 @@ export default function AdminPage() {
             )}
 
             {activeTab === 'generator' && (
-              <button
-                onClick={() => setShowGenLicenseModal(true)}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all glass-spring-btn whitespace-nowrap"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Gen License Key</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setShowRestockModal(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all glass-spring-btn whitespace-nowrap"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Restock Stock</span>
+                </button>
+
+                <button
+                  onClick={() => setShowGenLicenseModal(true)}
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all glass-spring-btn whitespace-nowrap"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Gen License Key</span>
+                </button>
+              </>
             )}
 
             {activeTab === 'decrypt' && (
@@ -796,9 +871,16 @@ export default function AdminPage() {
 
                     <div className="flex items-center justify-between font-mono text-xs pt-2 border-t border-white/[0.06]">
                       <span className="text-purple-300/60">Status:</span>
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold">
-                        ACTIVE MODULE
-                      </span>
+                      <button
+                        onClick={() => {
+                          setRestockService(svc.name);
+                          setShowRestockModal(true);
+                        }}
+                        className="px-2.5 py-1 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 font-bold text-[11px] flex items-center gap-1.5 glass-spring-btn transition-all"
+                      >
+                        <Upload className="w-3 h-3 text-purple-400" />
+                        <span>Restock</span>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1157,6 +1239,122 @@ export default function AdminPage() {
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(245,158,11,0.4)] disabled:opacity-50 glass-spring-btn"
                 >
                   {submitting ? 'Creating...' : 'Generate Key'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: BULK RESTOCK SERVICE STOCK ── */}
+      {showRestockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="relative w-full max-w-lg glass-ultra rounded-3xl border border-purple-500/30 p-6 sm:p-8 shadow-[0_0_50px_rgba(168,85,247,0.25)] space-y-5">
+            <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                  <PackagePlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Bulk Restock Service Accounts</h3>
+                  <p className="text-xs text-purple-300/60 font-mono">Upload combo .txt / .csv file or paste raw lines</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRestockModal(false);
+                  setRestockService('');
+                  setRestockContent('');
+                  setRestockFileName('');
+                }}
+                className="p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-purple-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRestockSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Target Service Module *</label>
+                <select
+                  required
+                  value={restockService}
+                  onChange={(e) => setRestockService(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#0f0a1c] border border-white/[0.08] text-xs text-white focus:outline-none focus:border-purple-500/50 font-mono"
+                >
+                  <option value="">-- Select Target Service --</option>
+                  {services.map((svc: any) => (
+                    <option key={svc.id} value={svc.name}>
+                      {svc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Upload .txt or .csv File</label>
+                <div className="relative border-2 border-dashed border-purple-500/30 hover:border-purple-500/60 rounded-2xl p-4 text-center bg-purple-950/10 hover:bg-purple-950/20 transition-all cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".txt,.csv"
+                    onChange={handleRestockFileUpload}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-1">
+                    <Upload className="w-6 h-6 text-purple-400 animate-bounce" />
+                    <span className="text-xs font-semibold text-purple-200">
+                      {restockFileName ? `Selected: ${restockFileName}` : 'Click or drag & drop .txt / .csv combo file'}
+                    </span>
+                    <span className="text-[10px] text-purple-300/50 font-mono">1 account combo per line</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-mono text-purple-300/80">Or Paste Raw Account Lines</label>
+                  <span className="text-[11px] font-mono font-bold text-amber-300">
+                    {restockContent.split(/\r?\n/).filter((l) => l.trim()).length} accounts ready
+                  </span>
+                </div>
+                <textarea
+                  rows={6}
+                  value={restockContent}
+                  onChange={(e) => setRestockContent(e.target.value)}
+                  placeholder="Username:Password | Email:Pass&#10;Username:Password | Email:Pass"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400 font-mono custom-scrollbar"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRestockModal(false);
+                    setRestockService('');
+                    setRestockContent('');
+                    setRestockFileName('');
+                  }}
+                  className="px-4 py-2 rounded-xl glass-ultra text-purple-300/70 text-xs font-semibold hover:text-white glass-spring-btn"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !restockService || !restockContent.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:opacity-50 glass-spring-btn flex items-center gap-1.5"
+                >
+                  {submitting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Ingesting Combos...</span>
+                    </>
+                  ) : (
+                    <>
+                      <PackagePlus className="w-3.5 h-3.5" />
+                      <span>Restock Service Stock</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
