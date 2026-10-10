@@ -851,8 +851,8 @@ export default function AdminPage() {
                             </td>
                             <td className="py-3.5 px-4 font-mono">
                               <div className="inline-flex items-center gap-1.5">
-                                <span className={`font-bold ${ (lic.used_today || 0) >= (lic.daily_limit || 15) ? 'text-rose-400' : 'text-amber-300' }`}>
-                                  {lic.used_today || 0} / {lic.daily_limit || 15}
+                                <span className={`font-bold ${ (lic.used_today || 0) >= (lic.effective_limit ?? lic.daily_limit ?? 15) ? 'text-rose-400' : 'text-amber-300' }`}>
+                                  {lic.used_today || 0} / {lic.effective_limit ?? lic.daily_limit ?? 15}
                                 </span>
                                 <span className="text-purple-300/60 text-[11px]">generated</span>
                               </div>

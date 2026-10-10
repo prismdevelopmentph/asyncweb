@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // If Owner requests Admin Panel Data: Fetch global database records
     if (isAdminRequest && isOwner) {
-      const [lockoutsRes, generatorLicensesRes, servicesRes, apiLicensesRes, plansRes, decryptionsRes, fixesRes, userLimitsRes] = await Promise.all([
+      const [lockoutsRes, generatorLicensesRes, servicesRes, apiLicensesRes, plansRes, decryptionsRes, fixesRes, userLimitsRes, userGuildLocksRes, guildConfigRes] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
           .select('*')
@@ -53,6 +53,12 @@ export async function GET(request: NextRequest) {
         supabaseAdmin
           .from('user_limits')
           .select('*'),
+        supabaseAdmin
+          .from('user_guild_locks')
+          .select('*'),
+        supabaseAdmin
+          .from('guild_config')
+          .select('*'),
       ]);
 
       const limitsMap = new Map();
@@ -61,12 +67,33 @@ export async function GET(request: NextRequest) {
         if (ul.discord_user_id) limitsMap.set(String(ul.discord_user_id), Math.max(ul.count || 0, limitsMap.get(String(ul.discord_user_id)) || 0));
       });
 
+      const userGuildMap = new Map();
+      (userGuildLocksRes.data || []).forEach((lock: any) => {
+        if (lock.discord_user_id) userGuildMap.set(String(lock.discord_user_id), String(lock.guild_id));
+      });
+
+      const guildLimitMap = new Map();
+      (guildConfigRes.data || []).forEach((gc: any) => {
+        if (gc.guild_id && gc.generate_limit !== undefined && gc.generate_limit !== null) {
+          guildLimitMap.set(String(gc.guild_id), parseInt(gc.generate_limit) || 15);
+        }
+      });
+
       const augmentedGenLicenses = (generatorLicensesRes.data || []).map((lic: any) => {
         const usedByLicId = limitsMap.get(String(lic.id)) || 0;
         const usedByUserId = lic.redeemed_by ? (limitsMap.get(String(lic.redeemed_by)) || 0) : 0;
+
+        let effectiveLimit = lic.daily_limit;
+        if (effectiveLimit === null || effectiveLimit === undefined) {
+          const userGuildId = lic.redeemed_by ? userGuildMap.get(String(lic.redeemed_by)) : null;
+          const guildLimit = userGuildId ? guildLimitMap.get(userGuildId) : null;
+          effectiveLimit = (guildLimit !== null && guildLimit !== undefined) ? guildLimit : 15;
+        }
+
         return {
           ...lic,
           used_today: Math.max(usedByLicId, usedByUserId),
+          effective_limit: effectiveLimit,
         };
       });
 
