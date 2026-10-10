@@ -54,6 +54,12 @@ export default function DevToolsProtection() {
     return isMobileUa || (isTouch && window.innerWidth < 1024);
   };
 
+  // Helper to detect Microsoft Edge browser (Edg / Edge)
+  const isEdgeBrowser = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Edg\/|EdgA|EdgiOS|Edge/i.test(navigator.userAgent || '');
+  };
+
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
     try {
@@ -145,12 +151,15 @@ export default function DevToolsProtection() {
       // Mobile browsers dynamically shrink innerHeight for address bars/touch keyboards, causing false differentials (>300px)
       if (isMobileDevice()) return;
 
-      // Desktop browsers: DevTools docked open causes substantial differential (> 280px)
+      // Desktop browsers: DevTools docked open causes substantial differential (> 380px)
       const widthDiff = window.outerWidth - window.innerWidth;
       const heightDiff = window.outerHeight - window.innerHeight;
 
-      // Ensure browser sidebars and DPI scaling don't trigger false positives
-      if (widthDiff > 280 || heightDiff > 280) {
+      // Microsoft Edge features default built-in sidebars (Copilot / Bing / Tools panel) consuming ~320-350px width.
+      // Increase threshold for Edge to 390px, standard browsers to 380px
+      const threshold = isEdgeBrowser() ? 390 : 380;
+
+      if (widthDiff > threshold || heightDiff > threshold) {
         triggerLockout('DevTools Dock Differential Detected');
       }
     };
