@@ -181,6 +181,20 @@ export async function POST(request: Request) {
       }
     }
 
+    // 6. Log website claim to Supabase queue table for Discord bot polling
+    try {
+      await supabaseAdmin.from('website_claim_logs').insert({
+        service_name: matchedSvcName,
+        account_id: String(account.id),
+        raw_data: accountText,
+        discord_user_id: userId,
+        claimed_at: nowStr,
+        notified_discord: false
+      });
+    } catch (logErr) {
+      console.error('[Website Claim Log Queue Error]:', logErr);
+    }
+
     return NextResponse.json({
       success: true,
       service: matchedSvcName,
