@@ -113,20 +113,44 @@ export default function DashboardPage() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const CACHE_TTL_MS = 3600000; // 1 hour TTL
+
   // 2. Fetch user-specific data when user is present
-  const fetchDashboardData = async (userId: string) => {
+  const fetchDashboardData = async (userId: string, forceRefresh = false) => {
+    if (!userId) return;
+
+    const cacheKey = `async_dash_cache_${userId}`;
+
+    if (!forceRefresh) {
+      try {
+        const cachedStr = sessionStorage.getItem(cacheKey);
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            setDashboardData(cached.data);
+            setDataLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        // Fallback to network on parse error
+      }
+    }
+
     setDataLoading(true);
     try {
       const res = await fetch(`/api/dashboard-data?userId=${encodeURIComponent(userId)}`);
       if (res.ok) {
         const json = await res.json();
-        setDashboardData({
+        const dataObj = {
           isOwner: json.isOwner || false,
           decryptions: json.decryptions || [],
           fixes: json.fixes || [],
           plans: json.plans || [],
           usage: json.usage || { weekly: 0, monthly: 0 }
-        });
+        };
+        setDashboardData(dataObj);
+        sessionStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: dataObj }));
       }
     } catch (err) {
       console.error('Error fetching dashboard records:', err);
