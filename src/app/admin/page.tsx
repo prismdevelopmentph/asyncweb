@@ -85,15 +85,38 @@ export default function AdminPage() {
   const ownerUserId = user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id;
   const isOwner = ownerUserId === '719482630633947166' || ownerUserId === process.env.NEXT_PUBLIC_OWNER_USER_ID;
 
+  const CACHE_TTL_MS = 3600000; // 1 hour fallback TTL
+
   // 2. Fetch Admin Data
-  const fetchAdminData = async () => {
+  const fetchAdminData = async (forceRefresh = false) => {
     if (!ownerUserId) return;
+
+    const cacheKey = `async_admin_cache_${ownerUserId}`;
+
+    // Check sessionStorage cache first if not forcing refresh
+    if (!forceRefresh) {
+      try {
+        const cachedStr = sessionStorage.getItem(cacheKey);
+        if (cachedStr) {
+          const cached = JSON.parse(cachedStr);
+          if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            setAdminData(cached.data);
+            setDataLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        // Fallback to network on parse error
+      }
+    }
+
     setDataLoading(true);
     try {
       const res = await fetch(`/api/dashboard-data?userId=${encodeURIComponent(ownerUserId)}&admin=true`);
       if (res.ok) {
         const json = await res.json();
         setAdminData(json);
+        sessionStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: json }));
       }
     } catch (err) {
       console.error('Error fetching admin data:', err);
@@ -138,7 +161,7 @@ export default function AdminPage() {
       if (!res.ok) throw new Error(json.error || 'Failed to lift lockout');
 
       setActionMessage(json.message);
-      fetchAdminData();
+      fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
     }
@@ -170,7 +193,7 @@ export default function AdminPage() {
       setShowManualBanModal(false);
       setBanIpAddress('');
       setBanReason('');
-      fetchAdminData();
+      fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
     } finally {
@@ -205,7 +228,7 @@ export default function AdminPage() {
       setShowGenLicenseModal(false);
       setGenLicUserId('');
       setGenLicKey('');
-      fetchAdminData();
+      fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
     } finally {
@@ -234,7 +257,7 @@ export default function AdminPage() {
       if (!res.ok) throw new Error(json.error || 'Failed to toggle license');
 
       setActionMessage(json.message);
-      fetchAdminData();
+      fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
     }
@@ -268,7 +291,7 @@ export default function AdminPage() {
       setShowAssignPlanModal(false);
       setPlanUserId('');
       setPlanUsername('');
-      fetchAdminData();
+      fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
     } finally {
@@ -396,7 +419,7 @@ export default function AdminPage() {
             </Link>
 
             <button
-              onClick={fetchAdminData}
+              onClick={() => fetchAdminData(true)}
               disabled={dataLoading}
               className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] text-purple-300 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
               title="Refresh Data"
