@@ -113,6 +113,76 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (action === 'unban_security_lockout') {
+      const { lockoutId, ipAddress } = body;
+      if (!lockoutId && !ipAddress) return NextResponse.json({ error: 'Missing lockoutId or ipAddress' }, { status: 400 });
+
+      let query = supabaseAdmin.from('security_lockouts').update({ is_banned: false });
+      if (lockoutId) query = query.eq('id', lockoutId);
+      else query = query.eq('ip_address', ipAddress);
+
+      const { error } = await query;
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: `Security Lockout lifted for ${ipAddress || 'record #' + lockoutId}.` });
+    }
+
+    if (action === 'ban_security_ip') {
+      const { ipAddress, reason } = body;
+      if (!ipAddress) return NextResponse.json({ error: 'Missing ipAddress' }, { status: 400 });
+
+      const { error } = await supabaseAdmin.from('security_lockouts').upsert(
+        {
+          ip_address: ipAddress.trim(),
+          reason: reason || 'Manual Admin Ban',
+          user_agent: 'Admin Console Manual Override',
+          url: 'https://asyncdevph.xyz/admin',
+          is_banned: true,
+          notified_discord: false,
+          created_at: new Date().toISOString()
+        },
+        { onConflict: 'ip_address' }
+      );
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: `IP Address ${ipAddress} manually banned.` });
+    }
+
+    if (action === 'generate_generator_license') {
+      const { targetUserId, dailyLimit, licenseKey } = body;
+      const genKey = licenseKey || ('LIC-' + crypto.randomBytes(4).toString('hex').toUpperCase() + '-' + crypto.randomBytes(4).toString('hex').toUpperCase());
+
+      const { data, error } = await supabaseAdmin
+        .from('licenses')
+        .insert({
+          license_key: genKey,
+          redeemed_by: targetUserId || null,
+          daily_limit: dailyLimit ? parseInt(dailyLimit) : 15,
+          is_active: true,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: `Generator License ${genKey} created.`, license: data });
+    }
+
+    if (action === 'toggle_generator_license') {
+      const { licenseId, currentActive } = body;
+      if (!licenseId) return NextResponse.json({ error: 'Missing licenseId' }, { status: 400 });
+
+      const { error } = await supabaseAdmin
+        .from('licenses')
+        .update({ is_active: !currentActive })
+        .eq('id', licenseId);
+
+      if (error) throw error;
+      return NextResponse.json({
+        success: true,
+        message: `Generator License status updated to ${!currentActive ? 'ACTIVE' : 'INACTIVE'}.`,
+      });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (err: any) {
     console.error('Admin management error:', err);

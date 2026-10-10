@@ -7,30 +7,28 @@ import Footer from '@/components/Footer';
 import DiscordLoginButton from '@/components/DiscordLoginButton';
 import { supabase } from '@/lib/supabase';
 import {
-  Settings,
-  Users,
-  Activity,
   ShieldAlert,
+  ShieldCheck,
   Key,
   Database,
   PlusCircle,
-  Trash2,
   CheckCircle2,
-  TrendingUp,
   RefreshCw,
-  Lock,
   Sparkles,
-  ShieldCheck,
-  Zap,
   Wrench,
   FileCode,
   Download,
   Search,
-  ExternalLink,
   ArrowLeft,
   Crown,
   Copy,
-  Check
+  Check,
+  Unlock,
+  Ban,
+  Layers,
+  Terminal,
+  Activity,
+  UserCheck
 } from 'lucide-react';
 
 export default function AdminPage() {
@@ -40,23 +38,27 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'plans' | 'licenses' | 'logs'>('plans');
+  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'decrypt'>('security');
   const [showAssignPlanModal, setShowAssignPlanModal] = useState(false);
   const [showGenLicenseModal, setShowGenLicenseModal] = useState(false);
+  const [showManualBanModal, setShowManualBanModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Form Inputs: Plan Assignment
+  // Form Inputs: Manual Ban
+  const [banIpAddress, setBanIpAddress] = useState('');
+  const [banReason, setBanReason] = useState('');
+
+  // Form Inputs: Generator License
+  const [genLicKey, setGenLicKey] = useState('');
+  const [genLicUserId, setGenLicUserId] = useState('');
+  const [genLicDailyLimit, setGenLicDailyLimit] = useState('15');
+
+  // Form Inputs: Plan Assignment (Decrypt VIP)
   const [planUserId, setPlanUserId] = useState('');
   const [planUsername, setPlanUsername] = useState('');
   const [planType, setPlanType] = useState<'combo' | 'dumper' | 'decrypt'>('combo');
   const [planDuration, setPlanDuration] = useState<'month' | 'lifetime'>('month');
-
-  // Form Inputs: API License
-  const [licUserId, setLicUserId] = useState('');
-  const [licUsername, setLicUsername] = useState('');
-  const [licPlan, setLicPlan] = useState('combo');
-  const [licQuota, setLicQuota] = useState('50');
 
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
@@ -112,7 +114,133 @@ export default function AdminPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Handle Plan Assignment
+  // ── HANDLERS ──
+
+  // Unban Security Lockout
+  const handleUnbanLockout = async (lockoutId: number, ipAddress: string) => {
+    if (!confirm(`Unban IP / Device ${ipAddress}? This will restore access immediately.`)) return;
+    setActionMessage('');
+    setActionError('');
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'unban_security_lockout',
+          ownerUserId,
+          lockoutId,
+          ipAddress,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to lift lockout');
+
+      setActionMessage(json.message);
+      fetchAdminData();
+    } catch (err: any) {
+      setActionError(err.message);
+    }
+  };
+
+  // Manual Ban IP
+  const handleManualBanIP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionMessage('');
+    setActionError('');
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ban_security_ip',
+          ownerUserId,
+          ipAddress: banIpAddress.trim(),
+          reason: banReason.trim() || 'Manual Admin Overriding Ban',
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to ban IP');
+
+      setActionMessage(json.message);
+      setShowManualBanModal(false);
+      setBanIpAddress('');
+      setBanReason('');
+      fetchAdminData();
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Generate Generator License Key
+  const handleGenerateGenLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionMessage('');
+    setActionError('');
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_generator_license',
+          ownerUserId,
+          targetUserId: genLicUserId.trim() || null,
+          dailyLimit: genLicDailyLimit,
+          licenseKey: genLicKey.trim() || undefined,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to generate key');
+
+      setActionMessage(`Generator License Created: ${json.license?.license_key}`);
+      setShowGenLicenseModal(false);
+      setGenLicUserId('');
+      setGenLicKey('');
+      fetchAdminData();
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Toggle Generator License Status
+  const handleToggleGenLicense = async (licenseId: number, currentActive: boolean) => {
+    setActionMessage('');
+    setActionError('');
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_generator_license',
+          ownerUserId,
+          licenseId,
+          currentActive,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to toggle license');
+
+      setActionMessage(json.message);
+      fetchAdminData();
+    } catch (err: any) {
+      setActionError(err.message);
+    }
+  };
+
+  // Assign Decrypt VIP Plan
   const handleAssignPlan = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionMessage('');
@@ -145,123 +273,6 @@ export default function AdminPage() {
       setActionError(err.message);
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  // Handle Revoke Plan
-  const handleRevokePlan = async (planId: number) => {
-    if (!confirm('Are you sure you want to revoke this plan subscription?')) return;
-    setActionMessage('');
-    setActionError('');
-
-    try {
-      const res = await fetch('/api/admin/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'revoke_plan',
-          ownerUserId,
-          planId,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to revoke plan');
-
-      setActionMessage(json.message);
-      fetchAdminData();
-    } catch (err: any) {
-      setActionError(err.message);
-    }
-  };
-
-  // Handle License Generation
-  const handleGenerateLicense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setActionMessage('');
-    setActionError('');
-    setSubmitting(true);
-
-    try {
-      const res = await fetch('/api/admin/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'generate_license',
-          ownerUserId,
-          targetUserId: licUserId.trim(),
-          username: licUsername.trim() || 'API User',
-          plan: licPlan,
-          quota: licQuota,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to generate license');
-
-      setActionMessage(`License Created: ${json.license?.license_key}`);
-      setShowGenLicenseModal(false);
-      setLicUserId('');
-      setLicUsername('');
-      fetchAdminData();
-    } catch (err: any) {
-      setActionError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Handle HWID Reset
-  const handleResetHWID = async (licenseId: number) => {
-    if (!confirm('Reset HWID binding for this license key?')) return;
-    setActionMessage('');
-    setActionError('');
-
-    try {
-      const res = await fetch('/api/admin/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'reset_hwid',
-          ownerUserId,
-          licenseId,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to reset HWID');
-
-      setActionMessage(json.message);
-      fetchAdminData();
-    } catch (err: any) {
-      setActionError(err.message);
-    }
-  };
-
-  // Handle Toggle License Revoked
-  const handleToggleLicense = async (licenseId: number, currentRevoked: number) => {
-    setActionMessage('');
-    setActionError('');
-
-    try {
-      const res = await fetch('/api/admin/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'toggle_license_status',
-          ownerUserId,
-          licenseId,
-          currentRevoked,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to update license status');
-
-      setActionMessage(json.message);
-      fetchAdminData();
-    } catch (err: any) {
-      setActionError(err.message);
     }
   };
 
@@ -311,29 +322,28 @@ export default function AdminPage() {
     );
   }
 
-  const licensesList = adminData?.licenses || [];
+  const securityLockouts = adminData?.securityLockouts || [];
+  const generatorLicenses = adminData?.generatorLicenses || [];
+  const services = adminData?.services || [];
   const plansList = adminData?.plans || [];
   const decryptionsList = adminData?.decryptions || [];
   const fixesList = adminData?.fixes || [];
 
-  // Filter lists based on search
-  const filteredPlans = plansList.filter((p: any) =>
-    (p.user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.plan_key || '').toLowerCase().includes(searchQuery.toLowerCase())
+  // Filtered Lists
+  const filteredLockouts = securityLockouts.filter((l: any) =>
+    (l.ip_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (l.discord_user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (l.reason || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredLicenses = licensesList.filter((l: any) =>
-    (l.user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (l.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredGenLicenses = generatorLicenses.filter((l: any) =>
     (l.license_key || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (l.plan || '').toLowerCase().includes(searchQuery.toLowerCase())
+    (l.redeemed_by || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredDecryptions = decryptionsList.filter((d: any) =>
     (d.user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (d.file_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (d.key_type || '').toLowerCase().includes(searchQuery.toLowerCase())
+    (d.file_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredFixes = fixesList.filter((f: any) =>
@@ -341,17 +351,15 @@ export default function AdminPage() {
     (f.file_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const activePlansCount = plansList.filter((p: any) => p.active === 1).length;
-  const activeLicensesCount = licensesList.filter((l: any) => l.revoked === 0).length;
+  const activeBannedLockoutsCount = securityLockouts.filter((l: any) => l.is_banned).length;
 
   return (
     <div className="min-h-screen bg-[#06040b] text-[#f4f0ff] relative overflow-hidden font-sans selection:bg-purple-500/30 selection:text-purple-200">
       
-      {/* ── Ambient Background Depth Layer ── */}
+      {/* Background Depth */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:36px_36px] pointer-events-none z-0 animate-grid-pulse" />
       <div className="absolute -top-32 left-1/4 w-[600px] h-[600px] rounded-full bg-purple-600/15 blur-[140px] pointer-events-none z-0 animate-orb-slow" />
-      <div className="absolute top-1/3 -right-32 w-[550px] h-[550px] rounded-full bg-amber-600/10 blur-[130px] pointer-events-none z-0 animate-orb-reverse" />
-      <div className="absolute -bottom-40 left-1/3 w-[650px] h-[650px] rounded-full bg-fuchsia-600/10 blur-[150px] pointer-events-none z-0 animate-orb-slow" />
+      <div className="absolute top-1/3 -right-32 w-[550px] h-[550px] rounded-full bg-red-600/10 blur-[130px] pointer-events-none z-0 animate-orb-reverse" />
 
       <Navbar />
 
@@ -360,7 +368,7 @@ export default function AdminPage() {
         {/* Top Header Ribbon */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 glass-ultra rounded-2xl p-5 border border-white/[0.08] shadow-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-purple-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shadow-inner">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-red-500/20 to-purple-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shadow-inner">
               <Crown className="w-6 h-6" />
             </div>
             <div>
@@ -368,12 +376,12 @@ export default function AdminPage() {
                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                   System Administration Console
                 </h1>
-                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 tracking-wider">
-                  OWNER ACCESS
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 tracking-wider">
+                  OWNER CONTROL
                 </span>
               </div>
               <p className="text-xs text-purple-300/60 font-medium">
-                Manage global plan subscriptions, API bot licenses, and live audit telemetry
+                Manage Security Lockouts, Generator Stock & Licenses, and Asset Recovery Telemetry
               </p>
             </div>
           </div>
@@ -384,7 +392,7 @@ export default function AdminPage() {
               className="px-3.5 py-2 rounded-xl glass-ultra border border-white/[0.08] text-purple-300 hover:text-white text-xs font-semibold flex items-center gap-2 glass-spring-btn"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Dashboard</span>
+              <span>Dashboard</span>
             </Link>
 
             <button
@@ -413,207 +421,222 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* STAT COUNTERS BANNER */}
+        {/* SYSTEM STATS COUNTERS */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="glass-ultra rounded-3xl p-5 border border-white/[0.08] shadow-lg relative overflow-hidden group hover:border-purple-500/30 transition-all">
+          <div className="glass-ultra rounded-3xl p-5 border border-red-500/30 shadow-lg relative overflow-hidden group hover:border-red-500/50 transition-all">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-semibold text-purple-300/60 tracking-wider">Active Subscriptions</span>
-              <Users className="w-4 h-4 text-purple-400" />
+              <span className="text-[10px] uppercase font-semibold text-red-300/80 tracking-wider">Active Banned Lockouts</span>
+              <ShieldAlert className="w-4 h-4 text-red-400 animate-pulse" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">
-              {activePlansCount}
+            <div className="text-2xl sm:text-3xl font-extrabold text-red-400 font-mono">
+              {activeBannedLockoutsCount}
             </div>
-            <span className="text-[11px] text-purple-400/70 block mt-1">Total: {plansList.length} records</span>
+            <span className="text-[11px] text-purple-300/60 block mt-1">Total logged: {securityLockouts.length}</span>
           </div>
 
-          <div className="glass-ultra rounded-3xl p-5 border border-white/[0.08] shadow-lg relative overflow-hidden group hover:border-purple-500/30 transition-all">
+          <div className="glass-ultra rounded-3xl p-5 border border-purple-500/30 shadow-lg relative overflow-hidden group hover:border-purple-500/50 transition-all">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-semibold text-purple-300/60 tracking-wider">Active API Licenses</span>
+              <span className="text-[10px] uppercase font-semibold text-purple-300/80 tracking-wider">Generator Services</span>
+              <Layers className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">
+              {services.length}
+            </div>
+            <span className="text-[11px] text-purple-300/60 block mt-1">Active generator modules</span>
+          </div>
+
+          <div className="glass-ultra rounded-3xl p-5 border border-amber-500/30 shadow-lg relative overflow-hidden group hover:border-amber-500/50 transition-all">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] uppercase font-semibold text-amber-300/80 tracking-wider">Generator License Keys</span>
               <Key className="w-4 h-4 text-amber-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-amber-300 font-mono">
-              {activeLicensesCount}
+              {generatorLicenses.length}
             </div>
-            <span className="text-[11px] text-purple-400/70 block mt-1">Total: {licensesList.length} issued</span>
+            <span className="text-[11px] text-amber-400/60 block mt-1">Active & issued keys</span>
           </div>
 
-          <div className="glass-ultra rounded-3xl p-5 border border-white/[0.08] shadow-lg relative overflow-hidden group hover:border-purple-500/30 transition-all">
+          <div className="glass-ultra rounded-3xl p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden group hover:border-emerald-500/50 transition-all">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-semibold text-purple-300/60 tracking-wider">Total Decryptions</span>
+              <span className="text-[10px] uppercase font-semibold text-emerald-300/80 tracking-wider">Total Decryptions</span>
               <FileCode className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">
               {decryptionsList.length}
             </div>
-            <span className="text-[11px] text-emerald-400/70 block mt-1">All-time processed</span>
-          </div>
-
-          <div className="glass-ultra rounded-3xl p-5 border border-white/[0.08] shadow-lg relative overflow-hidden group hover:border-purple-500/30 transition-all">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] uppercase font-semibold text-purple-300/60 tracking-wider">3D Mesh Fixes</span>
-              <Wrench className="w-4 h-4 text-indigo-400" />
-            </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-white font-mono">
-              {fixesList.length}
-            </div>
-            <span className="text-[11px] text-purple-400/70 block mt-1">Vertices repaired</span>
+            <span className="text-[11px] text-emerald-400/60 block mt-1">Processed assets</span>
           </div>
         </div>
 
         {/* TABS & ACTION BUTTONS */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-x-auto">
             <button
-              onClick={() => setActiveTab('plans')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 glass-spring-btn ${
-                activeTab === 'plans'
-                  ? 'bg-purple-600/40 border border-purple-500/40 text-white shadow-md'
+              onClick={() => setActiveTab('security')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 glass-spring-btn whitespace-nowrap ${
+                activeTab === 'security'
+                  ? 'bg-red-600/40 border border-red-500/40 text-white shadow-md'
                   : 'text-purple-300/70 hover:text-white'
               }`}
             >
-              <Users className="w-4 h-4 text-purple-400" />
-              <span>Plan Subscriptions ({plansList.length})</span>
+              <ShieldAlert className="w-4 h-4 text-red-400" />
+              <span>Security & DevTools Lockouts ({activeBannedLockoutsCount})</span>
             </button>
 
             <button
-              onClick={() => setActiveTab('licenses')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 glass-spring-btn ${
-                activeTab === 'licenses'
+              onClick={() => setActiveTab('generator')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 glass-spring-btn whitespace-nowrap ${
+                activeTab === 'generator'
                   ? 'bg-purple-600/40 border border-purple-500/40 text-white shadow-md'
                   : 'text-purple-300/70 hover:text-white'
               }`}
             >
               <Key className="w-4 h-4 text-amber-400" />
-              <span>API Licenses ({licensesList.length})</span>
+              <span>Generator & Stock ({services.length} Services)</span>
             </button>
 
             <button
-              onClick={() => setActiveTab('logs')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 glass-spring-btn ${
-                activeTab === 'logs'
-                  ? 'bg-purple-600/40 border border-purple-500/40 text-white shadow-md'
+              onClick={() => setActiveTab('decrypt')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 glass-spring-btn whitespace-nowrap ${
+                activeTab === 'decrypt'
+                  ? 'bg-emerald-600/40 border border-emerald-500/40 text-white shadow-md'
                   : 'text-purple-300/70 hover:text-white'
               }`}
             >
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <span>Live Audit Logs</span>
+              <FileCode className="w-4 h-4 text-emerald-400" />
+              <span>Decrypt & Telemetry ({decryptionsList.length})</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 md:w-64">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 md:w-56">
               <Search className="w-3.5 h-3.5 text-purple-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search user, ID, key..."
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-500/50"
+                placeholder="Search IP, User ID, Key..."
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-white placeholder-purple-300/40 focus:outline-none focus:border-purple-500/50"
               />
             </div>
 
-            <button
-              onClick={() => setShowAssignPlanModal(true)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all glass-spring-btn whitespace-nowrap"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Assign Plan</span>
-            </button>
+            {activeTab === 'security' && (
+              <button
+                onClick={() => setShowManualBanModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all glass-spring-btn whitespace-nowrap"
+              >
+                <Ban className="w-3.5 h-3.5" />
+                <span>Ban IP</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => setShowGenLicenseModal(true)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all glass-spring-btn whitespace-nowrap"
-            >
-              <Key className="w-4 h-4" />
-              <span>Gen License</span>
-            </button>
+            {activeTab === 'generator' && (
+              <button
+                onClick={() => setShowGenLicenseModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.3)] transition-all glass-spring-btn whitespace-nowrap"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Gen License Key</span>
+              </button>
+            )}
+
+            {activeTab === 'decrypt' && (
+              <button
+                onClick={() => setShowAssignPlanModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all glass-spring-btn whitespace-nowrap"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Assign VIP Plan</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* ── TAB 1: PLAN SUBSCRIPTIONS TABLE ── */}
-        {activeTab === 'plans' && (
+        {/* ── TAB 1: SECURITY & DEVTOOLS LOCKOUTS ── */}
+        {activeTab === 'security' && (
           <section className="space-y-4">
-            <div className="glass-ultra rounded-3xl border border-white/[0.08] overflow-hidden shadow-xl">
+            <div className="glass-ultra rounded-3xl border border-red-500/30 overflow-hidden shadow-2xl">
+              <div className="p-4 border-b border-white/[0.06] bg-red-950/20 flex items-center justify-between">
+                <div className="flex items-center gap-2 font-mono text-xs text-red-300 font-bold">
+                  <Terminal className="w-4 h-4 text-red-400" />
+                  <span>ACTIVE SECURITY AUDIT & LOCKOUT LIST ({filteredLockouts.length})</span>
+                </div>
+                <span className="text-[10px] text-purple-300/60 font-mono">Edge Middleware Enforced</span>
+              </div>
+
               <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
-                      <th className="py-3.5 px-4">Discord User ID</th>
-                      <th className="py-3.5 px-4">Username</th>
-                      <th className="py-3.5 px-4">Plan Key / Tier</th>
-                      <th className="py-3.5 px-4">Assigned By</th>
-                      <th className="py-3.5 px-4">Expires At</th>
+                      <th className="py-3.5 px-4">Visitor IP Address</th>
+                      <th className="py-3.5 px-4">Linked Account / Device</th>
+                      <th className="py-3.5 px-4">Detection Reason</th>
+                      <th className="py-3.5 px-4">Timestamp (UTC)</th>
                       <th className="py-3.5 px-4">Status</th>
-                      <th className="py-3.5 px-4 text-right">Actions</th>
+                      <th className="py-3.5 px-4 text-right">Web Unban Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/[0.04]">
                     {dataLoading ? (
                       <tr>
-                        <td colSpan={7} className="py-10 text-center text-purple-300">
-                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
-                          <span>Loading plan records...</span>
+                        <td colSpan={6} className="py-10 text-center text-purple-300">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-red-400" />
+                          <span>Loading security lockout records...</span>
                         </td>
                       </tr>
-                    ) : filteredPlans.length === 0 ? (
+                    ) : filteredLockouts.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-10 text-center text-purple-300/50 font-mono">
-                          No plan subscriptions found.
+                        <td colSpan={6} className="py-10 text-center text-purple-300/50 font-mono">
+                          No active security lockouts found.
                         </td>
                       </tr>
                     ) : (
-                      filteredPlans.map((plan: any) => {
-                        const isPlanActive = plan.active === 1;
-                        const isExpired = plan.expires_at && new Date(plan.expires_at).getTime() < Date.now();
+                      filteredLockouts.map((lockout: any) => {
+                        const isBanned = lockout.is_banned;
+                        const targetId = lockout.discord_user_id || 'Guest / Unauthenticated';
 
                         return (
-                          <tr key={plan.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-bold text-purple-200 select-all">
-                              {plan.user_id}
+                          <tr key={lockout.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-bold text-red-400 select-all">
+                              {lockout.ip_address}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-purple-200">
+                              {targetId.startsWith('dev_') ? (
+                                <span className="text-purple-300 font-semibold">{targetId} (Device)</span>
+                              ) : targetId.length > 5 ? (
+                                <span className="text-indigo-300 font-semibold">{targetId}</span>
+                              ) : (
+                                <span className="text-purple-300/60">Guest / Unauthenticated</span>
+                              )}
                             </td>
                             <td className="py-3.5 px-4 font-semibold text-white">
-                              {plan.username || 'User'}
+                              {lockout.reason}
                             </td>
-                            <td className="py-3.5 px-4">
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 border border-purple-500/20 text-purple-300">
-                                {plan.plan_key?.replace(/_/g, ' ') || 'COMBO'}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-purple-300/70 text-[11px]">
-                              {plan.assigned_by || 'Owner'}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-purple-300/80">
-                              {!plan.expires_at ? (
-                                <span className="text-emerald-400 font-bold">LIFETIME</span>
-                              ) : (
-                                new Date(plan.expires_at).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric',
-                                })
-                              )}
+                            <td className="py-3.5 px-4 font-mono text-purple-300/80 text-[11px]">
+                              {new Date(lockout.created_at || Date.now()).toLocaleString()}
                             </td>
                             <td className="py-3.5 px-4">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  !isPlanActive
-                                    ? 'bg-neutral-500/10 text-neutral-400 border border-neutral-500/20'
-                                    : isExpired
-                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                className={`px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                                  isBanned
+                                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
                                     : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                 }`}
                               >
-                                {!isPlanActive ? 'REVOKED' : isExpired ? 'EXPIRED' : 'ACTIVE'}
+                                {isBanned ? 'PERMANENTLY LOCKED' : 'UNBANNED / RESTORED'}
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-right">
-                              {isPlanActive && (
+                              {isBanned ? (
                                 <button
-                                  onClick={() => handleRevokePlan(plan.id)}
-                                  className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-white text-xs font-semibold glass-spring-btn"
+                                  onClick={() => handleUnbanLockout(lockout.id, lockout.ip_address)}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1.5 ml-auto glass-spring-btn"
                                 >
-                                  Revoke
+                                  <Unlock className="w-3.5 h-3.5" />
+                                  <span>Unban Access</span>
                                 </button>
+                              ) : (
+                                <span className="text-emerald-400 font-mono text-[11px] font-semibold">Access Active</span>
                               )}
                             </td>
                           </tr>
@@ -627,119 +650,120 @@ export default function AdminPage() {
           </section>
         )}
 
-        {/* ── TAB 2: API LICENSES TABLE ── */}
-        {activeTab === 'licenses' && (
-          <section className="space-y-4">
-            <div className="glass-ultra rounded-3xl border border-white/[0.08] overflow-hidden shadow-xl">
-              <div className="overflow-x-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
-                      <th className="py-3.5 px-4">Discord User ID</th>
-                      <th className="py-3.5 px-4">Username</th>
-                      <th className="py-3.5 px-4">License Key</th>
-                      <th className="py-3.5 px-4">Plan Tier</th>
-                      <th className="py-3.5 px-4">Daily Usage</th>
-                      <th className="py-3.5 px-4">HWID Binding</th>
-                      <th className="py-3.5 px-4 text-right">Status Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.04]">
-                    {dataLoading ? (
-                      <tr>
-                        <td colSpan={7} className="py-10 text-center text-purple-300">
-                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
-                          <span>Loading licenses...</span>
-                        </td>
-                      </tr>
-                    ) : filteredLicenses.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-10 text-center text-purple-300/50 font-mono">
-                          No API licenses found.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredLicenses.map((lic: any) => {
-                        const isRevoked = lic.revoked === 1;
+        {/* ── TAB 2: GENERATOR & STOCK MANAGEMENT ── */}
+        {activeTab === 'generator' && (
+          <section className="space-y-8">
+            {/* Services Stock Overview */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                <Layers className="w-4 h-4 text-purple-400" />
+                <span>Service Stock Status Overview</span>
+              </h3>
 
-                        return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {services.map((svc: any) => (
+                  <div key={svc.id} className="glass-ultra rounded-3xl p-5 border border-purple-500/20 flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-white text-base tracking-wide">{svc.name}</span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono text-[10px] font-bold uppercase">
+                        ID: {svc.id}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between font-mono text-xs pt-2 border-t border-white/[0.06]">
+                      <span className="text-purple-300/60">Status:</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-bold">
+                        ACTIVE MODULE
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Generator License Keys Table */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                <Key className="w-4 h-4 text-amber-400" />
+                <span>Generator License Keys ({filteredGenLicenses.length})</span>
+              </h3>
+
+              <div className="glass-ultra rounded-3xl border border-amber-500/30 overflow-hidden shadow-xl">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
+                        <th className="py-3.5 px-4">License Key</th>
+                        <th className="py-3.5 px-4">Redeemed By (User ID)</th>
+                        <th className="py-3.5 px-4">Daily Limit</th>
+                        <th className="py-3.5 px-4">Created At</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04]">
+                      {filteredGenLicenses.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-purple-300/50 font-mono">
+                            No generator licenses found.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredGenLicenses.map((lic: any) => (
                           <tr key={lic.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-bold text-purple-200 select-all">
-                              {lic.user_id}
-                            </td>
-                            <td className="py-3.5 px-4 font-semibold text-white">
-                              {lic.username || 'API User'}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono">
-                              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl bg-white/[0.03] border border-white/[0.08] text-purple-200 text-[11px]">
+                            <td className="py-3.5 px-4 font-mono font-bold text-amber-300 select-all">
+                              <div className="inline-flex items-center gap-2">
                                 <span>{lic.license_key}</span>
-                                <button
-                                  onClick={() => copyToClipboard(lic.license_key)}
-                                  className="text-purple-400 hover:text-white"
-                                  title="Copy Key"
-                                >
-                                  {copiedKey === lic.license_key ? (
-                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                  )}
+                                <button onClick={() => copyToClipboard(lic.license_key)} className="text-amber-400 hover:text-white">
+                                  {copiedKey === lic.license_key ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                                 </button>
                               </div>
                             </td>
-                            <td className="py-3.5 px-4">
-                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                                {lic.plan || 'combo'}
-                              </span>
+                            <td className="py-3.5 px-4 font-mono text-purple-200">
+                              {lic.redeemed_by ? (
+                                <span className="text-emerald-300 font-semibold">{lic.redeemed_by}</span>
+                              ) : (
+                                <span className="text-purple-300/50">UNREDEEMED</span>
+                              )}
                             </td>
                             <td className="py-3.5 px-4 font-mono text-purple-300">
-                              {lic.daily_used || 0} / {lic.daily_quota || 'Unlimited'}
+                              {lic.daily_limit || 15} accounts/day
                             </td>
-                            <td className="py-3.5 px-4 font-mono text-[11px]">
-                              {lic.hwid ? (
-                                <span className="text-amber-400 font-bold inline-flex items-center gap-1.5">
-                                  <span>LOCKED</span>
-                                  <button
-                                    onClick={() => handleResetHWID(lic.id)}
-                                    className="px-2 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-[10px] text-amber-300"
-                                  >
-                                    Reset
-                                  </button>
-                                </span>
-                              ) : (
-                                <span className="text-emerald-400 font-semibold">UNBOUND</span>
-                              )}
+                            <td className="py-3.5 px-4 font-mono text-purple-300/70 text-[11px]">
+                              {new Date(lic.created_at || Date.now()).toLocaleDateString()}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${lic.is_active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'}`}>
+                                {lic.is_active ? 'ACTIVE' : 'INACTIVE'}
+                              </span>
                             </td>
                             <td className="py-3.5 px-4 text-right">
                               <button
-                                onClick={() => handleToggleLicense(lic.id, lic.revoked || 0)}
-                                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all glass-spring-btn ${
-                                  !isRevoked
-                                    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/30'
-                                    : 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/30'
-                                }`}
+                                onClick={() => handleToggleGenLicense(lic.id, lic.is_active)}
+                                className="px-3 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-purple-200 text-xs font-semibold glass-spring-btn"
                               >
-                                {!isRevoked ? 'Valid (Revoke)' : 'Revoked (Enable)'}
+                                {lic.is_active ? 'Disable' : 'Enable'}
                               </button>
                             </td>
                           </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* ── TAB 3: LIVE AUDIT LOGS ── */}
-        {activeTab === 'logs' && (
+        {/* ── TAB 3: DECRYPT & ASSET RECOVERY ── */}
+        {activeTab === 'decrypt' && (
           <section className="space-y-8">
-            {/* Decryptions History */}
+            {/* Decryption Telemetry */}
             <div className="space-y-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                <FileCode className="w-4 h-4 text-purple-400" />
-                <span>Recent Resource Decryptions</span>
+                <FileCode className="w-4 h-4 text-emerald-400" />
+                <span>Resource Decryptions Audit ({filteredDecryptions.length})</span>
               </h3>
 
               <div className="glass-ultra rounded-3xl border border-white/[0.08] overflow-hidden shadow-xl">
@@ -803,138 +827,48 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-
-            {/* 3D Mesh Fixes History */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
-                <Wrench className="w-4 h-4 text-indigo-400" />
-                <span>Recent 3D Model Vertex Repairs</span>
-              </h3>
-
-              <div className="glass-ultra rounded-3xl border border-white/[0.08] overflow-hidden shadow-xl">
-                <div className="overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[11px] font-semibold text-purple-300/70 uppercase tracking-wider font-mono">
-                        <th className="py-3.5 px-4">Timestamp</th>
-                        <th className="py-3.5 px-4">User ID</th>
-                        <th className="py-3.5 px-4">Resource File</th>
-                        <th className="py-3.5 px-4">Vertices Fixed</th>
-                        <th className="py-3.5 px-4 text-right">Download Output</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {filteredFixes.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-8 text-center text-purple-300/50 font-mono">
-                            No 3D vertex fixes logged yet.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredFixes.map((f: any) => (
-                          <tr key={f.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono text-purple-300/60">
-                              {new Date(f.created_at).toLocaleString()}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-purple-200 select-all">
-                              {f.user_id}
-                            </td>
-                            <td className="py-3.5 px-4 font-semibold text-white">
-                              {f.file_name}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-indigo-400 font-bold">
-                              {f.vertices_fixed ?? 0}
-                            </td>
-                            <td className="py-3.5 px-4 text-right">
-                              {f.download_url ? (
-                                <a
-                                  href={f.download_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-semibold glass-spring-btn"
-                                >
-                                  <Download className="w-3.5 h-3.5" />
-                                  <span>Download</span>
-                                </a>
-                              ) : (
-                                <span className="text-neutral-500 text-[11px]">N/A</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
           </section>
         )}
 
       </main>
 
-      {/* ── MODAL: ASSIGN PLAN SUBSCRIPTION ── */}
-      {showAssignPlanModal && (
+      {/* ── MODAL: MANUAL BAN IP ── */}
+      {showManualBanModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="relative w-full max-w-md glass-ultra rounded-3xl border border-purple-500/30 p-6 sm:p-8 shadow-[0_0_50px_rgba(168,85,247,0.25)] space-y-5">
+          <div className="relative w-full max-w-md glass-ultra rounded-3xl border border-red-500/30 p-6 sm:p-8 shadow-[0_0_50px_rgba(239,68,68,0.25)] space-y-5">
             <h3 className="text-lg font-bold text-white flex items-center gap-2.5">
-              <PlusCircle className="w-5 h-5 text-purple-400" />
-              <span>Assign Plan Subscription</span>
+              <Ban className="w-5 h-5 text-red-400" />
+              <span>Manually Lockout IP Address</span>
             </h3>
 
-            <form onSubmit={handleAssignPlan} className="space-y-4">
+            <form onSubmit={handleManualBanIP} className="space-y-4">
               <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Target Discord User ID *</label>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Target IP Address *</label>
                 <input
                   type="text"
                   required
-                  value={planUserId}
-                  onChange={(e) => setPlanUserId(e.target.value)}
-                  placeholder="e.g. 719482630633947166"
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-purple-400 font-mono"
+                  value={banIpAddress}
+                  onChange={(e) => setBanIpAddress(e.target.value)}
+                  placeholder="e.g. 112.204.180.1"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-red-400 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Username (Optional)</label>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Reason (Optional)</label>
                 <input
                   type="text"
-                  value={planUsername}
-                  onChange={(e) => setPlanUsername(e.target.value)}
-                  placeholder="e.g. Member#0001"
-                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-purple-400 font-mono"
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  placeholder="e.g. Manual Security Override"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-red-400 font-mono"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Plan Tier *</label>
-                <select
-                  value={planType}
-                  onChange={(e: any) => setPlanType(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#120b22] border border-white/[0.08] text-xs text-purple-100 focus:outline-none focus:border-purple-400"
-                >
-                  <option value="combo">Combo VIP (Full Decrypt + 3D Fix)</option>
-                  <option value="dumper">Dumper VIP (Dumper Only)</option>
-                  <option value="decrypt">Decrypt VIP (Decrypt Only)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Plan Duration *</label>
-                <select
-                  value={planDuration}
-                  onChange={(e: any) => setPlanDuration(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#120b22] border border-white/[0.08] text-xs text-purple-100 focus:outline-none focus:border-purple-400"
-                >
-                  <option value="month">Monthly (30 Days Rolling Quota)</option>
-                  <option value="lifetime">Lifetime (Permanent Access)</option>
-                </select>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
                 <button
                   type="button"
-                  onClick={() => setShowAssignPlanModal(false)}
+                  onClick={() => setShowManualBanModal(false)}
                   className="px-4 py-2 rounded-xl glass-ultra text-purple-300/70 text-xs font-semibold hover:text-white glass-spring-btn"
                 >
                   Cancel
@@ -942,9 +876,9 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(168,85,247,0.4)] disabled:opacity-50 glass-spring-btn"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(239,68,68,0.4)] disabled:opacity-50 glass-spring-btn"
                 >
-                  {submitting ? 'Assigning...' : 'Assign Subscription'}
+                  {submitting ? 'Banning...' : 'Enforce IP Ban'}
                 </button>
               </div>
             </form>
@@ -952,59 +886,45 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ── MODAL: GENERATE API LICENSE ── */}
+      {/* ── MODAL: GENERATE GENERATOR LICENSE ── */}
       {showGenLicenseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="relative w-full max-w-md glass-ultra rounded-3xl border border-amber-500/30 p-6 sm:p-8 shadow-[0_0_50px_rgba(245,158,11,0.25)] space-y-5">
             <h3 className="text-lg font-bold text-white flex items-center gap-2.5">
               <Key className="w-5 h-5 text-amber-400" />
-              <span>Generate API / Bot License Key</span>
+              <span>Generate Generator License Key</span>
             </h3>
 
-            <form onSubmit={handleGenerateLicense} className="space-y-4">
+            <form onSubmit={handleGenerateGenLicense} className="space-y-4">
               <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Target Discord User ID *</label>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Target Discord User ID (Optional)</label>
                 <input
                   type="text"
-                  required
-                  value={licUserId}
-                  onChange={(e) => setLicUserId(e.target.value)}
-                  placeholder="e.g. 719482630633947166"
+                  value={genLicUserId}
+                  onChange={(e) => setGenLicUserId(e.target.value)}
+                  placeholder="Leave empty for unredeemed key"
                   className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-amber-400 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Username (Optional)</label>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Custom License Key (Optional)</label>
                 <input
                   type="text"
-                  value={licUsername}
-                  onChange={(e) => setLicUsername(e.target.value)}
-                  placeholder="e.g. Developer#0001"
+                  value={genLicKey}
+                  onChange={(e) => setGenLicKey(e.target.value)}
+                  placeholder="Auto-generated if empty (LIC-XXXX-XXXX)"
                   className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-amber-400 font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Plan Tier *</label>
-                <select
-                  value={licPlan}
-                  onChange={(e) => setLicPlan(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-[#120b22] border border-white/[0.08] text-xs text-purple-100 focus:outline-none focus:border-amber-400"
-                >
-                  <option value="combo">Combo Plan</option>
-                  <option value="dumper">Dumper Only</option>
-                  <option value="decrypt">Decrypt Only</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-purple-300/80 mb-1">Daily Quota (Requests / Day)</label>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Daily Claim Limit (Accounts / Day)</label>
                 <input
                   type="number"
-                  value={licQuota}
-                  onChange={(e) => setLicQuota(e.target.value)}
-                  placeholder="50"
+                  value={genLicDailyLimit}
+                  onChange={(e) => setGenLicDailyLimit(e.target.value)}
+                  placeholder="15"
                   className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-amber-400 font-mono"
                 />
               </div>
@@ -1022,7 +942,86 @@ export default function AdminPage() {
                   disabled={submitting}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(245,158,11,0.4)] disabled:opacity-50 glass-spring-btn"
                 >
-                  {submitting ? 'Generating...' : 'Create License'}
+                  {submitting ? 'Creating...' : 'Generate Key'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: ASSIGN DECRYPT PLAN ── */}
+      {showAssignPlanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="relative w-full max-w-md glass-ultra rounded-3xl border border-emerald-500/30 p-6 sm:p-8 shadow-[0_0_50px_rgba(16,185,129,0.25)] space-y-5">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2.5">
+              <PlusCircle className="w-5 h-5 text-emerald-400" />
+              <span>Assign VIP Decrypt Subscription</span>
+            </h3>
+
+            <form onSubmit={handleAssignPlan} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Target Discord User ID *</label>
+                <input
+                  type="text"
+                  required
+                  value={planUserId}
+                  onChange={(e) => setPlanUserId(e.target.value)}
+                  placeholder="e.g. 719482630633947166"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-emerald-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Username (Optional)</label>
+                <input
+                  type="text"
+                  value={planUsername}
+                  onChange={(e) => setPlanUsername(e.target.value)}
+                  placeholder="e.g. Member#0001"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-purple-100 placeholder-purple-400/50 focus:outline-none focus:border-emerald-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Plan Tier *</label>
+                <select
+                  value={planType}
+                  onChange={(e: any) => setPlanType(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#120b22] border border-white/[0.08] text-xs text-purple-100 focus:outline-none focus:border-emerald-400"
+                >
+                  <option value="combo">Combo VIP (Full Decrypt + 3D Fix)</option>
+                  <option value="dumper">Dumper VIP (Dumper Only)</option>
+                  <option value="decrypt">Decrypt VIP (Decrypt Only)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-purple-300/80 mb-1">Plan Duration *</label>
+                <select
+                  value={planDuration}
+                  onChange={(e: any) => setPlanDuration(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#120b22] border border-white/[0.08] text-xs text-purple-100 focus:outline-none focus:border-emerald-400"
+                >
+                  <option value="month">Monthly (30 Days Rolling Quota)</option>
+                  <option value="lifetime">Lifetime (Permanent Access)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignPlanModal(false)}
+                  className="px-4 py-2 rounded-xl glass-ultra text-purple-300/70 text-xs font-semibold hover:text-white glass-spring-btn"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white font-bold text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)] disabled:opacity-50 glass-spring-btn"
+                >
+                  {submitting ? 'Assigning...' : 'Assign Subscription'}
                 </button>
               </div>
             </form>

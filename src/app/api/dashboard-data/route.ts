@@ -17,7 +17,21 @@ export async function GET(request: NextRequest) {
 
     // If Owner requests Admin Panel Data: Fetch global database records
     if (isAdminRequest && isOwner) {
-      const [licensesRes, plansRes, decryptionsRes, fixesRes] = await Promise.all([
+      const [lockoutsRes, generatorLicensesRes, servicesRes, apiLicensesRes, plansRes, decryptionsRes, fixesRes] = await Promise.all([
+        supabaseAdmin
+          .from('security_lockouts')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(150),
+        supabaseAdmin
+          .from('licenses')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(150),
+        supabaseAdmin
+          .from('services')
+          .select('*')
+          .order('id', { ascending: true }),
         supabaseAdmin
           .from('api_licenses')
           .select('*')
@@ -29,18 +43,21 @@ export async function GET(request: NextRequest) {
         supabaseAdmin
           .from('decryptions')
           .select('*')
-          .order('id', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(100),
         supabaseAdmin
           .from('fixes')
           .select('*')
-          .order('id', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(100),
       ]);
 
       return NextResponse.json({
         isOwner: true,
-        licenses: licensesRes.data || [],
+        securityLockouts: lockoutsRes.data || [],
+        generatorLicenses: generatorLicensesRes.data || [],
+        services: servicesRes.data || [],
+        licenses: apiLicensesRes.data || [],
         plans: plansRes.data || [],
         decryptions: decryptionsRes.data || [],
         fixes: fixesRes.data || [],
