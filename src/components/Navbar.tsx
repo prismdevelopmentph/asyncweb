@@ -77,12 +77,12 @@ export default function Navbar() {
   const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Discord User';
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 w-full glass-panel border-b border-purple-500/20 px-3 sm:px-6 lg:px-8 py-2.5 transition-all duration-200">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full bg-black/85 backdrop-blur-md border-b border-zinc-800/80 px-4 sm:px-8 py-3.5 sm:py-4 transition-all duration-200">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 relative">
 
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-          <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-xl overflow-hidden border border-purple-500/30 p-0.5 glass-panel-glow group-hover:border-purple-400 transition-colors">
+        <Link href="/" className="flex items-center gap-3 shrink-0 group z-10">
+          <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden border border-zinc-800 p-0.5 bg-zinc-950 group-hover:border-zinc-700 transition-colors">
             <Image
               src="/images/Profile.png"
               alt="ASYNC DEVELOPMENT"
@@ -91,17 +91,17 @@ export default function Navbar() {
             />
           </div>
           <div>
-            <span className="font-extrabold text-sm sm:text-lg tracking-wider purple-gradient-text block leading-tight">
-              ASYNC
+            <span className="font-extrabold text-sm sm:text-base tracking-wide text-white block leading-tight">
+              ASYNC DEVELOPMENT
             </span>
-            <span className="hidden sm:block text-[10px] text-purple-400 font-mono tracking-widest uppercase">
-              Asset Recovery & Web Panel
-            </span>
+            <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono tracking-wider">
+              Developer Tools & Automation Platform
+            </p>
           </div>
         </Link>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-1 glass-card px-3 py-1.5 rounded-full border border-purple-500/20">
+        {/* Desktop Navigation Links (Mathematically Centered) */}
+        <nav className="hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-0 shadow-sm">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -109,13 +109,13 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all ${
                   isActive
-                    ? 'bg-purple-600/40 text-purple-200 border border-purple-400/30 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                    : 'text-purple-300/80 hover:text-purple-100 hover:bg-purple-900/30'
+                    ? 'bg-zinc-800 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
                 }`}
               >
-                <Icon className="w-4 h-4 text-purple-400" />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-purple-400' : 'text-zinc-400'}`} />
                 {item.name}
               </Link>
             );
@@ -123,13 +123,13 @@ export default function Navbar() {
         </nav>
 
         {/* Auth Controls & Mobile Menu Toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 z-10">
           {loading ? (
-            <div className="px-2 py-1 text-[11px] text-purple-300 animate-pulse">Loading...</div>
+            <div className="px-3 py-1.5 text-[11px] text-zinc-500 font-mono animate-pulse">Loading...</div>
           ) : user ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 glass-card px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-purple-500/30 text-xs">
-                <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden border border-purple-400/40 shrink-0">
+              <div className="flex items-center gap-2 bg-zinc-900/90 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-zinc-800 text-xs">
+                <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden border border-zinc-700 shrink-0">
                   <Image
                     src={userAvatar}
                     alt="Avatar"
@@ -138,23 +138,23 @@ export default function Navbar() {
                     className="object-cover"
                   />
                 </div>
-                <span className="text-purple-200 font-semibold max-w-[75px] sm:max-w-[120px] truncate text-[11px] sm:text-xs">
+                <span className="text-zinc-200 font-medium max-w-[85px] sm:max-w-[130px] truncate text-xs">
                   {userName}
                 </span>
               </div>
 
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 rounded-xl bg-rose-600/30 hover:bg-rose-600/50 text-rose-200 border border-rose-500/40 text-[11px] sm:text-xs font-medium transition-all"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-rose-400 border border-zinc-800 text-xs font-medium transition-all"
               >
-                <LogOut className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline">Sign Out</span>
               </button>
             </div>
           ) : (
             <button
               onClick={handleDiscordLogin}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium text-xs sm:text-sm hover:from-purple-500 hover:to-indigo-500 shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs sm:text-sm transition-colors shadow-sm"
             >
               <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>Login</span>
@@ -164,10 +164,10 @@ export default function Navbar() {
           {/* Mobile Hamburger Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl glass-card border border-purple-500/30 text-purple-300 hover:text-white transition-colors"
+            className="md:hidden p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
             aria-label="Toggle navigation menu"
           >
-            {mobileMenuOpen ? <X className="w-5 h-5 text-purple-400" /> : <Menu className="w-5 h-5 text-purple-400" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5 text-zinc-400" />}
           </button>
         </div>
 
@@ -175,7 +175,7 @@ export default function Navbar() {
 
       {/* Mobile Slide-Down Navigation Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden mt-3 pt-3 border-t border-purple-500/20 max-w-7xl mx-auto flex flex-col gap-1.5 glass-ultra p-3 rounded-2xl border border-purple-500/30 animate-in slide-in-from-top duration-200">
+        <div className="md:hidden mt-3 pt-3 border-t border-zinc-800 max-w-7xl mx-auto flex flex-col gap-1.5 bg-zinc-950 p-3 rounded-xl border border-zinc-800 animate-in slide-in-from-top duration-200">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -184,13 +184,13 @@ export default function Navbar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                   isActive
-                    ? 'bg-purple-600/40 text-purple-100 border border-purple-400/40 shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                    : 'text-purple-300/90 hover:text-purple-100 hover:bg-purple-900/30'
+                    ? 'bg-zinc-800 text-white'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
                 }`}
               >
-                <Icon className="w-4 h-4 text-purple-400" />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-purple-400' : 'text-zinc-400'}`} />
                 <span>{item.name}</span>
               </Link>
             );

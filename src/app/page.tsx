@@ -127,162 +127,215 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0b0716] text-purple-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden">
+    <div className="min-h-screen bg-black text-zinc-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden dev-grid-bg">
       <Navbar />
 
-      {/* Ambient glowing background orbs */}
-      <div className="purple-glow-bg -top-20 left-1/2 -translate-x-1/2 opacity-70 w-[600px] h-[600px]"></div>
-      <div className="purple-glow-bg top-1/2 right-10 opacity-30"></div>
-
-      <main className="flex-1 max-w-6xl mx-auto px-4 lg:px-8 pt-24 pb-12 sm:pb-20 flex flex-col items-center justify-center text-center relative z-10 space-y-24">
+      <main className="flex-1 max-w-6xl mx-auto px-4 lg:px-8 pt-24 pb-16 sm:pb-24 flex flex-col items-center justify-center text-center relative z-10 space-y-20">
         
         {/* HERO SECTION */}
-        <div className="flex flex-col items-center text-center max-w-4xl mx-auto">
+        <div className="flex flex-col items-center text-center max-w-4xl mx-auto pt-6">
           {/* Status Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-card border border-purple-500/30 text-purple-300 text-xs font-mono mb-8 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>ONLINE • DECRYPTION, MESH REPAIR & ACCOUNT GENERATOR</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-mono mb-8">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="tracking-wider uppercase">ASYNC TOOLS // YOUR GO TO TOOLS</span>
           </div>
 
           {/* Brand Logo */}
-          <div className="relative w-28 h-28 sm:w-36 sm:h-36 mx-auto mb-8 rounded-3xl overflow-hidden glass-panel-glow border-2 border-purple-500/40 p-1.5 shadow-[0_0_60px_rgba(168,85,247,0.35)] transform hover:scale-105 transition-all duration-300">
+          <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6 rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 p-1 transition-transform duration-200 hover:scale-105">
             <Image
               src="/images/Profile.png"
               alt="ASYNC DEVELOPMENT"
               fill
-              className="object-cover rounded-2xl"
+              className="object-cover rounded-xl"
               priority
             />
           </div>
 
           {/* Hero Title */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight mb-6 leading-tight">
-            ASYNC <span className="purple-gradient-text">DEVELOPMENT</span>
+          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight mb-4 text-white font-sans">
+            ASYNC <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-200 to-zinc-400">DEVELOPMENT</span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="max-w-2xl mx-auto text-purple-200/80 text-base sm:text-lg mb-10 leading-relaxed font-light">
-            High-performance FiveM asset recovery, Lua script decryption, 3D vertex reconstruction, and multi-service Account Generator portal. Connect with Discord to access all tools.
+          {/* Neutral Platform Subtitle */}
+          <p className="max-w-2xl mx-auto text-zinc-400 text-sm sm:text-base mb-10 leading-relaxed font-normal">
+            Next-generation developer infrastructure and automation platform. Automated FiveM Lua script decryption, 3D asset geometry reconstruction, and enterprise multi-service account generation.
           </p>
 
-          {/* Call to Action Controls */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mx-auto mb-6">
-            <Link
-              href="/decrypt"
-              className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all flex items-center justify-center gap-2 group"
-            >
-              <span>Decrypt</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/generator"
-              className="flex-1 w-full px-6 py-3.5 rounded-2xl bg-purple-950/80 hover:bg-purple-900/80 border border-purple-500/40 text-purple-100 font-bold text-sm shadow-[0_0_20px_rgba(168,85,247,0.2)] transition-all flex items-center justify-center gap-2"
-            >
-              <Key className="w-4 h-4 text-purple-400" />
-              <span>Generator</span>
-            </Link>
+          {/* DUAL FLAGSHIP PRODUCT SELECTOR (Decryptor vs Generator) */}
+          <div className="w-full max-w-3xl mx-auto text-left mb-6">
+            <div className="text-center mb-4">
+              <span className="text-[11px] font-mono text-zinc-400 uppercase tracking-widest">
+                SELECT PLATFORM TOOLS
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Product 01: Asset Decryptor */}
+              <Link
+                href="/decrypt"
+                className="group relative p-6 rounded-2xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900/50 transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400 group-hover:border-purple-500/40 transition-colors">
+                      <Cpu className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                      PRODUCT 01
+                    </span>
+                  </div>
+
+                  <h2 className="text-lg font-bold text-white mb-1.5 flex items-center gap-2">
+                    Asset Decryptor
+                    <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+                  </h2>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    Automated FiveM Lua bytecode deobfuscation, resource stream unpacking, and 3D vertex mesh reconstruction engine.
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs font-mono text-zinc-300 group-hover:text-purple-300 transition-colors">
+                  <span className="font-semibold uppercase tracking-wider text-[11px]">Launch Decryptor</span>
+                  <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
+                </div>
+              </Link>
+
+              {/* Product 02: Account Generator */}
+              <Link
+                href="/generator"
+                className="group relative p-6 rounded-2xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900/50 transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400 group-hover:border-purple-500/40 transition-colors">
+                      <Key className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
+                      PRODUCT 02
+                    </span>
+                  </div>
+
+                  <h2 className="text-lg font-bold text-white mb-1.5 flex items-center gap-2">
+                    Account Generator
+                    <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
+                  </h2>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    High-speed multi-service account portal providing instant automated stock for Rockstar, Steam, Discord, VPN & Netflix.
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs font-mono text-zinc-300 group-hover:text-purple-300 transition-colors">
+                  <span className="font-semibold uppercase tracking-wider text-[11px]">Launch Generator</span>
+                  <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
+                </div>
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* 4 CORE FEATURES SUMMARY */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
-            <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
-              <Key className="w-5 h-5 text-purple-400" />
+        {/* 4 CORE CAPABILITIES SUMMARY */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 w-full">
+          <div className="bg-zinc-950/60 p-4 rounded-xl border border-zinc-800 text-left flex items-start gap-3 hover:border-zinc-700 transition-colors">
+            <div className="p-2 rounded-lg bg-zinc-900 text-zinc-300 border border-zinc-800 shrink-0">
+              <Key className="w-4 h-4 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-purple-100">Account Generator</h3>
-              <p className="text-xs text-purple-300/70 mt-0.5">Steam, Discord, Rockstar, VPN & Netflix stock gen</p>
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-200">Account Generator</h3>
+              <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">Steam, Discord, Rockstar, VPN & Netflix live stock</p>
             </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
-            <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
-              <Cpu className="w-5 h-5 text-purple-400" />
+          <div className="bg-zinc-950/60 p-4 rounded-xl border border-zinc-800 text-left flex items-start gap-3 hover:border-zinc-700 transition-colors">
+            <div className="p-2 rounded-lg bg-zinc-900 text-zinc-300 border border-zinc-800 shrink-0">
+              <Cpu className="w-4 h-4 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-purple-100">Lua Decryption</h3>
-              <p className="text-xs text-purple-300/70 mt-0.5">Automated script unpacking & bytecode deobfuscation</p>
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-200">Lua Decryption</h3>
+              <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">Automated script unpacking & bytecode deobfuscation</p>
             </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
-            <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
-              <Wrench className="w-5 h-5 text-purple-400" />
+          <div className="bg-zinc-950/60 p-4 rounded-xl border border-zinc-800 text-left flex items-start gap-3 hover:border-zinc-700 transition-colors">
+            <div className="p-2 rounded-lg bg-zinc-900 text-zinc-300 border border-zinc-800 shrink-0">
+              <Wrench className="w-4 h-4 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-purple-100">Vertex Repair</h3>
-              <p className="text-xs text-purple-300/70 mt-0.5">3D geometry reconstruction & mesh repair engine</p>
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-200">Vertex Repair</h3>
+              <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">3D geometry reconstruction & mesh repair engine</p>
             </div>
           </div>
 
-          <div className="glass-card p-5 rounded-2xl border border-purple-500/20 text-left flex items-start gap-3.5 hover:border-purple-500/40 transition-all">
-            <div className="p-2.5 rounded-xl bg-purple-600/20 text-purple-300 border border-purple-500/30 shrink-0">
-              <Shield className="w-5 h-5 text-purple-400" />
+          <div className="bg-zinc-950/60 p-4 rounded-xl border border-zinc-800 text-left flex items-start gap-3 hover:border-zinc-700 transition-colors">
+            <div className="p-2 rounded-lg bg-zinc-900 text-zinc-300 border border-zinc-800 shrink-0">
+              <Shield className="w-4 h-4 text-purple-400" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-purple-100">Discord OAuth</h3>
-              <p className="text-xs text-purple-300/70 mt-0.5">Instant role verification & cloud sync security</p>
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-200">Discord OAuth</h3>
+              <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">Instant role verification & cloud sync security</p>
             </div>
           </div>
         </div>
 
         {/* SECTION 1: ACCOUNT GENERATOR PRICELIST */}
         <section className="w-full pt-4">
-          <div className="text-center max-w-xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-xs font-mono mb-3">
+          <div className="text-center max-w-xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] font-mono mb-3">
               <Key className="w-3.5 h-3.5 text-purple-400" />
-              <span>ACCOUNT GENERATOR PRICELIST</span>
+              <span>TIERS // ACCOUNT GENERATOR</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
               Account Generator Tiers
             </h2>
-            <p className="text-purple-300/60 text-sm mt-2">
-              Choose your account generation access plan. Flexible tier options for every requirement.
+            <p className="text-zinc-400 text-xs sm:text-sm mt-1.5">
+              Select your account generation plan. Instant access with automated replenishment.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
             {generatorTiers.map((tier) => (
               <div
                 key={tier.id}
-                className={`glass-ultra rounded-3xl p-6 sm:p-7 border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                className={`rounded-2xl p-6 border flex flex-col justify-between transition-all duration-200 relative overflow-hidden ${
                   tier.highlight
-                    ? 'border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-purple-900/20 shadow-[0_0_40px_rgba(168,85,247,0.25)] scale-[1.03]'
-                    : 'border-white/[0.08] hover:border-purple-500/30'
+                    ? 'border-purple-500/40 bg-zinc-950 md:-translate-y-1 shadow-[0_0_30px_-10px_rgba(168,85,247,0.15)]'
+                    : 'border-zinc-800/80 hover:border-zinc-700 bg-zinc-950/70'
                 }`}
               >
+                {tier.highlight && (
+                  <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-purple-400 to-transparent"></div>
+                )}
+
                 <div>
                   {/* Badge */}
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-md bg-purple-900/60 border border-purple-500/30 text-purple-300 font-bold">
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 font-semibold">
                       {tier.badge}
                     </span>
-                    <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-                      <Key className="w-5 h-5 text-purple-400" />
+                    <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+                      <Key className="w-4 h-4 text-purple-400" />
                     </div>
                   </div>
 
                   {/* Tier Name */}
-                  <h3 className="text-xl font-bold text-white mb-1">{tier.name}</h3>
-                  <p className="text-xs text-purple-300/60 mb-6 leading-relaxed">
+                  <h3 className="text-base font-bold text-white mb-1">{tier.name}</h3>
+                  <p className="text-xs text-zinc-400 mb-5 leading-relaxed min-h-[36px]">
                     {tier.description}
                   </p>
 
                   {/* Price Header */}
-                  <div className="flex items-baseline gap-1 mb-6 pb-6 border-b border-purple-500/15">
-                    <span className="text-4xl font-black text-white">{tier.price}</span>
-                    <span className="text-xs text-purple-300/50 font-mono">{tier.period}</span>
+                  <div className="flex items-baseline gap-1 mb-5 pb-5 border-b border-zinc-800/80">
+                    <span className="text-3xl font-mono font-bold text-white">{tier.price}</span>
+                    <span className="text-xs text-zinc-500 font-mono">{tier.period}</span>
                   </div>
 
                   {/* Features List */}
-                  <div className="space-y-3 mb-8">
+                  <div className="space-y-2.5 mb-7">
                     {tier.features.map((feat, idx) => (
-                      <div key={idx} className="flex items-start gap-2.5 text-xs text-purple-200/90">
-                        <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <div key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300">
+                        <div className="w-4 h-4 rounded-full bg-zinc-900 border border-zinc-800 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
                           <Check size={10} />
                         </div>
-                        <span className={idx === 0 ? 'font-semibold text-white' : ''}>{feat}</span>
+                        <span className={idx === 0 ? 'font-medium text-white' : 'text-zinc-400'}>{feat}</span>
                       </div>
                     ))}
                   </div>
@@ -291,14 +344,14 @@ export default async function HomePage() {
                 {/* Action Button */}
                 <Link
                   href={tier.href}
-                  className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                  className={`w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
                     tier.highlight
-                      ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]'
-                      : 'bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200'
+                      ? 'bg-white hover:bg-zinc-200 text-black shadow-sm'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 hover:border-zinc-700'
                   }`}
                 >
                   <span>{tier.ctaText}</span>
-                  <ArrowRight size={14} />
+                  <ArrowRight size={13} />
                 </Link>
               </div>
             ))}
@@ -307,67 +360,71 @@ export default async function HomePage() {
 
         {/* SECTION 2: TOOLS & FEATURES SUMMARY */}
         <section className="w-full pt-4">
-          <div className="text-center max-w-xl mx-auto mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 text-xs font-mono mb-3">
+          <div className="text-center max-w-xl mx-auto mb-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] font-mono mb-3">
               <Zap className="w-3.5 h-3.5 text-purple-400" />
-              <span>TOOLS PRICING & ACCESS</span>
+              <span>ACCESS // TOOL ENGINE PRICING</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
               Tools & Features List
             </h2>
-            <p className="text-purple-300/60 text-sm mt-2">
+            <p className="text-zinc-400 text-xs sm:text-sm mt-1.5">
               Select standalone tool access or get the complete combo package.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
             {toolPricing.map((tool) => {
               const IconComp = tool.icon;
               return (
                 <div
                   key={tool.id}
-                  className={`glass-ultra rounded-3xl p-6 sm:p-7 border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                  className={`rounded-2xl p-6 border flex flex-col justify-between transition-all duration-200 relative overflow-hidden ${
                     tool.highlight
-                      ? 'border-purple-500/50 bg-gradient-to-b from-purple-950/40 to-purple-900/20 shadow-[0_0_35px_rgba(168,85,247,0.2)]'
-                      : 'border-white/[0.08] hover:border-purple-500/30'
+                      ? 'border-purple-500/40 bg-zinc-950 md:-translate-y-1 shadow-[0_0_30px_-10px_rgba(168,85,247,0.15)]'
+                      : 'border-zinc-800/80 hover:border-zinc-700 bg-zinc-950/70'
                   }`}
                 >
+                  {tool.highlight && (
+                    <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-purple-400 to-transparent"></div>
+                  )}
+
                   <div>
                     {/* Badge */}
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-md bg-purple-900/60 border border-purple-500/30 text-purple-300 font-bold">
+                      <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 font-semibold">
                         {tool.badge}
                       </span>
-                      <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-                        <IconComp className="w-5 h-5 text-purple-400" />
+                      <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+                        <IconComp className="w-4 h-4 text-purple-400" />
                       </div>
                     </div>
 
                     {/* Tool Name */}
-                    <h3 className="text-xl font-bold text-white mb-1">{tool.name}</h3>
-                    <p className="text-xs text-purple-300/60 mb-6 leading-relaxed">
+                    <h3 className="text-base font-bold text-white mb-1">{tool.name}</h3>
+                    <p className="text-xs text-zinc-400 mb-5 leading-relaxed min-h-[36px]">
                       {tool.description}
                     </p>
 
-                    {/* Price Header (Lifetime Priority) */}
-                    <div className="mb-6 pb-6 border-b border-purple-500/15">
+                    {/* Price Header */}
+                    <div className="mb-5 pb-5 border-b border-zinc-800/80">
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-4xl font-black text-white">{tool.lifetimePrice}</span>
-                        <span className="text-xs text-purple-300/60 font-mono font-medium">{tool.lifetimePeriod}</span>
+                        <span className="text-3xl font-mono font-bold text-white">{tool.lifetimePrice}</span>
+                        <span className="text-xs text-zinc-500 font-mono">{tool.lifetimePeriod}</span>
                       </div>
-                      <div className="mt-1.5 text-xs text-purple-300/50 font-mono">
+                      <div className="mt-1 text-xs text-zinc-500 font-mono">
                         {tool.monthlyOption}
                       </div>
                     </div>
 
                     {/* Features List */}
-                    <div className="space-y-3 mb-8">
+                    <div className="space-y-2.5 mb-7">
                       {tool.features.map((feat, idx) => (
-                        <div key={idx} className="flex items-start gap-2.5 text-xs text-purple-200/90">
-                          <div className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <div key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300">
+                          <div className="w-4 h-4 rounded-full bg-zinc-900 border border-zinc-800 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
                             <Check size={10} />
                           </div>
-                          <span>{feat}</span>
+                          <span className={idx === 0 ? 'font-medium text-white' : 'text-zinc-400'}>{feat}</span>
                         </div>
                       ))}
                     </div>
@@ -376,14 +433,14 @@ export default async function HomePage() {
                   {/* Action Link Button */}
                   <Link
                     href={tool.href}
-                    className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
+                    className={`w-full py-2.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
                       tool.highlight
-                        ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(168,85,247,0.3)]'
-                        : 'bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200'
+                        ? 'bg-white hover:bg-zinc-200 text-black shadow-sm'
+                        : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-800 hover:border-zinc-700'
                     }`}
                   >
                     <span>{tool.ctaText}</span>
-                    <ArrowRight size={14} />
+                    <ArrowRight size={13} />
                   </Link>
                 </div>
               );

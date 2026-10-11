@@ -26,56 +26,59 @@
 }
 
 body {
-  background-color: #0c0919;
+  background-color: #000000;
   color: #e2e8f0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   overflow-x: hidden;
 }
 
-/* Glassmorphism custom helpers (Ergonomically tuned for low eye-strain) */
+/* Vercel-style Minimalist Cyber Grid */
+.dev-grid-bg {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+}
+
+/* Vercel / Developer Minimalist Panels */
 .glass-panel {
-  background: rgba(16, 12, 30, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(147, 51, 234, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(8, 5, 18, 0.4);
+  background: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.7);
 }
 
 .glass-panel-glow {
-  background: rgba(20, 14, 38, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(168, 85, 247, 0.25);
-  box-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
+  background: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.08);
 }
 
 .glass-card {
-  background: rgba(20, 15, 38, 0.5);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(147, 51, 234, 0.18);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #09090b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-card:hover {
-  background: rgba(28, 20, 52, 0.65);
+  background: #0c0c0f;
   border-color: rgba(168, 85, 247, 0.35);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 20px -5px rgba(168, 85, 247, 0.12);
 }
 
 .purple-gradient-text {
-  background: linear-gradient(135deg, #d8b4fe 0%, #c084fc 50%, #a855f7 100%);
+  background: linear-gradient(180deg, #ffffff 30%, #d8b4fe 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .purple-glow-bg {
   position: absolute;
-  width: 550px;
-  height: 550px;
-  background: radial-gradient(circle, rgba(147, 51, 234, 0.12) 0%, rgba(109, 40, 217, 0.03) 50%, transparent 70%);
-  filter: blur(80px);
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.06) 0%, transparent 70%);
+  filter: blur(70px);
   pointer-events: none;
   z-index: 0;
 }
@@ -145,11 +148,23 @@ body {
   animation: ambient-grid-pulse 12s ease-in-out infinite;
 }
 
-/* Ultra Glass Panel Wrapper */
+/* Ultra Glass Panel Wrapper (Obsidian Developer Style) */
 .glass-ultra {
-  background: rgba(16, 12, 30, 0.75);
+  background: rgba(7, 5, 14, 0.82);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(147, 51, 234, 0.2);
-  box-shadow: 0 20px 50px rgba(8, 5, 18, 0.5);
+  border: 1px solid rgba(168, 85, 247, 0.18);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+}
+
+.purple-neon-glow {
+  box-shadow: 0 0 25px -2px rgba(168, 85, 247, 0.35), 0 0 10px -2px rgba(168, 85, 247, 0.25);
+}
+
+.terminal-badge {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: rgba(10, 7, 18, 0.8);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  color: #c084fc;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.12);
 }

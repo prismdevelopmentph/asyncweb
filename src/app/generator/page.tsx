@@ -324,14 +324,8 @@ export default function AccountGeneratorPage() {
   }, [historyList, typeFilter, historySearch]);
 
   return (
-    <div className="min-h-screen bg-[#06040b] text-[#f4f0ff] relative overflow-hidden font-sans selection:bg-purple-500/30 selection:text-purple-200">
+    <div className="min-h-screen bg-black text-zinc-100 relative overflow-hidden font-sans selection:bg-purple-600 selection:text-white dev-grid-bg">
       
-      {/* Ambient Background Grid & Glowing Orbs */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:36px_36px] pointer-events-none z-0 animate-grid-pulse" />
-      <div className="absolute -top-32 left-1/4 w-[600px] h-[600px] rounded-full bg-purple-600/15 blur-[140px] pointer-events-none z-0 animate-orb-slow" />
-      <div className="absolute top-1/3 -right-32 w-[550px] h-[550px] rounded-full bg-violet-600/15 blur-[130px] pointer-events-none z-0 animate-orb-reverse" />
-      <div className="absolute -bottom-40 left-1/3 w-[650px] h-[650px] rounded-full bg-fuchsia-600/10 blur-[150px] pointer-events-none z-0 animate-orb-slow" />
-
       {/* Top Header Navigation */}
       <Navbar />
 
@@ -339,37 +333,37 @@ export default function AccountGeneratorPage() {
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
         
         {/* Top Status Ribbon */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5 glass-ultra rounded-2xl p-4 sm:p-5 border border-white/[0.08] shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 bg-zinc-950/80 rounded-2xl p-4 sm:p-5 border border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-fuchsia-500/10 border border-purple-500/30 flex items-center justify-center text-purple-300 shadow-inner">
-              <Sparkles className="w-5 h-5 text-purple-400" />
+            <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
+              <Sparkles className="w-4 h-4 text-purple-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                <h1 className="text-lg font-bold tracking-tight text-white">
                   Account Generator
                 </h1>
               </div>
-              <p className="text-xs text-purple-300/60 font-medium">
+              <p className="text-xs text-zinc-400 font-medium">
                 Instant multi-service account generation & license key manager
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-purple-200/80">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span className="font-medium text-[11px]">Generator Engine Online</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span className="font-mono text-[11px] uppercase tracking-wider">Engine Online</span>
             </div>
 
             {user && (
               <button
                 onClick={() => fetchStatus(discordUserId)}
                 disabled={loadingStatus}
-                className="p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] text-purple-300 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                className="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
                 title="Refresh Records"
               >
-                <RefreshCw className={`w-4 h-4 ${loadingStatus ? 'animate-spin text-purple-400' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingStatus ? 'animate-spin text-purple-400' : ''}`} />
               </button>
             )}
           </div>
@@ -377,21 +371,21 @@ export default function AccountGeneratorPage() {
 
         {/* Auth Check Screen */}
         {!user && !authLoading ? (
-          <div className="glass-ultra rounded-3xl p-10 sm:p-16 border border-white/[0.08] text-center my-12 relative overflow-hidden shadow-2xl">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-purple-600/30 to-fuchsia-600/20 border border-purple-500/30 flex items-center justify-center mx-auto mb-6 text-purple-400 shadow-[0_0_40px_rgba(168,85,247,0.25)]">
-              <Lock className="w-10 h-10" />
+          <div className="bg-zinc-950 rounded-2xl p-10 sm:p-14 border border-zinc-800 text-center my-12">
+            <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-5 text-purple-400">
+              <Lock className="w-7 h-7" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3">
+            <h2 className="text-2xl font-bold tracking-tight text-white mb-2">
               Authentication Required
             </h2>
-            <p className="text-purple-200/70 max-w-md mx-auto text-sm mb-8 leading-relaxed">
+            <p className="text-zinc-400 max-w-md mx-auto text-xs sm:text-sm mb-6 leading-relaxed">
               Connect your Discord account to access the Account Generator, manage license keys, and view generated account details.
             </p>
             <button
               onClick={handleDiscordLogin}
-              className="px-8 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm flex items-center gap-3 mx-auto shadow-[0_0_30px_rgba(99,102,241,0.4)] transition-all hover:scale-105 active:scale-95"
+              className="px-6 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-2.5 mx-auto transition-colors"
             >
-              <LogIn size={18} />
+              <LogIn size={15} />
               Login with Discord
             </button>
           </div>
@@ -399,16 +393,16 @@ export default function AccountGeneratorPage() {
           <div className="space-y-6">
             
             {/* Panel 1: Generator Main Panel */}
-            <section className="glass-ultra rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-2xl relative overflow-hidden">
+            <section className="bg-zinc-950/80 rounded-2xl p-6 sm:p-8 border border-zinc-800">
               
               {/* Header Title & Active Plan */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-                  <Key className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
+                  <Key className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-white">Generator</h2>
-                  <p className="text-xs text-purple-300/60">
+                  <h2 className="text-base font-bold text-white">Generator Services</h2>
+                  <p className="text-xs text-zinc-400 font-mono">
                     {userPlan.hasPlan ? `${userPlan.name} · expires ${userPlan.expiresAt || 'Never'}` : 'No active plan'}
                   </p>
                 </div>
@@ -416,7 +410,7 @@ export default function AccountGeneratorPage() {
 
               <div className="space-y-5">
                 {/* 6 Core Service Cards Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-1">
                   {servicesConfig.map((svc) => {
                     const IconComp = svc.icon;
                     const isOutOfStock = svc.leftCount === 0;
@@ -433,28 +427,28 @@ export default function AccountGeneratorPage() {
                         key={svc.id}
                         disabled={claiming || !isAllowed}
                         onClick={() => handleClaimAccount(svc.name, svc.leftCount)}
-                        className={`glass-card p-4 rounded-2xl border border-purple-500/20 flex flex-col items-center justify-center text-center transition-all duration-200 group relative ${svc.bgGlow} ${
+                        className={`p-4 rounded-xl border border-zinc-800/80 flex flex-col items-center justify-center text-center transition-all duration-150 group relative ${
                           !isAllowed
-                            ? 'opacity-50 grayscale-[35%] cursor-not-allowed border-purple-500/10'
+                            ? 'opacity-40 grayscale-[40%] cursor-not-allowed bg-zinc-950'
                             : isOutOfStock
-                            ? 'opacity-60 hover:bg-purple-950/30 cursor-pointer'
-                            : 'hover:bg-purple-900/30 hover:-translate-y-1 cursor-pointer'
+                            ? 'opacity-60 bg-zinc-950 hover:bg-zinc-900/60 cursor-pointer'
+                            : 'bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 hover:-translate-y-0.5 cursor-pointer'
                         }`}
                       >
-                        <div className={`w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center mb-3 shadow-inner ${svc.color}`}>
-                          <IconComp className="w-6 h-6" />
+                        <div className={`w-11 h-11 rounded-xl bg-zinc-950 border border-zinc-800/80 flex items-center justify-center mb-2.5 ${svc.color}`}>
+                          <IconComp className="w-5 h-5" />
                         </div>
-                        <div className="text-xs font-semibold text-white group-hover:text-purple-200 transition-colors truncate w-full">
+                        <div className="text-xs font-semibold text-white group-hover:text-zinc-200 transition-colors truncate w-full">
                           {svc.name}
                         </div>
 
-                        {/* Always show stock count + No Access badge if unlicensed */}
+                        {/* Stock count + No Access badge */}
                         <div className="flex flex-col items-center gap-0.5 mt-1">
-                          <div className={`text-[11px] font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-purple-300/60'}`}>
+                          <div className={`text-[11px] font-mono font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-zinc-400'}`}>
                             {isOutOfStock ? '0 left' : `${svc.leftCount.toLocaleString()} left`}
                           </div>
                           {!isAllowed && (
-                            <span className="text-[9px] font-bold tracking-wider uppercase text-purple-300/60 bg-purple-950/80 border border-purple-500/30 px-2 py-0.5 rounded-full mt-0.5">
+                            <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 mt-1">
                               No Access
                             </span>
                           )}
@@ -466,98 +460,98 @@ export default function AccountGeneratorPage() {
               </div>
 
               {/* Generator Panel Footer */}
-              <div className="flex items-center justify-between text-xs text-purple-300/50 pt-5 mt-6 border-t border-purple-500/15">
+              <div className="flex items-center justify-between text-xs text-zinc-400 font-mono pt-5 mt-6 border-t border-zinc-800/80">
                 <div className="font-medium">
-                  Daily: <span className="text-purple-200">{userPlan.dailyUsed}/{userPlan.dailyLimit}</span>
+                  Daily: <span className="text-white">{userPlan.dailyUsed}/{userPlan.dailyLimit}</span>
                 </div>
-                <div className="font-medium">Resets at midnight</div>
+                <div className="font-medium text-zinc-500">Resets at midnight</div>
               </div>
             </section>
 
             {/* Panel 2: Generation History Panel */}
-            <section className="glass-ultra rounded-3xl p-6 sm:p-8 border border-white/[0.08] shadow-2xl">
+            <section className="bg-zinc-950/80 rounded-2xl p-6 sm:p-8 border border-zinc-800">
               
               {/* Panel Header */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-9 h-9 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
-                  <Clock size={18} />
+                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
+                  <Clock size={16} />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-white">Generation History</h2>
-                  <p className="text-xs text-purple-300/60">Your last 50 generated accounts</p>
+                  <p className="text-xs text-zinc-400">Your last 50 generated accounts</p>
                 </div>
               </div>
 
               {/* Notice Callout */}
-              <div className="glass-card rounded-2xl p-4 border border-purple-500/20 bg-purple-950/20 flex items-center gap-3 mb-6 text-xs text-purple-200/90">
-                <Info size={16} className="text-purple-400 shrink-0" />
+              <div className="bg-zinc-900/50 rounded-xl p-3.5 border border-zinc-800 flex items-center gap-3 mb-6 text-xs text-zinc-400">
+                <Info size={15} className="text-purple-400 shrink-0" />
                 <div>
-                  History is automatically cleared every 24 hours. <strong className="text-white font-semibold">Copy anything you want to keep.</strong>
+                  History is automatically cleared every 24 hours. <strong className="text-white font-medium">Copy anything you want to keep.</strong>
                 </div>
               </div>
 
               {/* History Toolbar (Filter & Search) */}
-              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-6">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 mb-5">
                 <div className="flex items-center gap-3 flex-1">
                   {/* Type Filter Select */}
                   <div className="relative">
                     <select
                       value={typeFilter}
                       onChange={(e) => setTypeFilter(e.target.value)}
-                      className="appearance-none bg-purple-950/40 border border-purple-500/30 rounded-xl px-4 py-2.5 pr-8 text-xs font-medium text-purple-100 focus:outline-none focus:border-purple-400 cursor-pointer min-w-[130px]"
+                      className="appearance-none bg-zinc-900 border border-zinc-800 rounded-lg px-3.5 py-2 pr-8 text-xs font-medium text-zinc-200 focus:outline-none focus:border-zinc-700 cursor-pointer min-w-[130px]"
                     >
-                      <option value="all" className="bg-[#120a24]">All types</option>
-                      <option value="steam" className="bg-[#120a24]">Steam</option>
-                      <option value="discord" className="bg-[#120a24]">Discord</option>
-                      <option value="rockstar" className="bg-[#120a24]">Rockstar</option>
-                      <option value="cyberghost" className="bg-[#120a24]">CyberGhost</option>
-                      <option value="netflix" className="bg-[#120a24]">Netflix</option>
-                      <option value="valorant" className="bg-[#120a24]">Valorant</option>
+                      <option value="all" className="bg-zinc-950">All types</option>
+                      <option value="steam" className="bg-zinc-950">Steam</option>
+                      <option value="discord" className="bg-zinc-950">Discord</option>
+                      <option value="rockstar" className="bg-zinc-950">Rockstar</option>
+                      <option value="cyberghost" className="bg-zinc-950">CyberGhost</option>
+                      <option value="netflix" className="bg-zinc-950">Netflix</option>
+                      <option value="valorant" className="bg-zinc-950">Valorant</option>
                     </select>
-                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
+                    <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
                   </div>
 
                   {/* Search Input */}
                   <div className="relative flex-1 max-w-md">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400/60" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
                     <input
                       type="text"
                       value={historySearch}
                       onChange={(e) => setHistorySearch(e.target.value)}
-                      placeholder="Search..."
-                      className="w-full bg-purple-950/40 border border-purple-500/30 rounded-xl pl-9 pr-4 py-2.5 text-xs text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400 transition-all"
+                      placeholder="Search history..."
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-9 pr-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 transition-colors"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Account Count Badge */}
-              <div className="text-xs text-purple-300/50 mb-3 font-medium">
+              <div className="text-xs text-zinc-500 mb-3 font-mono font-medium">
                 {filteredHistory.length} account{filteredHistory.length !== 1 ? 's' : ''}
               </div>
 
-              {/* History Items List (Fixed max-height scrollable list) */}
-              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-2 custom-scrollbar">
+              {/* History Items List (Scrollable container) */}
+              <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1 custom-scrollbar">
                 {filteredHistory.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-purple-300/40 border border-dashed border-purple-500/20 rounded-2xl">
+                  <div className="p-8 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-xl font-mono">
                     No generation history found.
                   </div>
                 ) : (
                   filteredHistory.map((item) => (
                     <div
                       key={item.id}
-                      className="glass-card rounded-2xl p-4 border border-purple-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-purple-500/40 transition-all"
+                      className="bg-zinc-900/40 hover:bg-zinc-900/70 rounded-xl p-3.5 border border-zinc-800/80 hover:border-zinc-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors"
                     >
                       <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-purple-950/80 border border-purple-500/30 flex items-center justify-center text-white shrink-0 font-bold text-sm">
+                        <div className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center text-zinc-200 shrink-0 font-bold font-mono text-xs">
                           {item.service[0]}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs font-bold text-white">{item.service}</span>
-                            <span className="text-[11px] text-purple-300/40">{item.date}</span>
+                            <span className="text-[11px] text-zinc-500 font-mono">{item.date}</span>
                           </div>
-                          <div className="text-xs text-purple-200/80 font-mono break-all leading-relaxed">
+                          <div className="text-xs text-zinc-300 font-mono break-all leading-relaxed">
                             {item.dataText}
                           </div>
                         </div>
@@ -565,9 +559,9 @@ export default function AccountGeneratorPage() {
 
                       <button
                         onClick={() => handleCopyText(item.dataText)}
-                        className="px-4 py-2 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 border border-purple-500/30 text-purple-200 font-medium text-xs flex items-center gap-1.5 shrink-0 self-end sm:self-center transition-all hover:scale-105 active:scale-95"
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-200 text-xs font-medium flex items-center gap-1.5 shrink-0 self-end sm:self-center transition-colors"
                       >
-                        <Copy size={13} />
+                        <Copy size={12} />
                         Copy
                       </button>
                     </div>
@@ -582,12 +576,12 @@ export default function AccountGeneratorPage() {
       {/* Main Site Footer */}
       <Footer />
 
-      {/* Account Generated Modal (Disables/Blocks Background Input) */}
+      {/* Account Generated Modal */}
       {generatedModal && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden"
         >
           {/* Backdrop Click Dismiss */}
           <div
@@ -596,26 +590,26 @@ export default function AccountGeneratorPage() {
           />
 
           {/* Modal Container */}
-          <div className="relative z-10 w-full max-w-lg glass-ultra rounded-3xl p-6 sm:p-8 border border-purple-500/40 shadow-[0_0_50px_rgba(168,85,247,0.3)] animate-in fade-in zoom-in-95 duration-200 text-left">
+          <div className="relative z-10 w-full max-w-lg bg-zinc-950 rounded-2xl p-6 sm:p-7 border border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-left">
             
             {/* Top Close Icon Button */}
             <button
               onClick={() => setGeneratedModal(null)}
-              className="absolute top-5 right-5 p-2 rounded-xl bg-purple-950/40 border border-purple-500/20 text-purple-300 hover:text-white hover:bg-purple-900/40 transition-all"
+              className="absolute top-5 right-5 p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
               aria-label="Close Modal"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
 
             {/* Modal Title */}
-            <div className="pr-8 mb-5">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <div className="pr-8 mb-4">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
                 {generatedModal.service} Account Generated
               </h3>
             </div>
 
             {/* Inner Raw Account Code Box */}
-            <div className="bg-purple-950/70 border border-purple-500/30 rounded-2xl p-4 font-mono text-xs text-purple-100 break-all select-all leading-relaxed shadow-inner my-5">
+            <div className="bg-black border border-zinc-800 rounded-xl p-3.5 font-mono text-xs text-zinc-200 break-all select-all leading-relaxed my-4">
               {generatedModal.dataText}
             </div>
 
@@ -623,15 +617,15 @@ export default function AccountGeneratorPage() {
             <div className="flex items-center gap-3 pt-2">
               <button
                 onClick={() => handleCopyText(generatedModal.dataText, 'Account credentials copied!')}
-                className="flex-1 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(168,85,247,0.35)] hover:scale-[1.02] active:scale-95"
+                className="flex-1 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
               >
-                <Copy size={15} />
+                <Copy size={14} />
                 Copy
               </button>
 
               <button
                 onClick={() => setGeneratedModal(null)}
-                className="flex-1 py-3 rounded-xl bg-purple-950/70 hover:bg-purple-900/70 border border-purple-500/30 text-purple-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
+                className="flex-1 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-medium text-xs flex items-center justify-center gap-2 transition-colors"
               >
                 Close
               </button>
@@ -642,7 +636,7 @@ export default function AccountGeneratorPage() {
 
       {/* Floating Toast Notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-purple-950/90 border border-purple-400/40 text-purple-100 text-xs px-4 py-3 rounded-2xl shadow-[0_0_25px_rgba(168,85,247,0.4)] backdrop-blur-md animate-bounce">
+        <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs px-4 py-2.5 rounded-xl shadow-xl font-mono">
           {toast}
         </div>
       )}
