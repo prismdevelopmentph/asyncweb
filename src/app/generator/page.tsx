@@ -56,12 +56,44 @@ const ValorantIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// --- Types ---
+// --- Types & Cache ---
 interface HistoryItem {
   id: string;
   service: string;
   date: string;
   dataText: string;
+}
+
+const STOCK_CACHE_KEY = 'generator_stock_cache';
+const CACHE_TTL_MS = 60_000; // 1 minute
+
+const defaultStock = {
+  steam: 0,
+  discord: 0,
+  rockstar: 0,
+  cyberghost: 0,
+  netflix: 0,
+  valorant: 0,
+};
+
+function readStockCache(): typeof defaultStock | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(STOCK_CACHE_KEY);
+    if (!raw) return null;
+    const { ts, stock } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    return stock;
+  } catch {
+    return null;
+  }
+}
+
+function writeStockCache(stock: typeof defaultStock) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({ ts: Date.now(), stock }));
+  } catch {}
 }
 
 export default function AccountGeneratorPage() {
@@ -95,14 +127,8 @@ export default function AccountGeneratorPage() {
     allowedServices: [],
   });
 
-  const [stock, setStock] = useState({
-    steam: 0,
-    discord: 0,
-    rockstar: 0,
-    cyberghost: 0,
-    netflix: 0,
-    valorant: 0,
-  });
+  const [stock, setStock] = useState<typeof defaultStock>(() => readStockCache() ?? defaultStock);
+  const [stockLoading, setStockLoading] = useState(() => readStockCache() === null);
 
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
 
@@ -133,13 +159,17 @@ export default function AccountGeneratorPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.userPlan) setUserPlan(data.userPlan);
-        if (data.stock) setStock(data.stock);
+        if (data.stock) {
+          setStock(data.stock);
+          writeStockCache(data.stock);
+        }
         if (Array.isArray(data.history)) setHistoryList(data.history);
       }
     } catch (err) {
       console.error('[Generator Page] Error fetching status:', err);
     } finally {
       setLoadingStatus(false);
+      setStockLoading(false);
     }
   }, []);
 
@@ -162,31 +192,37 @@ export default function AccountGeneratorPage() {
     }
   }, [generatedModal]);
 
-  // Instant Mount Execution: Fetch stock immediately in parallel on mount
+  // Single Mount Execution: Resolve auth session then fetch status once with Discord ID
   useEffect(() => {
-    fetchStatus(null);
+    let isMounted = true;
 
-    const initAuth = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!isMounted) return;
+
       setUser(user);
       setAuthLoading(false);
-      if (user) {
-        const uid = user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
-        fetchStatus(uid);
-      }
+
+      const discordId = user
+        ? (user.user_metadata?.provider_id || user.user_metadata?.sub || user.id)
+        : null;
+
+      await fetchStatus(discordId);
     };
 
-    initAuth();
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!isMounted) return;
       const sUser = session?.user ?? null;
       setUser(sUser);
       setAuthLoading(false);
-      const uid = sUser ? (sUser.user_metadata?.provider_id || sUser.user_metadata?.sub || sUser.id) : null;
-      fetchStatus(uid);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchStatus]);
 
   // Discord OAuth Login Handler
@@ -430,7 +466,7 @@ export default function AccountGeneratorPage() {
                         className={`p-4 rounded-xl border border-zinc-800/80 flex flex-col items-center justify-center text-center transition-all duration-150 group relative ${
                           !isAllowed
                             ? 'opacity-40 grayscale-[40%] cursor-not-allowed bg-zinc-950'
-                            : isOutOfStock
+                            : isOutOfStock && !stockLoading
                             ? 'opacity-60 bg-zinc-950 hover:bg-zinc-900/60 cursor-pointer'
                             : 'bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 hover:-translate-y-0.5 cursor-pointer'
                         }`}
@@ -444,8 +480,14 @@ export default function AccountGeneratorPage() {
 
                         {/* Stock count + No Access badge */}
                         <div className="flex flex-col items-center gap-0.5 mt-1">
-                          <div className={`text-[11px] font-mono font-medium ${isOutOfStock ? 'text-rose-400 font-semibold' : 'text-zinc-400'}`}>
-                            {isOutOfStock ? '0 left' : `${svc.leftCount.toLocaleString()} left`}
+                          <div className={`text-[11px] font-mono font-medium ${isOutOfStock && !stockLoading ? 'text-rose-400 font-semibold' : 'text-zinc-400'}`}>
+                            {stockLoading ? (
+                              <span className="inline-block w-8 h-3.5 bg-zinc-800 rounded animate-pulse mt-0.5" />
+                            ) : isOutOfStock ? (
+                              '0 left'
+                            ) : (
+                              `${svc.leftCount.toLocaleString()} left`
+                            )}
                           </div>
                           {!isAllowed && (
                             <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 mt-1">
