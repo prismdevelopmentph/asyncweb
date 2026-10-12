@@ -172,6 +172,7 @@ export async function POST(request: Request) {
         discord_user_id: claimedBy,
         claimed_at: nowStr,
         notified_discord: false,
+        source: 'App Generator',
       });
     } catch {
       // Non-critical fallback logging error
