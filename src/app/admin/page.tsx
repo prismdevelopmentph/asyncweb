@@ -77,7 +77,7 @@ function DiscordUserBadge({
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 ${className}`}
+      className={`relative inline-flex items-center gap-1.5 ${className}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -92,14 +92,6 @@ function DiscordUserBadge({
         {rawId}
       </span>
 
-      {/* Instant micro-badge on hover: renders inline so table overflow cannot clip it */}
-      {hovered && tooltipText && (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-950/90 border border-purple-500/50 text-purple-200 text-[10px] font-sans font-medium whitespace-nowrap shadow-md">
-          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0 shadow-[0_0_6px_rgba(168,85,247,0.8)]" />
-          <span>{tooltipText}</span>
-        </span>
-      )}
-
       {onCopy && (
         <button
           onClick={() => onCopy(rawId)}
@@ -112,6 +104,14 @@ function DiscordUserBadge({
             <Copy className="w-3.5 h-3.5" />
           )}
         </button>
+      )}
+
+      {/* Floating pill: absolute positioning eliminates layout jitter / row expansion */}
+      {hovered && tooltipText && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-950/95 border border-purple-500/50 text-purple-200 text-[10px] font-sans font-medium whitespace-nowrap shadow-2xl z-50 pointer-events-none backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0 shadow-[0_0_6px_rgba(168,85,247,0.8)]" />
+          <span>{tooltipText}</span>
+        </div>
       )}
     </div>
   );
