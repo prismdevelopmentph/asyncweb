@@ -52,6 +52,7 @@ function DiscordUserBadge({
   copiedKey?: string | null;
   className?: string;
 }) {
+  const [hovered, setHovered] = useState(false);
   const rawId = userId ? String(userId) : '';
   if (!rawId || rawId === 'Unknown' || rawId === 'N/A' || rawId === 'Guest / Unauthenticated') {
     return <span className="text-zinc-500 font-mono text-[11px]">{rawId || 'Unknown'}</span>;
@@ -70,26 +71,29 @@ function DiscordUserBadge({
     tooltipText = 'Maik (Owner)';
   } else if (rawId === 'ASYNC-V2') {
     tooltipText = 'ASYNC V2 Engine';
+  } else {
+    tooltipText = `ID: ${rawId}`;
   }
 
   return (
-    <div className={`group relative inline-flex items-center gap-1.5 ${className}`}>
+    <div
+      className={`inline-flex items-center gap-1.5 ${className}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <span
-        className={`font-mono text-[11px] select-all cursor-help transition-colors ${
-          profile || tooltipText
-            ? 'text-purple-300 hover:text-purple-200 underline decoration-dotted decoration-purple-500/50 underline-offset-2'
-            : 'text-zinc-200'
-        }`}
-        title={tooltipText || `Discord ID: ${rawId}`}
+        className="font-mono text-[11px] select-all cursor-pointer text-purple-300 hover:text-white underline decoration-dotted decoration-purple-500/60 underline-offset-2 transition-colors"
+        title={tooltipText}
       >
         {rawId}
       </span>
 
-      {tooltipText && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-950/95 border border-purple-500/40 text-zinc-100 text-[10px] font-sans font-medium whitespace-nowrap shadow-xl z-50 pointer-events-none backdrop-blur-md">
+      {/* Instant micro-badge on hover: renders inline so table overflow cannot clip it */}
+      {hovered && tooltipText && (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-950/90 border border-purple-500/50 text-purple-200 text-[10px] font-sans font-medium whitespace-nowrap shadow-md">
           <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0 shadow-[0_0_6px_rgba(168,85,247,0.8)]" />
           <span>{tooltipText}</span>
-        </div>
+        </span>
       )}
 
       {onCopy && (
@@ -183,7 +187,7 @@ export default function AdminPage() {
   const fetchAdminData = async (forceRefresh = false) => {
     if (!ownerUserId) return;
 
-    const cacheKey = `async_admin_cache_${ownerUserId}`;
+    const cacheKey = `async_admin_cache_v2_${ownerUserId}`;
 
     // Check sessionStorage cache first if not forcing refresh
     if (!forceRefresh) {
@@ -191,7 +195,7 @@ export default function AdminPage() {
         const cachedStr = sessionStorage.getItem(cacheKey);
         if (cachedStr) {
           const cached = JSON.parse(cachedStr);
-          if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+          if (cached.data?.userProfiles && Date.now() - cached.timestamp < CACHE_TTL_MS) {
             setAdminData(cached.data);
             setDataLoading(false);
             return;
