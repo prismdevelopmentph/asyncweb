@@ -16,7 +16,8 @@ import {
   Lock,
   LogIn,
   X,
-  CheckCircle2
+  CheckCircle2,
+  Download
 } from 'lucide-react';
 
 // --- Official Brand Icon Components (SimpleIcons Vectors) ---
@@ -391,6 +392,16 @@ export default function AccountGeneratorPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
               <span className="font-mono text-[11px] uppercase tracking-wider">Engine Online</span>
             </div>
+
+            <a
+              href="/api/download/client"
+              download
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
+              title="Download Desktop App (ASYNC V2)"
+            >
+              <Download className="w-3.5 h-3.5 text-purple-400" />
+              <span>Download App</span>
+            </a>
 
             {user && (
               <button
