@@ -348,7 +348,8 @@ export default function AdminPage() {
 
   // Reset Generator License HWID Binding
   const handleResetGenHwid = async (lic: any) => {
-    if (!confirm(`Reset and unbind HWID for license key ${lic.license_key}?`)) return;
+    const hwidInfo = lic.hwid ? `\n\nBound HWID: ${lic.hwid}` : '\n\n(Currently UNBOUND)';
+    if (!confirm(`Reset and unbind HWID for license key ${lic.license_key}?${hwidInfo}\n\nThis will allow the user to bind a new hardware device on their next client launch.`)) return;
     setActionMessage('');
     setActionError('');
 
@@ -551,7 +552,8 @@ export default function AdminPage() {
 
   const filteredGenLicenses = generatorLicenses.filter((l: any) =>
     (l.license_key || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (l.redeemed_by || '').toLowerCase().includes(searchQuery.toLowerCase())
+    (l.redeemed_by || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (l.hwid || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredDecryptions = decryptionsList.filter((d: any) =>
@@ -919,6 +921,7 @@ export default function AdminPage() {
                       <tr>
                         <th className="py-3 px-4">License Key</th>
                         <th className="py-3 px-4">Redeemed By</th>
+                        <th className="py-3 px-4">HWID</th>
                         <th className="py-3 px-4">Daily Usage / Limit</th>
                         <th className="py-3 px-4">Created At</th>
                         <th className="py-3 px-4">Status</th>
@@ -928,7 +931,7 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-zinc-800/60 font-mono">
                       {filteredGenLicenses.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-zinc-500 font-mono">
+                          <td colSpan={7} className="py-8 text-center text-zinc-500 font-mono">
                             No generator licenses found.
                           </td>
                         </tr>
@@ -948,6 +951,36 @@ export default function AdminPage() {
                                 <span className="text-zinc-200">{lic.redeemed_by}</span>
                               ) : (
                                 <span className="text-zinc-500">UNREDEEMED</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 font-mono">
+                              {lic.hwid ? (
+                                <div className="inline-flex items-center gap-1.5">
+                                  <span
+                                    className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded font-mono select-all max-w-[155px] truncate inline-block"
+                                    title={lic.hwid}
+                                  >
+                                    {lic.hwid}
+                                  </span>
+                                  <button
+                                    onClick={() => copyToClipboard(lic.hwid)}
+                                    className="text-zinc-500 hover:text-white transition-colors"
+                                    title="Copy HWID"
+                                  >
+                                    {copiedKey === lic.hwid ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                  <button
+                                    onClick={() => handleResetGenHwid(lic)}
+                                    className="p-1 rounded hover:bg-rose-500/10 text-zinc-500 hover:text-rose-400 border border-transparent hover:border-rose-500/30 transition-colors"
+                                    title="Reset / Unbind HWID"
+                                  >
+                                    <Unlock className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
+                                  UNBOUND
+                                </span>
                               )}
                             </td>
                             <td className="py-3 px-4 font-mono">
