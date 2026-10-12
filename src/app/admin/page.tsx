@@ -71,9 +71,9 @@ function DiscordUserBadge({
     tooltipText = 'Maik (Owner)';
   } else if (rawId === 'ASYNC-V2') {
     tooltipText = 'ASYNC V2 Engine';
-  } else {
-    tooltipText = `ID: ${rawId}`;
   }
+
+  const hasResolvedName = Boolean(profile?.name || rawId === '719482630633947166' || rawId === 'ASYNC-V2');
 
   return (
     <div
@@ -82,8 +82,12 @@ function DiscordUserBadge({
       onMouseLeave={() => setHovered(false)}
     >
       <span
-        className="font-mono text-[11px] select-all cursor-pointer text-purple-300 hover:text-white underline decoration-dotted decoration-purple-500/60 underline-offset-2 transition-colors"
-        title={tooltipText}
+        className={`font-mono text-[11px] select-all cursor-pointer transition-colors ${
+          hasResolvedName
+            ? 'text-purple-300 hover:text-white underline decoration-dotted decoration-purple-500/60 underline-offset-2'
+            : 'text-zinc-300'
+        }`}
+        title={tooltipText || undefined}
       >
         {rawId}
       </span>

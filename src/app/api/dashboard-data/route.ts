@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
         guildConfigRes,
         claimLogsRes,
         downloadLogsRes,
+        discordUsersRes,
         authUsersRes
       ] = await Promise.all([
         supabaseAdmin
@@ -83,6 +84,7 @@ export async function GET(request: NextRequest) {
           .select('*')
           .order('downloaded_at', { ascending: false })
           .limit(100),
+        Promise.resolve(supabaseAdmin.from('discord_users').select('*')).catch(() => ({ data: [], error: null })),
         supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }).catch(() => ({ data: { users: [] }, error: null })),
       ]);
 
@@ -127,6 +129,15 @@ export async function GET(request: NextRequest) {
         'ASYNC-V2': { name: 'ASYNC V2', username: 'Engine' },
       };
 
+      (discordUsersRes?.data || []).forEach((u: any) => {
+        if (u.discord_user_id) {
+          userProfiles[String(u.discord_user_id)] = {
+            name: u.display_name || u.username || 'Unknown',
+            username: u.username || undefined,
+          };
+        }
+      });
+
       (authUsersRes?.data?.users || []).forEach((u: any) => {
         const meta = u.user_metadata || {};
         const discordId =
@@ -138,9 +149,10 @@ export async function GET(request: NextRequest) {
         if (discordId) {
           const fullName = meta.full_name || meta.custom_claims?.global_name || meta.name || '';
           const username = meta.user_name || meta.username || u.identities?.[0]?.identity_data?.user_name || '';
+          const prev = userProfiles[String(discordId)];
           userProfiles[String(discordId)] = {
-            name: fullName || username || u.email?.split('@')[0] || 'Unknown',
-            username: username && username !== fullName ? username : undefined,
+            name: fullName || prev?.name || username || u.email?.split('@')[0] || 'Unknown',
+            username: username && username !== fullName ? username : prev?.username,
           };
         }
       });
