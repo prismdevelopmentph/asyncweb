@@ -39,6 +39,76 @@ import {
   PackagePlus
 } from 'lucide-react';
 
+function DiscordUserBadge({
+  userId,
+  userProfiles,
+  onCopy,
+  copiedKey,
+  className = ''
+}: {
+  userId: string | null | undefined;
+  userProfiles?: Record<string, { name: string; username?: string }>;
+  onCopy?: (text: string) => void;
+  copiedKey?: string | null;
+  className?: string;
+}) {
+  const rawId = userId ? String(userId) : '';
+  if (!rawId || rawId === 'Unknown' || rawId === 'N/A' || rawId === 'Guest / Unauthenticated') {
+    return <span className="text-zinc-500 font-mono text-[11px]">{rawId || 'Unknown'}</span>;
+  }
+
+  const profile = userProfiles?.[rawId];
+  let tooltipText = '';
+
+  if (profile) {
+    if (profile.name && profile.username && profile.name.toLowerCase() !== profile.username.toLowerCase()) {
+      tooltipText = `${profile.name} (@${profile.username})`;
+    } else {
+      tooltipText = profile.name || profile.username || rawId;
+    }
+  } else if (rawId === '719482630633947166') {
+    tooltipText = 'Maik (Owner)';
+  } else if (rawId === 'ASYNC-V2') {
+    tooltipText = 'ASYNC V2 Engine';
+  }
+
+  return (
+    <div className={`group relative inline-flex items-center gap-1.5 ${className}`}>
+      <span
+        className={`font-mono text-[11px] select-all cursor-help transition-colors ${
+          profile || tooltipText
+            ? 'text-purple-300 hover:text-purple-200 underline decoration-dotted decoration-purple-500/50 underline-offset-2'
+            : 'text-zinc-200'
+        }`}
+        title={tooltipText || `Discord ID: ${rawId}`}
+      >
+        {rawId}
+      </span>
+
+      {tooltipText && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-950/95 border border-purple-500/40 text-zinc-100 text-[10px] font-sans font-medium whitespace-nowrap shadow-xl z-50 pointer-events-none backdrop-blur-md">
+          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0 shadow-[0_0_6px_rgba(168,85,247,0.8)]" />
+          <span>{tooltipText}</span>
+        </div>
+      )}
+
+      {onCopy && (
+        <button
+          onClick={() => onCopy(rawId)}
+          className="text-zinc-500 hover:text-white transition-colors"
+          title="Copy Discord ID"
+        >
+          {copiedKey === rawId ? (
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -546,38 +616,52 @@ export default function AdminPage() {
   const claimLogs = adminData?.claimLogs || [];
   const downloadLogs = adminData?.downloadLogs || [];
 
+  const userProfiles = adminData?.userProfiles || {};
+
+  const matchDiscordUser = (id: string | null | undefined, query: string) => {
+    if (!id) return false;
+    const str = String(id).toLowerCase();
+    if (str.includes(query)) return true;
+    const prof = userProfiles[String(id)];
+    if (prof) {
+      if (prof.name?.toLowerCase().includes(query)) return true;
+      if (prof.username?.toLowerCase().includes(query)) return true;
+    }
+    return false;
+  };
+
   // Filtered Lists
   const filteredLockouts = securityLockouts.filter((l: any) =>
     (l.ip_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (l.discord_user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(l.discord_user_id, searchQuery.toLowerCase()) ||
     (l.reason || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredGenLicenses = generatorLicenses.filter((l: any) =>
     (l.license_key || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (l.redeemed_by || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(l.redeemed_by, searchQuery.toLowerCase()) ||
     (l.hwid || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredDecryptions = decryptionsList.filter((d: any) =>
-    (d.user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(d.user_id, searchQuery.toLowerCase()) ||
     (d.file_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredFixes = fixesList.filter((f: any) =>
-    (f.user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(f.user_id, searchQuery.toLowerCase()) ||
     (f.file_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredClaimLogs = claimLogs.filter((c: any) =>
     (c.service_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.discord_user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(c.discord_user_id, searchQuery.toLowerCase()) ||
     (c.raw_data || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (c.source || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredDownloadLogs = downloadLogs.filter((d: any) =>
-    (d.discord_user_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(d.discord_user_id, searchQuery.toLowerCase()) ||
     (d.license_key || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (d.ip_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (d.user_agent || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -853,7 +937,7 @@ export default function AdminPage() {
                               {targetId.startsWith('dev_') ? (
                                 <span className="text-purple-300">{targetId} (Device)</span>
                               ) : targetId.length > 5 ? (
-                                <span className="text-zinc-200">{targetId}</span>
+                                <DiscordUserBadge userId={lockout.discord_user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                               ) : (
                                 <span className="text-zinc-500">Guest / Unauthenticated</span>
                               )}
@@ -978,7 +1062,7 @@ export default function AdminPage() {
                             </td>
                             <td className="py-3 px-4 font-mono text-zinc-300">
                               {lic.redeemed_by ? (
-                                <span className="text-zinc-200">{lic.redeemed_by}</span>
+                                <DiscordUserBadge userId={lic.redeemed_by} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                               ) : (
                                 <span className="text-zinc-500">UNREDEEMED</span>
                               )}
@@ -1180,8 +1264,8 @@ export default function AdminPage() {
                             <td className="py-3 px-4 font-mono text-zinc-400 text-[11px]">
                               {new Date(d.created_at).toLocaleString()}
                             </td>
-                            <td className="py-3 px-4 font-mono text-zinc-300 select-all">
-                              {d.user_id}
+                            <td className="py-3 px-4 font-mono text-zinc-300">
+                              <DiscordUserBadge userId={d.user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                             </td>
                             <td className="py-3 px-4 font-medium text-white font-sans">
                               {d.file_name}
@@ -1315,12 +1399,7 @@ export default function AdminPage() {
                                   )}
                                 </td>
                                 <td className="py-3 px-4 text-zinc-300">
-                                  <div className="inline-flex items-center gap-1.5">
-                                    <span className="text-zinc-200 select-all font-mono text-[11px]">{log.discord_user_id || 'Unknown'}</span>
-                                    <button onClick={() => copyToClipboard(log.discord_user_id)} className="text-zinc-500 hover:text-white transition-colors">
-                                      {copiedKey === log.discord_user_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                    </button>
-                                  </div>
+                                  <DiscordUserBadge userId={log.discord_user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                                 </td>
                                 <td className="py-3 px-4">
                                   <div className="inline-flex items-center gap-2 max-w-xs truncate text-[11px] text-zinc-400 font-mono bg-zinc-900/50 px-2 py-1 rounded border border-zinc-800">
@@ -1380,12 +1459,7 @@ export default function AdminPage() {
                                 {new Date(log.downloaded_at || Date.now()).toLocaleString()}
                               </td>
                               <td className="py-3 px-4 font-semibold text-zinc-200">
-                                <div className="inline-flex items-center gap-1.5">
-                                  <span className="select-all text-[11px]">{log.discord_user_id || 'Unknown'}</span>
-                                  <button onClick={() => copyToClipboard(log.discord_user_id)} className="text-zinc-500 hover:text-white transition-colors">
-                                    {copiedKey === log.discord_user_id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                  </button>
-                                </div>
+                                <DiscordUserBadge userId={log.discord_user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                               </td>
                               <td className="py-3 px-4">
                                 <span className="px-2 py-0.5 rounded text-[10px] bg-zinc-900 border border-zinc-800 text-amber-400 select-all font-mono">
@@ -1465,7 +1539,7 @@ export default function AdminPage() {
                                 </div>
                               </td>
                               <td className="py-3 px-4 text-zinc-300 font-mono text-[11px]">
-                                {lock.discord_user_id || 'N/A'}
+                                <DiscordUserBadge userId={lock.discord_user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                               </td>
                               <td className="py-3 px-4 text-zinc-400 text-[11px] max-w-xs truncate" title={lock.reason}>
                                 {lock.reason || 'Security Alert'}

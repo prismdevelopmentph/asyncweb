@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
         userGuildLocksRes,
         guildConfigRes,
         claimLogsRes,
-        downloadLogsRes
+        downloadLogsRes,
+        authUsersRes
       ] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
@@ -82,6 +83,7 @@ export async function GET(request: NextRequest) {
           .select('*')
           .order('downloaded_at', { ascending: false })
           .limit(100),
+        supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }).catch(() => ({ data: { users: [] }, error: null })),
       ]);
 
       const limitsMap = new Map();
@@ -120,6 +122,38 @@ export async function GET(request: NextRequest) {
         };
       });
 
+      const userProfiles: Record<string, { name: string; username?: string }> = {
+        '719482630633947166': { name: 'Maik', username: 'Owner' },
+        'ASYNC-V2': { name: 'ASYNC V2', username: 'Engine' },
+      };
+
+      (authUsersRes?.data?.users || []).forEach((u: any) => {
+        const meta = u.user_metadata || {};
+        const discordId =
+          meta.provider_id ||
+          meta.sub ||
+          u.identities?.find((i: any) => i.provider === 'discord')?.id ||
+          (u.email?.endsWith('@discord.user') ? u.email.split('@')[0] : null);
+
+        if (discordId) {
+          const fullName = meta.full_name || meta.custom_claims?.global_name || meta.name || '';
+          const username = meta.user_name || meta.username || u.identities?.[0]?.identity_data?.user_name || '';
+          userProfiles[String(discordId)] = {
+            name: fullName || username || u.email?.split('@')[0] || 'Unknown',
+            username: username && username !== fullName ? username : undefined,
+          };
+        }
+      });
+
+      (plansRes.data || []).forEach((p: any) => {
+        if (p.user_id && p.username && !userProfiles[String(p.user_id)]) {
+          userProfiles[String(p.user_id)] = {
+            name: p.username,
+            username: p.username,
+          };
+        }
+      });
+
       return NextResponse.json({
         isOwner: true,
         securityLockouts: lockoutsRes.data || [],
@@ -131,6 +165,7 @@ export async function GET(request: NextRequest) {
         fixes: fixesRes.data || [],
         claimLogs: claimLogsRes.data || [],
         downloadLogs: downloadLogsRes.data || [],
+        userProfiles,
       });
     }
 
