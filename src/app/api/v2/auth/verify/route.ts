@@ -87,12 +87,15 @@ export async function POST(request: Request) {
     }
 
     // 4. HWID Binding and Verification
-    if (!license.hwid) {
-      // First activation: bind to this machine
+    const currentBoundHwid = license.hwid ? String(license.hwid).trim().toUpperCase() : null;
+
+    if (!currentBoundHwid) {
+      // First launch / registration: atomically bind only if still null in DB
       const { error: bindErr } = await supabaseAdmin
         .from('licenses')
         .update({ hwid: hwid })
-        .eq('id', license.id);
+        .eq('id', license.id)
+        .is('hwid', null);
 
       if (bindErr) {
         console.error('[/api/v2/auth/verify Bind Error]:', bindErr);
@@ -101,8 +104,8 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
-    } else if (license.hwid.toUpperCase() !== hwid) {
-      // Hardware mismatch: license is locked to another machine
+    } else if (currentBoundHwid !== hwid) {
+      // Second/subsequent login: mismatch detected — DO NOT OVERWRITE, REJECT VERIFICATION
       return NextResponse.json(
         {
           success: false,
