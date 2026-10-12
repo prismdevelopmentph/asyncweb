@@ -17,7 +17,20 @@ export async function GET(request: NextRequest) {
 
     // If Owner requests Admin Panel Data: Fetch global database records
     if (isAdminRequest && isOwner) {
-      const [lockoutsRes, generatorLicensesRes, servicesRes, apiLicensesRes, plansRes, decryptionsRes, fixesRes, userLimitsRes, userGuildLocksRes, guildConfigRes] = await Promise.all([
+      const [
+        lockoutsRes,
+        generatorLicensesRes,
+        servicesRes,
+        apiLicensesRes,
+        plansRes,
+        decryptionsRes,
+        fixesRes,
+        userLimitsRes,
+        userGuildLocksRes,
+        guildConfigRes,
+        claimLogsRes,
+        downloadLogsRes
+      ] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
           .select('*')
@@ -59,6 +72,16 @@ export async function GET(request: NextRequest) {
         supabaseAdmin
           .from('guild_config')
           .select('*'),
+        supabaseAdmin
+          .from('website_claim_logs')
+          .select('*')
+          .order('claimed_at', { ascending: false })
+          .limit(200),
+        supabaseAdmin
+          .from('client_download_logs')
+          .select('*')
+          .order('downloaded_at', { ascending: false })
+          .limit(100),
       ]);
 
       const limitsMap = new Map();
@@ -106,6 +129,8 @@ export async function GET(request: NextRequest) {
         plans: plansRes.data || [],
         decryptions: decryptionsRes.data || [],
         fixes: fixesRes.data || [],
+        claimLogs: claimLogsRes.data || [],
+        downloadLogs: downloadLogsRes.data || [],
       });
     }
 
