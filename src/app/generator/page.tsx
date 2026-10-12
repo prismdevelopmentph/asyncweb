@@ -393,15 +393,26 @@ export default function AccountGeneratorPage() {
               <span className="font-mono text-[11px] uppercase tracking-wider">Engine Online</span>
             </div>
 
-            <a
-              href="/api/download/client"
-              download
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
-              title="Download Desktop App (ASYNC V2)"
-            >
-              <Download className="w-3.5 h-3.5 text-purple-400" />
-              <span>Download App</span>
-            </a>
+            {userPlan.hasPlan ? (
+              <a
+                href={`/api/download/client?userId=${encodeURIComponent(discordUserId || '')}`}
+                download
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
+                title="Download Desktop App (ASYNC V2)"
+              >
+                <Download className="w-3.5 h-3.5 text-purple-400" />
+                <span>Download App</span>
+              </a>
+            ) : (
+              <button
+                onClick={() => triggerToast('Active license plan required to download the desktop app.')}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 text-xs text-zinc-500 font-mono font-medium cursor-not-allowed opacity-75 hover:border-zinc-700/50"
+                title="Active license required to download"
+              >
+                <Lock className="w-3.5 h-3.5 text-zinc-600" />
+                <span>Download App</span>
+              </button>
+            )}
 
             {user && (
               <button
