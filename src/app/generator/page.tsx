@@ -151,6 +151,26 @@ export default function AccountGeneratorPage() {
     return user.user_metadata?.provider_id || user.user_metadata?.sub || user.id;
   }, [user]);
 
+  const [downloadingClient, setDownloadingClient] = useState(false);
+
+  const handleDownloadApp = () => {
+    if (authLoading) {
+      triggerToast('Initializing account session, please wait...');
+      return;
+    }
+    if (!discordUserId) {
+      triggerToast('Please log in with Discord first.');
+      return;
+    }
+    if (!userPlan.hasPlan) {
+      triggerToast('Active license plan required to download the desktop app.');
+      return;
+    }
+    setDownloadingClient(true);
+    window.location.href = `/api/download/client?userId=${encodeURIComponent(discordUserId)}`;
+    setTimeout(() => setDownloadingClient(false), 3000);
+  };
+
   // Fast Parallel Status Fetcher
   const fetchStatus = useCallback(async (uid: string | null) => {
     setLoadingStatus(true);
@@ -394,15 +414,15 @@ export default function AccountGeneratorPage() {
             </div>
 
             {userPlan.hasPlan ? (
-              <a
-                href={`/api/download/client?userId=${encodeURIComponent(discordUserId || '')}`}
-                download
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
+              <button
+                onClick={handleDownloadApp}
+                disabled={downloadingClient}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm disabled:opacity-50"
                 title="Download Desktop App (ASYNC V2)"
               >
-                <Download className="w-3.5 h-3.5 text-purple-400" />
-                <span>Download App</span>
-              </a>
+                <Download className={`w-3.5 h-3.5 text-purple-400 ${downloadingClient ? 'animate-bounce' : ''}`} />
+                <span>{downloadingClient ? 'Downloading...' : 'Download App'}</span>
+              </button>
             ) : (
               <button
                 onClick={() => triggerToast('Active license plan required to download the desktop app.')}
