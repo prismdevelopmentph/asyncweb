@@ -230,6 +230,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: `User generation claims reset successfully.` });
     }
 
+    if (action === 'reset_generator_hwid') {
+      const { licenseId } = body;
+      if (!licenseId) return NextResponse.json({ error: 'Missing licenseId' }, { status: 400 });
+
+      const { error } = await supabaseAdmin
+        .from('licenses')
+        .update({ hwid: null })
+        .eq('id', licenseId);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: 'Generator License HWID reset successfully.' });
+    }
+
     if (action === 'delete_generator_license') {
       const { licenseId } = body;
       if (!licenseId) return NextResponse.json({ error: 'Missing licenseId' }, { status: 400 });

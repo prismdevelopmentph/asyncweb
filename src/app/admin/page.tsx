@@ -346,6 +346,33 @@ export default function AdminPage() {
     }
   };
 
+  // Reset Generator License HWID Binding
+  const handleResetGenHwid = async (lic: any) => {
+    if (!confirm(`Reset and unbind HWID for license key ${lic.license_key}?`)) return;
+    setActionMessage('');
+    setActionError('');
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reset_generator_hwid',
+          ownerUserId,
+          licenseId: lic.id,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to reset HWID');
+
+      setActionMessage(json.message);
+      fetchAdminData(true);
+    } catch (err: any) {
+      setActionError(err.message);
+    }
+  };
+
   // Delete Generator License Key
   const handleDeleteGenLicense = async (lic: any) => {
     if (!confirm(`PERMANENTLY DELETE license key ${lic.license_key}? This cannot be undone.`)) return;
@@ -1011,6 +1038,18 @@ export default function AdminPage() {
                                         >
                                           <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
                                           <span>Reset Generation</span>
+                                        </button>
+
+                                        <button
+                                          onClick={() => {
+                                            setActiveDropdownId(null);
+                                            setDropdownPos(null);
+                                            handleResetGenHwid(lic);
+                                          }}
+                                          className="w-full text-left px-3 py-1.5 hover:bg-zinc-900 flex items-center gap-2 text-zinc-300 hover:text-white"
+                                        >
+                                          <Unlock className="w-3.5 h-3.5 text-purple-400" />
+                                          <span>Reset HWID</span>
                                         </button>
                                       </div>
 
