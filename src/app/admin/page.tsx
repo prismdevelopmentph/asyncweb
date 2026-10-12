@@ -77,7 +77,7 @@ function DiscordUserBadge({
 
   return (
     <div
-      className={`relative inline-flex items-center gap-1.5 ${className}`}
+      className={`relative inline-flex items-center gap-1.5 whitespace-nowrap ${className}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -87,7 +87,6 @@ function DiscordUserBadge({
             ? 'text-purple-300 hover:text-white underline decoration-dotted decoration-purple-500/60 underline-offset-2'
             : 'text-zinc-300'
         }`}
-        title={tooltipText || undefined}
       >
         {rawId}
       </span>
@@ -95,8 +94,7 @@ function DiscordUserBadge({
       {onCopy && (
         <button
           onClick={() => onCopy(rawId)}
-          className="text-zinc-500 hover:text-white transition-colors"
-          title="Copy Discord ID"
+          className="text-zinc-500 hover:text-white transition-colors shrink-0"
         >
           {copiedKey === rawId ? (
             <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -106,11 +104,13 @@ function DiscordUserBadge({
         </button>
       )}
 
-      {/* Floating pill: absolute positioning eliminates layout jitter / row expansion */}
+      {/* Floating pill: strictly 0px layout footprint so rows and cards never adjust */}
       {hovered && tooltipText && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-950/95 border border-purple-500/50 text-purple-200 text-[10px] font-sans font-medium whitespace-nowrap shadow-2xl z-50 pointer-events-none backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
-          <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0 shadow-[0_0_6px_rgba(168,85,247,0.8)]" />
-          <span>{tooltipText}</span>
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-0 h-0 flex items-center justify-center overflow-visible pointer-events-none z-50">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-950 border border-purple-500/50 text-zinc-100 text-[10px] font-sans font-medium whitespace-nowrap shadow-[0_4px_25px_rgba(0,0,0,0.95)] backdrop-blur-md">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+            <span className="font-semibold tracking-wide text-zinc-100">{tooltipText}</span>
+          </div>
         </div>
       )}
     </div>
@@ -1068,7 +1068,7 @@ export default function AdminPage() {
                                 </button>
                               </div>
                             </td>
-                            <td className="py-3 px-4 font-mono text-zinc-300">
+                            <td className="py-3 px-4 font-mono text-zinc-300 whitespace-nowrap min-w-[175px]">
                               {lic.redeemed_by ? (
                                 <DiscordUserBadge userId={lic.redeemed_by} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                               ) : (
@@ -1406,7 +1406,7 @@ export default function AdminPage() {
                                     </span>
                                   )}
                                 </td>
-                                <td className="py-3 px-4 text-zinc-300">
+                                <td className="py-3 px-4 text-zinc-300 whitespace-nowrap min-w-[175px]">
                                   <DiscordUserBadge userId={log.discord_user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                                 </td>
                                 <td className="py-3 px-4">
@@ -1466,7 +1466,7 @@ export default function AdminPage() {
                               <td className="py-3 px-4 text-zinc-400 text-[11px] whitespace-nowrap">
                                 {new Date(log.downloaded_at || Date.now()).toLocaleString()}
                               </td>
-                              <td className="py-3 px-4 font-semibold text-zinc-200">
+                              <td className="py-3 px-4 font-semibold text-zinc-200 whitespace-nowrap min-w-[175px]">
                                 <DiscordUserBadge userId={log.discord_user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                               </td>
                               <td className="py-3 px-4">
@@ -1546,7 +1546,7 @@ export default function AdminPage() {
                                   </button>
                                 </div>
                               </td>
-                              <td className="py-3 px-4 text-zinc-300 font-mono text-[11px]">
+                              <td className="py-3 px-4 text-zinc-300 font-mono text-[11px] whitespace-nowrap min-w-[175px]">
                                 <DiscordUserBadge userId={lock.discord_user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
                               </td>
                               <td className="py-3 px-4 text-zinc-400 text-[11px] max-w-xs truncate" title={lock.reason}>
