@@ -113,6 +113,13 @@ export default function AccountGeneratorPage() {
     dataText: string;
   } | null>(null);
 
+  // License Activation Modal State
+  const [activateModalOpen, setActivateModalOpen] = useState(false);
+  const [licenseInput, setLicenseInput] = useState('');
+  const [activating, setActivating] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [activationSuccess, setActivationSuccess] = useState<string | null>(null);
+
   const [userPlan, setUserPlan] = useState<{
     hasPlan: boolean;
     name: string;
@@ -195,13 +202,66 @@ export default function AccountGeneratorPage() {
     }
   }, []);
 
+  // License Activation Handler
+  const handleActivateLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanKey = licenseInput.trim().toUpperCase();
+    if (!cleanKey || activating) return;
+
+    if (!user) {
+      triggerToast('Please log in with Discord first');
+      return;
+    }
+
+    if (!cleanKey.startsWith('LIC-')) {
+      setActivationError('Invalid format. License keys must start with LIC- (e.g. LIC-XXXX-XXXX-XXXX)');
+      return;
+    }
+
+    setActivating(true);
+    setActivationError(null);
+    setActivationSuccess(null);
+
+    try {
+      const res = await fetch('/api/generator/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: discordUserId,
+          key: cleanKey,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setActivationError(data.error || 'Failed to activate license key.');
+      } else {
+        setActivationSuccess(data.message || 'License activated successfully!');
+        setLicenseInput('');
+        triggerToast(data.message || 'License activated!');
+        if (discordUserId) {
+          await fetchStatus(discordUserId);
+        }
+        setTimeout(() => {
+          setActivateModalOpen(false);
+          setActivationSuccess(null);
+        }, 1600);
+      }
+    } catch (err: any) {
+      setActivationError(err.message || 'Network error activating license.');
+    } finally {
+      setActivating(false);
+    }
+  };
+
   // Block background scrolling and handle Escape key when Modal is open
   useEffect(() => {
-    if (generatedModal) {
+    if (generatedModal || activateModalOpen) {
       document.body.style.overflow = 'hidden';
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           setGeneratedModal(null);
+          setActivateModalOpen(false);
         }
       };
       window.addEventListener('keydown', handleKeyDown);
@@ -212,7 +272,7 @@ export default function AccountGeneratorPage() {
     } else {
       document.body.style.overflow = '';
     }
-  }, [generatedModal]);
+  }, [generatedModal, activateModalOpen]);
 
   // Single Mount Execution: Resolve auth session then fetch status once with Discord ID
   useEffect(() => {
@@ -437,6 +497,21 @@ export default function AccountGeneratorPage() {
 
             {user && (
               <button
+                onClick={() => {
+                  setActivationError(null);
+                  setActivationSuccess(null);
+                  setActivateModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-xs text-purple-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
+                title="Activate or Redeem a License Key"
+              >
+                <Key className="w-3.5 h-3.5 text-purple-400" />
+                <span>Activate License</span>
+              </button>
+            )}
+
+            {user && (
+              <button
                 onClick={() => fetchStatus(discordUserId)}
                 disabled={loadingStatus}
                 className="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
@@ -475,16 +550,32 @@ export default function AccountGeneratorPage() {
             <section className="bg-zinc-950/80 rounded-2xl p-6 sm:p-8 border border-zinc-800">
               
               {/* Header Title & Active Plan */}
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
-                  <Key className="w-4 h-4" />
+              <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white">Generator Services</h2>
+                    <p className="text-xs text-zinc-400 font-mono">
+                      {userPlan.hasPlan ? `${userPlan.name} · expires ${userPlan.expiresAt || 'Never'}` : 'No active plan'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-white">Generator Services</h2>
-                  <p className="text-xs text-zinc-400 font-mono">
-                    {userPlan.hasPlan ? `${userPlan.name} · expires ${userPlan.expiresAt || 'Never'}` : 'No active plan'}
-                  </p>
-                </div>
+
+                {!userPlan.hasPlan && (
+                  <button
+                    onClick={() => {
+                      setActivationError(null);
+                      setActivationSuccess(null);
+                      setActivateModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-mono font-semibold transition-all shadow-md shadow-purple-900/30 hover:scale-[1.02]"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>Redeem Key</span>
+                  </button>
+                )}
               </div>
 
               <div className="space-y-5">
@@ -715,6 +806,116 @@ export default function AccountGeneratorPage() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activate License Modal */}
+      {activateModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div
+            className="fixed inset-0"
+            onClick={() => !activating && setActivateModalOpen(false)}
+          />
+
+          <div className="relative z-10 w-full max-w-md bg-zinc-950 border border-purple-500/30 rounded-2xl p-6 shadow-2xl shadow-purple-950/40 text-left animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                  <Key className="w-5 h-5 text-purple-300" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">
+                    License Activation
+                  </h3>
+                  <p className="text-xs text-zinc-400 font-mono">
+                    Redeem your LIC key to unlock generator access
+                  </p>
+                </div>
+              </div>
+
+              <button
+                disabled={activating}
+                onClick={() => setActivateModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleActivateLicense} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono font-medium text-zinc-300 mb-1.5">
+                  License Key
+                </label>
+                <input
+                  type="text"
+                  value={licenseInput}
+                  onChange={(e) => {
+                    setLicenseInput(e.target.value.toUpperCase());
+                    setActivationError(null);
+                  }}
+                  placeholder="LIC-XXXX-XXXX-XXXX"
+                  disabled={activating}
+                  maxLength={30}
+                  autoFocus
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-mono text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500/80 focus:ring-1 focus:ring-purple-500/80 transition-colors uppercase tracking-wider"
+                />
+              </div>
+
+              {activationError && (
+                <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-800/60 text-rose-300 text-xs font-mono leading-relaxed">
+                  {activationError}
+                </div>
+              )}
+
+              {activationSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-800/60 text-emerald-300 text-xs font-mono flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{activationSuccess}</span>
+                </div>
+              )}
+
+              <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-[11px] text-zinc-400 font-sans space-y-1">
+                <p>• Each license key can only be redeemed once and is bound to your account.</p>
+                <p>• Don't have a license? Join our Discord server to purchase one.</p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={!licenseInput.trim() || activating}
+                  className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors shadow-lg shadow-purple-900/30 font-mono"
+                >
+                  {activating ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Activating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Key className="w-3.5 h-3.5" />
+                      <span>Activate License</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={activating}
+                  onClick={() => setActivateModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 font-medium text-xs transition-colors font-mono"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
