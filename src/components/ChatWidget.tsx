@@ -24,13 +24,19 @@ interface ChatWidgetProps {
 export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeChannel, setActiveChannel] = useState<'general' | 'support'>('general');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [generalMessages, setGeneralMessages] = useState<ChatMessage[]>([]);
+  const [supportMessages, setSupportMessages] = useState<ChatMessage[]>([]);
+  const [hasMoreGeneral, setHasMoreGeneral] = useState(true);
+  const [hasMoreSupport, setHasMoreSupport] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
+  const messages = activeChannel === 'general' ? generalMessages : supportMessages;
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const discordUserId = user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id || null;
@@ -38,38 +44,107 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
   const avatarUrl = user?.user_metadata?.avatar_url || null;
   const isOwner = discordUserId === '719482630633947166';
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (instant = false) => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: instant ? 'auto' : 'smooth',
+      });
+    }
   };
 
-  // 1. Fetch initial message history when channel changes or widget opens
-  const fetchMessages = async (channel: 'general' | 'support') => {
+  // 1. Instant background sync (no blanking/unmounting when switching tabs)
+  const fetchChannelMessages = async (channel: 'general' | 'support', isInitial = false) => {
     if (!discordUserId) return;
-    setLoading(true);
+    if (isInitial && (channel === 'general' ? generalMessages.length === 0 : supportMessages.length === 0)) {
+      setLoading(true);
+    }
+
     try {
       const url = channel === 'support'
-        ? `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}`
-        : `/api/chat?channel=general&limit=50`;
+        ? `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`
+        : `/api/chat?channel=general&limit=30`;
 
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages || []);
+        const incoming: ChatMessage[] = data.messages || [];
+
+        if (channel === 'general') {
+          setGeneralMessages(incoming);
+          if (incoming.length < 30) setHasMoreGeneral(false);
+        } else {
+          setSupportMessages(incoming);
+          if (incoming.length < 30) setHasMoreSupport(false);
+        }
       }
     } catch (e) {
       console.error('[Chat Widget Fetch Error]:', e);
     } finally {
       setLoading(false);
-      setTimeout(scrollToBottom, 100);
+      if (isInitial) {
+        setTimeout(() => scrollToBottom(true), 50);
+      }
     }
   };
 
+  // Fetch immediately on open or tab switch
   useEffect(() => {
     if (isOpen) {
-      fetchMessages(activeChannel);
+      const currentList = activeChannel === 'general' ? generalMessages : supportMessages;
+      fetchChannelMessages(activeChannel, currentList.length === 0);
       setUnreadCount(0);
+      setTimeout(() => scrollToBottom(true), 60);
     }
   }, [isOpen, activeChannel, discordUserId]);
+
+  // Load older messages when user scrolls up (iMessage / WhatsApp behavior)
+  const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    if (target.scrollTop <= 15 && !loadingOlder && !loading) {
+      const currentList = activeChannel === 'general' ? generalMessages : supportMessages;
+      const hasMore = activeChannel === 'general' ? hasMoreGeneral : hasMoreSupport;
+      if (!hasMore || currentList.length === 0) return;
+
+      const oldestMsg = currentList[0];
+      setLoadingOlder(true);
+      const prevScrollHeight = target.scrollHeight;
+
+      try {
+        const url = activeChannel === 'support'
+          ? `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=25&before=${encodeURIComponent(oldestMsg.created_at)}`
+          : `/api/chat?channel=general&limit=25&before=${encodeURIComponent(oldestMsg.created_at)}`;
+
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const older: ChatMessage[] = data.messages || [];
+
+          if (older.length < 25) {
+            if (activeChannel === 'general') setHasMoreGeneral(false);
+            else setHasMoreSupport(false);
+          }
+
+          if (older.length > 0) {
+            if (activeChannel === 'general') {
+              setGeneralMessages((prev) => [...older, ...prev]);
+            } else {
+              setSupportMessages((prev) => [...older, ...prev]);
+            }
+
+            // Maintain exact scroll position so user doesn't jump
+            setTimeout(() => {
+              target.scrollTop = target.scrollHeight - prevScrollHeight;
+            }, 30);
+          }
+        }
+      } catch (err) {
+        console.error('[Load Older Messages Error]:', err);
+      } finally {
+        setLoadingOlder(false);
+      }
+    }
+  };
 
   // 2. Realtime Subscription via Supabase WebSocket
   useEffect(() => {
@@ -87,18 +162,21 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
         (payload) => {
           const newMsg = payload.new as ChatMessage;
 
-          // Check if message belongs to current channel/ticket
-          const isCurrentGeneral = activeChannel === 'general' && newMsg.channel === 'general';
-          const isCurrentSupport = activeChannel === 'support' && newMsg.channel === 'support' && newMsg.ticket_id === discordUserId;
-
-          if (isCurrentGeneral || isCurrentSupport) {
-            setMessages((prev) => {
+          if (newMsg.channel === 'general') {
+            setGeneralMessages((prev) => {
               if (prev.some((m) => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
-            setTimeout(scrollToBottom, 100);
+          } else if (newMsg.channel === 'support' && newMsg.ticket_id === discordUserId) {
+            setSupportMessages((prev) => {
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+          }
+
+          if (isOpen && activeChannel === newMsg.channel) {
+            setTimeout(() => scrollToBottom(false), 50);
           } else if (!isOpen) {
-            // Increment unread count if message belongs to user's channels
             if (newMsg.channel === 'general' || (newMsg.channel === 'support' && newMsg.ticket_id === discordUserId)) {
               setUnreadCount((c) => c + 1);
             }
@@ -147,8 +225,16 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
       created_at: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, optimisticMsg]);
-    setTimeout(scrollToBottom, 50);
+    const updateChannelState = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
+      if (activeChannel === 'general') {
+        setGeneralMessages(updater);
+      } else {
+        setSupportMessages(updater);
+      }
+    };
+
+    updateChannelState((prev) => [...prev, optimisticMsg]);
+    setTimeout(() => scrollToBottom(false), 50);
 
     try {
       const res = await fetch('/api/chat', {
@@ -167,14 +253,14 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
 
       if (!res.ok) {
         // Rollback optimistic message on failure
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        updateChannelState((prev) => prev.filter((m) => m.id !== tempId));
         const errJson = await res.json();
         setErrorToast(errJson.error || 'Failed to send message.');
         setTimeout(() => setErrorToast(null), 3500);
       } else {
         const json = await res.json();
         if (json.message) {
-          setMessages((prev) =>
+          updateChannelState((prev) =>
             prev.map((m) => (m.id === tempId ? (json.message as ChatMessage) : m))
           );
         }
@@ -221,7 +307,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
 
             <div className="flex items-center gap-1">
               <button
-                onClick={() => fetchMessages(activeChannel)}
+                onClick={() => fetchChannelMessages(activeChannel, true)}
                 disabled={loading}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors"
                 title="Refresh feed"
@@ -283,7 +369,18 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
           )}
 
           {/* Messages Feed Area */}
-          <div className="flex-1 p-3 overflow-y-auto space-y-3 font-mono text-xs custom-scrollbar">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleScroll}
+            className="flex-1 p-3 overflow-y-auto space-y-3 font-mono text-xs custom-scrollbar"
+          >
+            {loadingOlder && (
+              <div className="py-1 text-center text-zinc-500 text-[10px] flex items-center justify-center gap-1.5">
+                <RefreshCw className="w-3 h-3 animate-spin text-purple-400" />
+                <span>Loading older history...</span>
+              </div>
+            )}
+
             {loading ? (
               <div className="h-full flex items-center justify-center text-zinc-500 gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />

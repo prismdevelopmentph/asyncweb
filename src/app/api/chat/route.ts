@@ -8,6 +8,8 @@ export async function GET(request: NextRequest) {
   const limitParam = parseInt(searchParams.get('limit') || '50', 10);
   const limit = Math.min(Math.max(limitParam, 10), 100);
 
+  const before = searchParams.get('before'); // ISO timestamp to fetch older messages
+
   try {
     let query = supabaseAdmin
       .from('chat_messages')
@@ -18,11 +20,14 @@ export async function GET(request: NextRequest) {
       if (ticketId) {
         query = query.eq('ticket_id', ticketId);
       }
-      query = query.order('created_at', { ascending: true }).limit(limit);
-    } else {
-      // General feed: get latest, ordered ascending for UI display
-      query = query.order('created_at', { ascending: false }).limit(limit);
     }
+
+    if (before) {
+      query = query.lt('created_at', before);
+    }
+
+    // Always fetch latest descending, then reverse so bottom is most recent
+    query = query.order('created_at', { ascending: false }).limit(limit);
 
     const { data, error } = await query;
     if (error) {
@@ -30,8 +35,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // If general channel was fetched descending, reverse so oldest appears first in feed
-    const messages = channel === 'general' ? (data || []).reverse() : (data || []);
+    // Reverse so oldest appears first in feed, newest at bottom (like iMessage/WhatsApp)
+    const messages = (data || []).reverse();
 
     return NextResponse.json({ success: true, messages });
   } catch (err: any) {
