@@ -557,25 +557,17 @@ export default function AccountGeneratorPage() {
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-white">Generator Services</h2>
-                    <p className="text-xs text-zinc-400 font-mono">
-                      {userPlan.hasPlan ? `${userPlan.name} · expires ${userPlan.expiresAt || 'Never'}` : 'No active plan'}
-                    </p>
+                    <div className="text-xs text-zinc-400 font-mono mt-0.5">
+                      {loadingStatus ? (
+                        <span className="inline-block w-28 h-3.5 bg-zinc-800 rounded animate-pulse" />
+                      ) : userPlan.hasPlan ? (
+                        <span>{userPlan.name} · expires {userPlan.expiresAt || 'Never'}</span>
+                      ) : (
+                        <span>No active plan</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                {!userPlan.hasPlan && (
-                  <button
-                    onClick={() => {
-                      setActivationError(null);
-                      setActivationSuccess(null);
-                      setActivateModalOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-mono font-semibold transition-all shadow-md shadow-purple-900/30 hover:scale-[1.02]"
-                  >
-                    <Key className="w-3.5 h-3.5" />
-                    <span>Redeem Key</span>
-                  </button>
-                )}
               </div>
 
               <div className="space-y-5">
@@ -834,7 +826,7 @@ export default function AccountGeneratorPage() {
                     License Activation
                   </h3>
                   <p className="text-xs text-zinc-400 font-mono">
-                    Redeem your LIC key to unlock generator access
+                    Enter your LIC key to unlock generator access
                   </p>
                 </div>
               </div>
