@@ -283,7 +283,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
           )}
 
           {/* Messages Feed Area */}
-          <div className="flex-1 p-3 overflow-y-auto space-y-3 font-mono text-xs">
+          <div className="flex-1 p-3 overflow-y-auto space-y-3 font-mono text-xs custom-scrollbar">
             {loading ? (
               <div className="h-full flex items-center justify-center text-zinc-500 gap-2">
                 <RefreshCw className="w-4 h-4 animate-spin text-purple-400" />

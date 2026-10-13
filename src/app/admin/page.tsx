@@ -1857,7 +1857,7 @@ export default function AdminPage() {
                 </div>
 
                 {chatChannel === 'support' ? (
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 font-mono text-xs">
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 font-mono text-xs custom-scrollbar">
                     {chatTickets.length === 0 ? (
                       <div className="py-12 text-center text-zinc-500">
                         No support tickets opened yet.
@@ -1923,7 +1923,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Messages Stream */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-3 font-mono text-xs min-h-[380px] max-h-[460px]">
+                <div className="flex-1 p-4 overflow-y-auto space-y-3 font-mono text-xs min-h-[380px] max-h-[460px] custom-scrollbar">
                   {ticketMessages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-zinc-500 py-12">
                       <MessageSquare className="w-8 h-8 text-zinc-700 mb-2" />
