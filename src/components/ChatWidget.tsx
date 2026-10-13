@@ -32,17 +32,65 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadGeneral, setUnreadGeneral] = useState(0);
+  const [unreadSupport, setUnreadSupport] = useState(0);
+  const totalUnread = unreadGeneral + unreadSupport;
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
   const messages = activeChannel === 'general' ? generalMessages : supportMessages;
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const isOpenRef = useRef(isOpen);
+  const activeChannelRef = useRef(activeChannel);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
+    activeChannelRef.current = activeChannel;
+  }, [activeChannel]);
+
   const discordUserId = user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id || null;
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.custom_claims?.global_name || user?.user_metadata?.user_name || 'Member';
   const avatarUrl = user?.user_metadata?.avatar_url || null;
   const isOwner = discordUserId === '719482630633947166';
+
+  const playChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+    } catch {
+      // Audio autoplay policy fallback
+    }
+  };
+
+  const markChannelAsRead = (channel: 'general' | 'support') => {
+    if (!discordUserId) return;
+    const now = new Date().toISOString();
+    try {
+      localStorage.setItem(`chat_last_read_${channel}_${discordUserId}`, now);
+    } catch {}
+
+    if (channel === 'general') {
+      setUnreadGeneral(0);
+    } else {
+      setUnreadSupport(0);
+    }
+  };
 
   const scrollToBottom = (instant = false) => {
     if (messagesContainerRef.current) {
@@ -88,12 +136,61 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     }
   };
 
-  // Fetch immediately on open or tab switch
+  // Initial prefetch & unread detection on mount
+  useEffect(() => {
+    if (!discordUserId) return;
+
+    const initUnreadAndCache = async () => {
+      try {
+        const lastReadGen = localStorage.getItem(`chat_last_read_general_${discordUserId}`);
+        const lastReadSup = localStorage.getItem(`chat_last_read_support_${discordUserId}`);
+
+        const [genRes, supRes] = await Promise.all([
+          fetch('/api/chat?channel=general&limit=30'),
+          fetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`),
+        ]);
+
+        if (genRes.ok) {
+          const data = await genRes.json();
+          const incoming: ChatMessage[] = data.messages || [];
+          setGeneralMessages(incoming);
+          if (incoming.length < 30) setHasMoreGeneral(false);
+
+          if (lastReadGen) {
+            const count = incoming.filter(
+              (m) => m.sender_id !== discordUserId && m.created_at > lastReadGen
+            ).length;
+            setUnreadGeneral(count);
+          }
+        }
+
+        if (supRes.ok) {
+          const data = await supRes.json();
+          const incoming: ChatMessage[] = data.messages || [];
+          setSupportMessages(incoming);
+          if (incoming.length < 30) setHasMoreSupport(false);
+
+          if (lastReadSup) {
+            const count = incoming.filter(
+              (m) => m.sender_id !== discordUserId && m.created_at > lastReadSup
+            ).length;
+            setUnreadSupport(count);
+          }
+        }
+      } catch (err) {
+        console.error('[Chat Init Error]:', err);
+      }
+    };
+
+    initUnreadAndCache();
+  }, [discordUserId]);
+
+  // Fetch immediately on open or tab switch & mark read
   useEffect(() => {
     if (isOpen) {
       const currentList = activeChannel === 'general' ? generalMessages : supportMessages;
       fetchChannelMessages(activeChannel, currentList.length === 0);
-      setUnreadCount(0);
+      markChannelAsRead(activeChannel);
       setTimeout(() => scrollToBottom(true), 60);
     }
   }, [isOpen, activeChannel, discordUserId]);
@@ -146,12 +243,12 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     }
   };
 
-  // 2. Realtime Subscription via Supabase WebSocket
+  // 2. Realtime Subscription via Supabase WebSocket (permanent single channel)
   useEffect(() => {
     if (!discordUserId) return;
 
     const channelSub = supabase
-      .channel(`chat_realtime_${discordUserId}_${activeChannel}`)
+      .channel(`chat_realtime_widget_${discordUserId}`)
       .on(
         'postgres_changes',
         {
@@ -161,6 +258,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
         },
         (payload) => {
           const newMsg = payload.new as ChatMessage;
+          const isFromMe = newMsg.sender_id === discordUserId;
 
           if (newMsg.channel === 'general') {
             setGeneralMessages((prev) => {
@@ -174,11 +272,19 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
             });
           }
 
-          if (isOpen && activeChannel === newMsg.channel) {
+          const isPanelOpen = isOpenRef.current;
+          const currentCh = activeChannelRef.current;
+
+          if (isPanelOpen && currentCh === newMsg.channel) {
             setTimeout(() => scrollToBottom(false), 50);
-          } else if (!isOpen) {
-            if (newMsg.channel === 'general' || (newMsg.channel === 'support' && newMsg.ticket_id === discordUserId)) {
-              setUnreadCount((c) => c + 1);
+            markChannelAsRead(currentCh);
+          } else if (!isFromMe) {
+            if (newMsg.channel === 'general') {
+              setUnreadGeneral((c) => c + 1);
+              playChime();
+            } else if (newMsg.channel === 'support' && newMsg.ticket_id === discordUserId) {
+              setUnreadSupport((c) => c + 1);
+              playChime();
             }
           }
         }
@@ -188,7 +294,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     return () => {
       supabase.removeChannel(channelSub);
     };
-  }, [discordUserId, activeChannel, isOpen]);
+  }, [discordUserId]);
 
   // 3. Send Message
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -278,7 +384,10 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
       {/* Floating Widget Trigger Button */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            setIsOpen(true);
+            markChannelAsRead(activeChannel);
+          }}
           className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-zinc-950/90 hover:bg-zinc-900 border border-purple-500/40 text-white shadow-2xl transition-all duration-200 hover:scale-105 backdrop-blur-md"
         >
           <div className="relative">
@@ -287,9 +396,9 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
           </div>
           <span className="font-mono text-xs font-semibold tracking-wide">Live Chat & Support</span>
 
-          {unreadCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-purple-600 text-white font-mono text-[10px] font-bold">
-              {unreadCount}
+          {totalUnread > 0 && (
+            <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-mono text-[10px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.8)] animate-pulse">
+              {totalUnread > 99 ? '99+' : totalUnread}
             </span>
           )}
         </button>
@@ -326,8 +435,11 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
           {/* Dual Channel Switcher */}
           <div className="p-2 border-b border-zinc-800/60 bg-zinc-950/60 flex items-center gap-1.5">
             <button
-              onClick={() => setActiveChannel('general')}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors ${
+              onClick={() => {
+                setActiveChannel('general');
+                markChannelAsRead('general');
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors relative ${
                 activeChannel === 'general'
                   ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
@@ -335,11 +447,19 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
             >
               <Users className="w-3.5 h-3.5" />
               <span>General Chat</span>
+              {activeChannel !== 'general' && unreadGeneral > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-purple-600 text-white font-mono text-[9px] font-bold shadow-[0_0_8px_rgba(168,85,247,0.6)]">
+                  {unreadGeneral > 99 ? '99+' : unreadGeneral}
+                </span>
+              )}
             </button>
 
             <button
-              onClick={() => setActiveChannel('support')}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors ${
+              onClick={() => {
+                setActiveChannel('support');
+                markChannelAsRead('support');
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors relative ${
                 activeChannel === 'support'
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
@@ -347,6 +467,11 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
             >
               <Shield className="w-3.5 h-3.5 text-amber-400" />
               <span>Support (Private)</span>
+              {activeChannel !== 'support' && unreadSupport > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-black font-mono text-[9px] font-bold shadow-[0_0_8px_rgba(245,158,11,0.8)] animate-pulse">
+                  {unreadSupport > 99 ? '99+' : unreadSupport}
+                </span>
+              )}
             </button>
           </div>
 
