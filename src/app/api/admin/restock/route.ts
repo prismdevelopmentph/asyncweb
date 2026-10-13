@@ -33,14 +33,17 @@ export async function POST(request: NextRequest) {
     }
 
     const tableName = serviceTable(svcData.name);
-    const validLines = lines.map((l: string) => String(l).trim()).filter((l: string) => l.length > 0);
+    const rawLines = lines.map((l: string) => String(l).trim()).filter((l: string) => l.length > 0);
 
-    if (validLines.length === 0) {
+    if (rawLines.length === 0) {
       return NextResponse.json({ error: 'No valid account lines provided.' }, { status: 400 });
     }
 
+    // 1. In-memory deduplication to protect against intra-batch duplicates
+    const uniqueLines = Array.from(new Set(rawLines));
+
     // 2. Prepare Rows for Ingestion
-    const rows = validLines.map((line: string) => ({
+    const rows = uniqueLines.map((line: string) => ({
       data: { raw: line },
       is_used: false,
     }));
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
       const { data: upsertData, error: upsertError } = await supabaseAdmin
         .from(tableName)
         .upsert(chunk, { onConflict: 'raw_line', ignoreDuplicates: true })
-        .select();
+        .select('id');
 
       if (upsertError) {
         console.error(`[Restock API] Error upserting chunk ${i}:`, upsertError);
@@ -64,18 +67,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Reset Out-Of-Stock Config Flags
-    try {
-      await supabaseAdmin.from('config').upsert({
-        key: `low_stock_warned_${svcData.id}`,
-        value: '0',
-      });
-      await supabaseAdmin.from('config').upsert({
-        key: `out_of_stock_notified_${svcData.id}`,
-        value: 'false',
-      });
-    } catch (cfgErr) {
-      console.error('[Restock API] Error resetting stock config flags:', cfgErr);
+    // Exact telemetry calculation
+    const addedCount = totalInserted;
+    const skippedCount = rawLines.length - addedCount;
+
+    // 3. Reset Out-Of-Stock Config Flags if accounts were actually added
+    if (addedCount > 0) {
+      try {
+        await supabaseAdmin.from('config').upsert({
+          key: `low_stock_warned_${svcData.id}`,
+          value: '0',
+        });
+        await supabaseAdmin.from('config').upsert({
+          key: `out_of_stock_notified_${svcData.id}`,
+          value: 'false',
+        });
+      } catch (cfgErr) {
+        console.error('[Restock API] Error resetting stock config flags:', cfgErr);
+      }
     }
 
     // 4. Fetch New Stock Count
@@ -84,13 +93,18 @@ export async function POST(request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('is_used', false);
 
+    const message = skippedCount > 0
+      ? `Restocked ${svcData.name} — Added: ${addedCount} accounts • Skipped (Duplicates): ${skippedCount} already existed. Total available: ${newStockCount || 0}.`
+      : `Restocked ${svcData.name} — Added: ${addedCount} accounts. Total available: ${newStockCount || 0}.`;
+
     return NextResponse.json({
       success: true,
       serviceName: svcData.name,
-      added: totalInserted > 0 ? totalInserted : validLines.length,
-      totalLines: validLines.length,
+      added: addedCount,
+      skipped: skippedCount,
+      totalLines: rawLines.length,
       newStock: newStockCount || 0,
-      message: `Restocked ${svcData.name}: ${validLines.length} account lines processed. Total available: ${newStockCount || 0}.`,
+      message,
     });
   } catch (err: any) {
     console.error('Restock API Error:', err);
