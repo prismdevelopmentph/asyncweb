@@ -76,7 +76,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     if (!discordUserId) return;
 
     const channelSub = supabase
-      .channel('chat_realtime_feed')
+      .channel(`chat_realtime_${discordUserId}_${activeChannel}`)
       .on(
         'postgres_changes',
         {

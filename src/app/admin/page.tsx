@@ -679,7 +679,7 @@ export default function AdminPage() {
     if (activeTab !== 'chat') return;
 
     const channelSub = supabase
-      .channel('admin_chat_realtime')
+      .channel(`admin_chat_sub_${Date.now()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
