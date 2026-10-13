@@ -36,7 +36,11 @@ import {
   X,
   Upload,
   FileText,
-  PackagePlus
+  PackagePlus,
+  MessageSquare,
+  Send,
+  Shield,
+  Users
 } from 'lucide-react';
 
 function DiscordUserBadge({
@@ -124,8 +128,15 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'decrypt' | 'audit'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'decrypt' | 'audit' | 'chat'>('security');
   const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'unbans'>('claims');
+  const [chatChannel, setChatChannel] = useState<'support' | 'general'>('support');
+  const [chatTickets, setChatTickets] = useState<any[]>([]);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [ticketMessages, setTicketMessages] = useState<any[]>([]);
+  const [adminChatInput, setAdminChatInput] = useState('');
+  const [sendingAdminChat, setSendingAdminChat] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const [showAssignPlanModal, setShowAssignPlanModal] = useState(false);
   const [showGenLicenseModal, setShowGenLicenseModal] = useState(false);
   const [showManualBanModal, setShowManualBanModal] = useState(false);
@@ -572,6 +583,184 @@ export default function AdminPage() {
     }
   };
 
+  // ── ADMIN CHAT & SUPPORT FUNCTIONS ──
+  const fetchSupportTickets = async () => {
+    setChatLoading(true);
+    try {
+      const res = await fetch('/api/chat?channel=support&limit=100');
+      if (res.ok) {
+        const json = await res.json();
+        const allMsgs: any[] = json.messages || [];
+
+        // Group messages by ticket_id
+        const map = new Map<string, any>();
+        allMsgs.forEach((m) => {
+          const tid = m.ticket_id || m.sender_id;
+          if (!map.has(tid)) {
+            map.set(tid, {
+              ticket_id: tid,
+              sender_id: m.sender_id,
+              sender_name: m.sender_name,
+              sender_avatar: m.sender_avatar,
+              last_message: m.content,
+              last_time: m.created_at,
+              unread_count: !m.is_admin ? 1 : 0,
+            });
+          } else {
+            const existing = map.get(tid);
+            existing.last_message = m.content;
+            existing.last_time = m.created_at;
+            if (!m.is_admin) existing.unread_count += 1;
+          }
+        });
+
+        const ticketList = Array.from(map.values()).sort(
+          (a, b) => new Date(b.last_time).getTime() - new Date(a.last_time).getTime()
+        );
+        setChatTickets(ticketList);
+
+        if (!selectedTicketId && ticketList.length > 0) {
+          setSelectedTicketId(ticketList[0].ticket_id);
+        }
+      }
+    } catch (e) {
+      console.error('[Admin Chat Error]:', e);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const fetchTicketMessages = async (ticketId: string) => {
+    try {
+      const res = await fetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(ticketId)}&limit=100`);
+      if (res.ok) {
+        const json = await res.json();
+        setTicketMessages(json.messages || []);
+      }
+    } catch (e) {
+      console.error('[Admin Ticket Messages Error]:', e);
+    }
+  };
+
+  const fetchGeneralMessages = async () => {
+    setChatLoading(true);
+    try {
+      const res = await fetch('/api/chat?channel=general&limit=80');
+      if (res.ok) {
+        const json = await res.json();
+        setTicketMessages(json.messages || []);
+      }
+    } catch (e) {
+      console.error('[Admin General Chat Error]:', e);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Sync active chat tab
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      if (chatChannel === 'support') {
+        fetchSupportTickets();
+      } else {
+        fetchGeneralMessages();
+      }
+    }
+  }, [activeTab, chatChannel]);
+
+  useEffect(() => {
+    if (activeTab === 'chat' && chatChannel === 'support' && selectedTicketId) {
+      fetchTicketMessages(selectedTicketId);
+    }
+  }, [activeTab, chatChannel, selectedTicketId]);
+
+  // Realtime subscription for admin chat
+  useEffect(() => {
+    if (activeTab !== 'chat') return;
+
+    const channelSub = supabase
+      .channel('admin_chat_realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        (payload) => {
+          const newMsg = payload.new as any;
+          if (chatChannel === 'general' && newMsg.channel === 'general') {
+            setTicketMessages((prev) => [...prev, newMsg]);
+          } else if (chatChannel === 'support' && newMsg.channel === 'support') {
+            const tid = newMsg.ticket_id || newMsg.sender_id;
+            if (tid === selectedTicketId) {
+              setTicketMessages((prev) => [...prev, newMsg]);
+            }
+            // Update ticket list last message
+            setChatTickets((prev) => {
+              const idx = prev.findIndex((t) => t.ticket_id === tid);
+              if (idx !== -1) {
+                const updated = [...prev];
+                updated[idx] = {
+                  ...updated[idx],
+                  last_message: newMsg.content,
+                  last_time: newMsg.created_at,
+                };
+                return updated.sort((a, b) => new Date(b.last_time).getTime() - new Date(a.last_time).getTime());
+              }
+              return [
+                {
+                  ticket_id: tid,
+                  sender_id: newMsg.sender_id,
+                  sender_name: newMsg.sender_name,
+                  sender_avatar: newMsg.sender_avatar,
+                  last_message: newMsg.content,
+                  last_time: newMsg.created_at,
+                  unread_count: 1,
+                },
+                ...prev,
+              ];
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelSub);
+    };
+  }, [activeTab, chatChannel, selectedTicketId]);
+
+  const handleSendAdminMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!adminChatInput.trim() || sendingAdminChat) return;
+
+    const content = adminChatInput.trim();
+    setAdminChatInput('');
+    setSendingAdminChat(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: chatChannel,
+          ticketId: chatChannel === 'support' ? selectedTicketId : null,
+          senderId: ownerUserId || '719482630633947166',
+          senderName: 'Maik (Admin)',
+          senderAvatar: user?.user_metadata?.avatar_url || null,
+          content,
+          isAdmin: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        setActionError(err.error || 'Failed to dispatch chat reply');
+      }
+    } catch (err: any) {
+      setActionError(err.message || 'Error sending chat reply');
+    } finally {
+      setSendingAdminChat(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-zinc-100 flex flex-col items-center justify-center font-sans dev-grid-bg">
@@ -836,6 +1025,18 @@ export default function AdminPage() {
             >
               <Activity className="w-3.5 h-3.5 text-blue-400" />
               <span>Audit Trail ({claimLogs.length + downloadLogs.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'chat'
+                  ? 'bg-zinc-900 border border-zinc-700 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/40 border border-transparent'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-purple-400" />
+              <span>Support & Chat</span>
             </button>
           </div>
 
@@ -1582,6 +1783,186 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </section>
+        )}
+
+        {/* ── TAB 5: SUPPORT & CHAT MANAGEMENT ── */}
+        {activeTab === 'chat' && (
+          <section className="space-y-6 animate-in fade-in duration-200">
+            {/* Sub-channel switcher */}
+            <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
+              <button
+                onClick={() => setChatChannel('support')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors flex items-center gap-2 ${
+                  chatChannel === 'support'
+                    ? 'bg-zinc-800 text-white border border-zinc-700'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5 text-amber-400" />
+                <span>Support Tickets ({chatTickets.length})</span>
+              </button>
+
+              <button
+                onClick={() => setChatChannel('general')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors flex items-center gap-2 ${
+                  chatChannel === 'general'
+                    ? 'bg-zinc-800 text-white border border-zinc-700'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5 text-purple-400" />
+                <span>General Community Feed</span>
+              </button>
+            </div>
+
+            {/* Split Screen Container for Support / General */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[560px]">
+              {/* Left Column: Tickets List (if support) or Community Status (if general) */}
+              <div className="md:col-span-4 bg-zinc-950/80 rounded-2xl border border-zinc-800 p-4 flex flex-col">
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 mb-3">
+                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
+                    {chatChannel === 'support' ? 'Active Support Tickets' : 'General Chat Feed'}
+                  </span>
+                  <button
+                    onClick={() => chatChannel === 'support' ? fetchSupportTickets() : fetchGeneralMessages()}
+                    className="p-1 rounded text-zinc-500 hover:text-white"
+                    title="Refresh"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${chatLoading ? 'animate-spin text-purple-400' : ''}`} />
+                  </button>
+                </div>
+
+                {chatChannel === 'support' ? (
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 font-mono text-xs">
+                    {chatTickets.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-500">
+                        No support tickets opened yet.
+                      </div>
+                    ) : (
+                      chatTickets.map((ticket) => {
+                        const isSelected = selectedTicketId === ticket.ticket_id;
+                        return (
+                          <button
+                            key={ticket.ticket_id}
+                            onClick={() => setSelectedTicketId(ticket.ticket_id)}
+                            className={`w-full text-left p-3 rounded-xl border transition-all ${
+                              isSelected
+                                ? 'bg-zinc-900 border-purple-500/50 shadow-md'
+                                : 'bg-zinc-900/40 border-zinc-800/60 hover:bg-zinc-900/80 hover:border-zinc-700'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-semibold text-zinc-200 truncate">
+                                {ticket.sender_name}
+                              </span>
+                              <span className="text-[10px] text-zinc-500">
+                                {new Date(ticket.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-zinc-400 truncate mb-1">
+                              {ticket.last_message}
+                            </div>
+                            <div className="text-[10px] text-zinc-500 truncate">
+                              ID: {ticket.ticket_id}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col justify-center text-center p-4 text-zinc-500 text-xs font-mono">
+                    <Users className="w-8 h-8 text-purple-400/60 mx-auto mb-2" />
+                    <p className="text-zinc-300 font-medium">Public Community Chat</p>
+                    <p className="text-[11px] text-zinc-500 mt-1">
+                      Messages dispatched here are broadcast live to all active license holders via Supabase Realtime.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Chat Conversation Stream & Dispatch Input */}
+              <div className="md:col-span-8 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="p-3.5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                    <span className="font-mono text-xs font-semibold text-white">
+                      {chatChannel === 'support'
+                        ? `Support Ticket: ${selectedTicketId || 'Select a ticket'}`
+                        : 'General Channel Realtime Stream'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
+                    Admin Operator Session
+                  </span>
+                </div>
+
+                {/* Messages Stream */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-3 font-mono text-xs min-h-[380px] max-h-[460px]">
+                  {ticketMessages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-zinc-500 py-12">
+                      <MessageSquare className="w-8 h-8 text-zinc-700 mb-2" />
+                      <p>No messages in this thread yet.</p>
+                    </div>
+                  ) : (
+                    ticketMessages.map((m) => {
+                      const isMyReply = m.is_admin;
+                      return (
+                        <div
+                          key={m.id}
+                          className={`flex flex-col ${isMyReply ? 'items-end' : 'items-start'} space-y-1`}
+                        >
+                          <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+                            <span className="font-semibold text-zinc-400">
+                              {isMyReply ? 'You (Admin)' : m.sender_name}
+                            </span>
+                            <span>•</span>
+                            <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <div
+                            className={`max-w-[80%] px-3.5 py-2 rounded-xl text-xs break-words font-sans leading-relaxed ${
+                              isMyReply
+                                ? 'bg-purple-600/30 border border-purple-500/40 text-purple-100 rounded-br-none'
+                                : 'bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-bl-none'
+                            }`}
+                          >
+                            {m.content}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Message Reply Box */}
+                <form
+                  onSubmit={handleSendAdminMessage}
+                  className="p-3 border-t border-zinc-800/80 bg-zinc-900/30 flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    value={adminChatInput}
+                    onChange={(e) => setAdminChatInput(e.target.value)}
+                    placeholder={
+                      chatChannel === 'support'
+                        ? 'Type private reply to ticket...'
+                        : 'Broadcast message to General feed...'
+                    }
+                    className="flex-1 px-3.5 py-2 rounded-lg bg-zinc-900/90 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500/60 font-sans transition-colors"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!adminChatInput.trim() || sendingAdminChat}
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-mono font-medium flex items-center gap-2 transition-colors shadow-sm"
+                  >
+                    <Send className={`w-3.5 h-3.5 ${sendingAdminChat ? 'animate-pulse' : ''}`} />
+                    <span>Send Reply</span>
+                  </button>
+                </form>
+              </div>
+            </div>
           </section>
         )}
 

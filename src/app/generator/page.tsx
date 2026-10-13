@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ChatWidget from '@/components/ChatWidget';
 import { supabase } from '@/lib/supabase';
 import {
   Copy,
@@ -724,6 +725,9 @@ export default function AccountGeneratorPage() {
           {toast}
         </div>
       )}
+
+      {/* Floating Live Chat & Support Widget */}
+      <ChatWidget user={user} hasPlan={userPlan.hasPlan} />
     </div>
   );
 }
