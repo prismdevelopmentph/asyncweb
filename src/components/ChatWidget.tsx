@@ -133,6 +133,23 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     setInputText('');
     setSending(true);
 
+    // Optimistic message rendering (<0.05s instant receipt for sender)
+    const tempId = Date.now();
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      channel: activeChannel,
+      ticket_id: activeChannel === 'support' ? discordUserId : null,
+      sender_id: discordUserId,
+      sender_name: displayName,
+      sender_avatar: avatarUrl,
+      content: textToSend,
+      is_admin: isOwner,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setTimeout(scrollToBottom, 50);
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -149,9 +166,18 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
       });
 
       if (!res.ok) {
+        // Rollback optimistic message on failure
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
         const errJson = await res.json();
         setErrorToast(errJson.error || 'Failed to send message.');
         setTimeout(() => setErrorToast(null), 3500);
+      } else {
+        const json = await res.json();
+        if (json.message) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? (json.message as ChatMessage) : m))
+          );
+        }
       }
     } catch (err: any) {
       setErrorToast('Network error sending message.');

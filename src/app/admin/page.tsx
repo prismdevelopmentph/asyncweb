@@ -735,6 +735,21 @@ export default function AdminPage() {
     setAdminChatInput('');
     setSendingAdminChat(true);
 
+    const tempId = Date.now();
+    const optimisticMsg: any = {
+      id: tempId,
+      channel: chatChannel,
+      ticket_id: chatChannel === 'support' ? selectedTicketId : null,
+      sender_id: ownerUserId || '719482630633947166',
+      sender_name: 'Maik (Admin)',
+      sender_avatar: user?.user_metadata?.avatar_url || null,
+      content,
+      is_admin: true,
+      created_at: new Date().toISOString(),
+    };
+
+    setTicketMessages((prev) => [...prev, optimisticMsg]);
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -751,8 +766,16 @@ export default function AdminPage() {
       });
 
       if (!res.ok) {
+        setTicketMessages((prev) => prev.filter((m) => m.id !== tempId));
         const err = await res.json();
         setActionError(err.error || 'Failed to dispatch chat reply');
+      } else {
+        const json = await res.json();
+        if (json.message) {
+          setTicketMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? json.message : m))
+          );
+        }
       }
     } catch (err: any) {
       setActionError(err.message || 'Error sending chat reply');
