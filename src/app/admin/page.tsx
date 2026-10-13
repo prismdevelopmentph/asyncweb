@@ -1001,7 +1001,7 @@ export default function AdminPage() {
 
         {/* TABS & ACTION BUTTONS */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-950/80 border border-zinc-800 overflow-x-auto">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-950/80 border border-zinc-800 overflow-x-auto shrink-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               onClick={() => setActiveTab('security')}
               className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
@@ -1083,26 +1083,6 @@ export default function AdminPage() {
                 <Ban className="w-3.5 h-3.5" />
                 <span>Ban IP</span>
               </button>
-            )}
-
-            {activeTab === 'generator' && (
-              <>
-                <button
-                  onClick={() => setShowRestockModal(true)}
-                  className="px-3.5 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-medium text-xs flex items-center gap-1.5 transition-colors whitespace-nowrap"
-                >
-                  <Upload className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Restock</span>
-                </button>
-
-                <button
-                  onClick={() => setShowGenLicenseModal(true)}
-                  className="px-3.5 py-2 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm whitespace-nowrap"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Gen License</span>
-                </button>
-              </>
             )}
 
             {activeTab === 'decrypt' && (
@@ -1220,10 +1200,30 @@ export default function AdminPage() {
           <section className="space-y-6">
             {/* Services Stock Overview */}
             <div className="space-y-3">
-              <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5 text-purple-400" />
-                <span>Service Stock Overview</span>
-              </h3>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Service Stock Overview</span>
+                </h3>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowRestockModal(true)}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-medium text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Restock</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowGenLicenseModal(true)}
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Gen License</span>
+                  </button>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {services.map((svc: any) => (
