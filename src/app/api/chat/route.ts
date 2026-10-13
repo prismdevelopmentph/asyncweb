@@ -56,8 +56,9 @@ export async function POST(request: NextRequest) {
 
     const isOwner = senderId === '719482630633947166' || senderId === process.env.OWNER_USER_ID;
 
-    // Active license validation (unless sender is verified owner/admin)
-    if (!isOwner && !isAdmin) {
+    // Support Channel: Any authenticated/logged-in user can message (unlicensed allowed).
+    // General Channel: Must hold an active license or VIP subscription.
+    if (!isOwner && !isAdmin && channel === 'general') {
       const nowStr = new Date().toISOString();
       const [genLicenseRes, planRes] = await Promise.all([
         supabaseAdmin
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
 
       if (!hasActiveGen && !hasActivePlan) {
         return NextResponse.json({ 
-          error: 'An active license or VIP subscription is required to use the chat.' 
+          error: 'An active license or VIP subscription is required to chat in General.' 
         }, { status: 403 });
       }
     }
@@ -122,3 +123,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
   }
 }
+

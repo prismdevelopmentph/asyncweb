@@ -123,8 +123,8 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
       return;
     }
 
-    if (!hasPlan && !isOwner) {
-      setErrorToast('Active license required to send messages.');
+    if (activeChannel === 'general' && !hasPlan && !isOwner) {
+      setErrorToast('Active license required to chat in General.');
       setTimeout(() => setErrorToast(null), 3000);
       return;
     }
@@ -313,9 +313,13 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
 
           {/* Message Input Box */}
           <form onSubmit={handleSendMessage} className="p-2.5 border-t border-zinc-800/80 bg-zinc-950/80">
-            {(!hasPlan && !isOwner) ? (
+            {!user ? (
+              <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-center text-[11px] font-mono text-zinc-400">
+                Please log in with Discord to send a message.
+              </div>
+            ) : (activeChannel === 'general' && !hasPlan && !isOwner) ? (
               <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-center text-[11px] font-mono text-zinc-500">
-                Active license required to chat.
+                Active license required to chat in General.
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -348,3 +352,4 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     </div>
   );
 }
+
