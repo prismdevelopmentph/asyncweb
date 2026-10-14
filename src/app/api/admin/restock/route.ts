@@ -94,95 +94,143 @@ export async function POST(request: NextRequest) {
       .eq('is_used', false);
 
     // 5. Dispatch Discord Admin Log and Public Restock Alerts
-    const botToken = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
-    if (addedCount > 0 && botToken) {
-      try {
-        const [adminLogRes, userRestockRes] = await Promise.all([
-          supabaseAdmin.from('config').select('value').eq('key', 'log_restock_channel_id').limit(1).maybeSingle(),
-          supabaseAdmin.from('guild_config').select('restock_channel_id').not('restock_channel_id', 'is', null).limit(1).maybeSingle(),
-        ]);
+    const botToken = (
+      process.env.DISCORD_BOT_TOKEN ||
+      process.env.Discord_bot_token ||
+      process.env.discord_bot_token ||
+      process.env.DISCORD_TOKEN ||
+      process.env.Discord_token ||
+      process.env.discord_token
+    )?.trim();
 
-        const adminChannelId = adminLogRes.data?.value;
-        const userChannelId = userRestockRes.data?.restock_channel_id;
+    let discordAlertsSummary = {
+      attempted: false,
+      adminSent: false,
+      userSent: false,
+      reason: '',
+    };
 
-        const discordHeaders = {
-          'Authorization': `Bot ${botToken}`,
-          'Content-Type': 'application/json',
-        };
+    if (addedCount > 0) {
+      if (!botToken) {
+        discordAlertsSummary.reason = 'DISCORD_BOT_TOKEN missing in server environment';
+        console.warn('[Restock API] Discord alerts skipped: DISCORD_BOT_TOKEN is not configured in environment.');
+      } else {
+        discordAlertsSummary.attempted = true;
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-        const postPromises: Promise<any>[] = [];
+          // Fetch Admin Log channel (text column) and raw guild_config without JS float precision loss
+          const [adminLogRes, rawGuildRes] = await Promise.all([
+            supabaseAdmin.from('config').select('value').eq('key', 'log_restock_channel_id').limit(1).maybeSingle(),
+            fetch(`${supabaseUrl}/rest/v1/guild_config?select=guild_id,restock_channel_id&restock_channel_id=not.is.null&limit=1`, {
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+              },
+            }),
+          ]);
 
-        // 5a. Admin Log Channel Alert
-        if (adminChannelId) {
-          postPromises.push(
-            fetch(`https://discord.com/api/v10/channels/${adminChannelId}/messages`, {
-              method: 'POST',
-              headers: discordHeaders,
-              body: JSON.stringify({
-                embeds: [
-                  {
-                    title: `New Stock Added - ${svcData.name}`,
-                    color: 0x2ecc71,
-                    timestamp: new Date().toISOString(),
-                    fields: [
-                      { name: 'Added', value: `\`${addedCount} accounts\``, inline: true },
-                      { name: 'Total Available', value: `\`${newStockCount || 0}\``, inline: true },
-                      { name: 'Added By', value: `<@${ownerUserId}> (Web Console)`, inline: true },
-                    ],
-                  },
-                ],
-              }),
-            })
-              .then(async (r) => {
-                if (!r.ok) {
-                  const errText = await r.text();
-                  console.error(`[Discord Admin Log] Failed to post to channel ${adminChannelId}:`, errText);
-                }
-              })
-              .catch((err) => console.error('[Discord Admin Log Error]:', err))
-          );
-        }
+          const adminChannelId = adminLogRes.data?.value ? String(adminLogRes.data.value).trim() : null;
+          let userChannelId: string | null = null;
 
-        // 5b. Public Server Restock Channel Alert
-        if (userChannelId) {
-          postPromises.push(
-            fetch(`https://discord.com/api/v10/channels/${userChannelId}/messages`, {
-              method: 'POST',
-              headers: discordHeaders,
-              body: JSON.stringify({
-                content: '@here',
-                embeds: [
-                  {
-                    title: 'Restock Alert',
-                    description: `**${svcData.name}** has been restocked!`,
-                    color: 0x2ecc71,
-                    timestamp: new Date().toISOString(),
-                    fields: [
-                      { name: 'Added', value: `\`${addedCount} accounts\``, inline: true },
-                    ],
-                    footer: {
-                      text: 'Head to #generate or website to claim your account.',
+          if (rawGuildRes.ok) {
+            const rawJsonText = await rawGuildRes.text();
+            // Regex match protects 19-digit snowflake against IEEE-754 53-bit rounding
+            const match = rawJsonText.match(/"restock_channel_id"\s*:\s*(\d+)/);
+            if (match && match[1]) {
+              userChannelId = match[1];
+            }
+          }
+
+          console.log(`[Restock Alert Dispatch] Admin Channel: ${adminChannelId}, User Channel: ${userChannelId}`);
+
+          const discordHeaders = {
+            'Authorization': `Bot ${botToken}`,
+            'Content-Type': 'application/json',
+          };
+
+          const postPromises: Promise<any>[] = [];
+
+          // 5a. Admin Log Channel Alert
+          if (adminChannelId) {
+            postPromises.push(
+              fetch(`https://discord.com/api/v10/channels/${adminChannelId}/messages`, {
+                method: 'POST',
+                headers: discordHeaders,
+                body: JSON.stringify({
+                  embeds: [
+                    {
+                      title: `New Stock Added - ${svcData.name}`,
+                      color: 0x2ecc71,
+                      timestamp: new Date().toISOString(),
+                      fields: [
+                        { name: 'Added', value: `\`${addedCount} accounts\``, inline: true },
+                        { name: 'Total Available', value: `\`${newStockCount || 0}\``, inline: true },
+                        { name: 'Added By', value: `<@${ownerUserId}> (Web Console)`, inline: true },
+                      ],
                     },
-                  },
-                ],
-              }),
-            })
-              .then(async (r) => {
-                if (!r.ok) {
-                  const errText = await r.text();
-                  console.error(`[Discord User Alert] Failed to post to channel ${userChannelId}:`, errText);
-                }
+                  ],
+                }),
               })
-              .catch((err) => console.error('[Discord User Alert Error]:', err))
-          );
-        }
+                .then(async (r) => {
+                  if (r.ok) {
+                    discordAlertsSummary.adminSent = true;
+                  } else {
+                    const errText = await r.text();
+                    console.error(`[Discord Admin Log] HTTP ${r.status} posting to channel ${adminChannelId}:`, errText);
+                  }
+                })
+                .catch((err) => console.error('[Discord Admin Log Error]:', err))
+            );
+          }
 
-        if (postPromises.length > 0) {
-          await Promise.all(postPromises);
+          // 5b. Public Server Restock Channel Alert
+          if (userChannelId) {
+            postPromises.push(
+              fetch(`https://discord.com/api/v10/channels/${userChannelId}/messages`, {
+                method: 'POST',
+                headers: discordHeaders,
+                body: JSON.stringify({
+                  content: '@here',
+                  embeds: [
+                    {
+                      title: 'Restock Alert',
+                      description: `**${svcData.name}** has been restocked!`,
+                      color: 0x2ecc71,
+                      timestamp: new Date().toISOString(),
+                      fields: [
+                        { name: 'Added', value: `\`${addedCount} accounts\``, inline: true },
+                      ],
+                      footer: {
+                        text: 'Head to #generate or website to claim your account.',
+                      },
+                    },
+                  ],
+                }),
+              })
+                .then(async (r) => {
+                  if (r.ok) {
+                    discordAlertsSummary.userSent = true;
+                  } else {
+                    const errText = await r.text();
+                    console.error(`[Discord User Alert] HTTP ${r.status} posting to channel ${userChannelId}:`, errText);
+                  }
+                })
+                .catch((err) => console.error('[Discord User Alert Error]:', err))
+            );
+          }
+
+          if (postPromises.length > 0) {
+            await Promise.all(postPromises);
+          }
+        } catch (discordErr: any) {
+          console.error('[Discord Restock Dispatch Error]:', discordErr);
+          discordAlertsSummary.reason = discordErr.message || 'Error communicating with Discord API';
         }
-      } catch (discordErr) {
-        console.error('[Discord Restock Dispatch Error]:', discordErr);
       }
+    } else {
+      discordAlertsSummary.reason = '0 new accounts added (all duplicates skipped)';
     }
 
     const message = skippedCount > 0
@@ -197,6 +245,7 @@ export async function POST(request: NextRequest) {
       totalLines: rawLines.length,
       newStock: newStockCount || 0,
       message,
+      discordAlerts: discordAlertsSummary,
     });
   } catch (err: any) {
     console.error('Restock API Error:', err);
