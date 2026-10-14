@@ -93,6 +93,98 @@ export async function POST(request: NextRequest) {
       .select('id', { count: 'exact', head: true })
       .eq('is_used', false);
 
+    // 5. Dispatch Discord Admin Log and Public Restock Alerts
+    const botToken = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
+    if (addedCount > 0 && botToken) {
+      try {
+        const [adminLogRes, userRestockRes] = await Promise.all([
+          supabaseAdmin.from('config').select('value').eq('key', 'log_restock_channel_id').limit(1).maybeSingle(),
+          supabaseAdmin.from('guild_config').select('restock_channel_id').not('restock_channel_id', 'is', null).limit(1).maybeSingle(),
+        ]);
+
+        const adminChannelId = adminLogRes.data?.value;
+        const userChannelId = userRestockRes.data?.restock_channel_id;
+
+        const discordHeaders = {
+          'Authorization': `Bot ${botToken}`,
+          'Content-Type': 'application/json',
+        };
+
+        const postPromises: Promise<any>[] = [];
+
+        // 5a. Admin Log Channel Alert
+        if (adminChannelId) {
+          postPromises.push(
+            fetch(`https://discord.com/api/v10/channels/${adminChannelId}/messages`, {
+              method: 'POST',
+              headers: discordHeaders,
+              body: JSON.stringify({
+                embeds: [
+                  {
+                    title: `New Stock Added - ${svcData.name}`,
+                    color: 0x2ecc71,
+                    timestamp: new Date().toISOString(),
+                    fields: [
+                      { name: 'Added', value: `\`${addedCount} accounts\``, inline: true },
+                      { name: 'Total Available', value: `\`${newStockCount || 0}\``, inline: true },
+                      { name: 'Added By', value: `<@${ownerUserId}> (Web Console)`, inline: true },
+                    ],
+                  },
+                ],
+              }),
+            })
+              .then(async (r) => {
+                if (!r.ok) {
+                  const errText = await r.text();
+                  console.error(`[Discord Admin Log] Failed to post to channel ${adminChannelId}:`, errText);
+                }
+              })
+              .catch((err) => console.error('[Discord Admin Log Error]:', err))
+          );
+        }
+
+        // 5b. Public Server Restock Channel Alert
+        if (userChannelId) {
+          postPromises.push(
+            fetch(`https://discord.com/api/v10/channels/${userChannelId}/messages`, {
+              method: 'POST',
+              headers: discordHeaders,
+              body: JSON.stringify({
+                content: '@here',
+                embeds: [
+                  {
+                    title: 'Restock Alert',
+                    description: `**${svcData.name}** has been restocked!`,
+                    color: 0x2ecc71,
+                    timestamp: new Date().toISOString(),
+                    fields: [
+                      { name: 'Added', value: `\`${addedCount} accounts\``, inline: true },
+                    ],
+                    footer: {
+                      text: 'Head to #generate or website to claim your account.',
+                    },
+                  },
+                ],
+              }),
+            })
+              .then(async (r) => {
+                if (!r.ok) {
+                  const errText = await r.text();
+                  console.error(`[Discord User Alert] Failed to post to channel ${userChannelId}:`, errText);
+                }
+              })
+              .catch((err) => console.error('[Discord User Alert Error]:', err))
+          );
+        }
+
+        if (postPromises.length > 0) {
+          await Promise.all(postPromises);
+        }
+      } catch (discordErr) {
+        console.error('[Discord Restock Dispatch Error]:', discordErr);
+      }
+    }
+
     const message = skippedCount > 0
       ? `Restocked ${svcData.name} — Added: ${addedCount} accounts • Skipped (Duplicates): ${skippedCount} already existed. Total available: ${newStockCount || 0}.`
       : `Restocked ${svcData.name} — Added: ${addedCount} accounts. Total available: ${newStockCount || 0}.`;
