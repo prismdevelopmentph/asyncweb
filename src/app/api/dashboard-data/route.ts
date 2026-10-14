@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
         downloadLogsRes,
         discordUsersRes,
         authUsersRes,
-        licenseServicesRes
+        licenseServicesRes,
+        packageServicesRes
       ] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
@@ -93,6 +94,7 @@ export async function GET(request: NextRequest) {
         Promise.resolve(supabaseAdmin.from('discord_users').select('*')).catch(() => ({ data: [], error: null })),
         supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }).catch(() => ({ data: { users: [] }, error: null })),
         supabaseAdmin.from('license_services').select('license_id, service_id, services(name)'),
+        supabaseAdmin.from('package_services').select('package_id, service_id, services(name)'),
       ]);
 
       const limitsMap = new Map();
@@ -124,9 +126,24 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      const packageServicesMap = new Map<string, string[]>();
+      (packageServicesRes?.data || []).forEach((ps: any) => {
+        const pid = String(ps.package_id);
+        const svcName = ps.services?.name;
+        if (svcName) {
+          const list = packageServicesMap.get(pid) || [];
+          list.push(svcName);
+          packageServicesMap.set(pid, list);
+        }
+      });
+
       const packagesMap = new Map<string, string>();
-      (packagesRes?.data || []).forEach((pkg: any) => {
+      const enrichedPackages = (packagesRes?.data || []).map((pkg: any) => {
         packagesMap.set(String(pkg.id), pkg.name);
+        return {
+          ...pkg,
+          services: packageServicesMap.get(String(pkg.id)) || [],
+        };
       });
 
       const augmentedGenLicenses = (generatorLicensesRes.data || []).map((lic: any) => {
@@ -204,7 +221,7 @@ export async function GET(request: NextRequest) {
         securityLockouts: lockoutsRes.data || [],
         generatorLicenses: augmentedGenLicenses,
         services: servicesRes.data || [],
-        packages: packagesRes?.data || [],
+        packages: enrichedPackages,
         licenses: apiLicensesRes.data || [],
         plans: plansRes.data || [],
         decryptions: decryptionsRes.data || [],

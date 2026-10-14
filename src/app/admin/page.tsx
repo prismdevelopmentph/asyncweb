@@ -37,6 +37,7 @@ import {
   Upload,
   FileText,
   PackagePlus,
+  Package,
   MessageSquare,
   Send,
   Shield,
@@ -1260,6 +1261,54 @@ export default function AdminPage() {
                 ))}
               </div>
             </div>
+
+            {/* Packages (Bundles) Overview */}
+            {packages.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                  <Package className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Packages & Bundles ({packages.length})</span>
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {packages.map((pkg: any) => (
+                    <div key={pkg.id} className="bg-zinc-950/80 rounded-2xl p-4 border border-zinc-800/80 hover:border-purple-500/40 transition-colors flex flex-col justify-between space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-white text-sm tracking-wide flex items-center gap-1.5">
+                          <Package className="w-3.5 h-3.5 text-purple-400" />
+                          <span>{pkg.name}</span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono text-[10px]">
+                          BUNDLE
+                        </span>
+                      </div>
+
+                      {pkg.description && (
+                        <p className="text-[11px] text-zinc-400 line-clamp-2">{pkg.description}</p>
+                      )}
+
+                      <div className="pt-2 border-t border-zinc-800/80">
+                        <span className="text-[10px] font-mono uppercase text-zinc-500 block mb-1">Included Services:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {pkg.services && pkg.services.length > 0 ? (
+                            pkg.services.map((sName: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 font-mono text-[10px]"
+                              >
+                                {sName}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-zinc-500 font-mono">No services linked</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Generator License Keys Table */}
             <div className="space-y-3">
