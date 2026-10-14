@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         lockoutsRes,
         generatorLicensesRes,
         servicesRes,
+        packagesRes,
         apiLicensesRes,
         plansRes,
         decryptionsRes,
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
         claimLogsRes,
         downloadLogsRes,
         discordUsersRes,
-        authUsersRes
+        authUsersRes,
+        licenseServicesRes
       ] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
@@ -45,6 +47,10 @@ export async function GET(request: NextRequest) {
           .limit(150),
         supabaseAdmin
           .from('services')
+          .select('*')
+          .order('id', { ascending: true }),
+        supabaseAdmin
+          .from('packages')
           .select('*')
           .order('id', { ascending: true }),
         supabaseAdmin
@@ -86,6 +92,7 @@ export async function GET(request: NextRequest) {
           .limit(100),
         Promise.resolve(supabaseAdmin.from('discord_users').select('*')).catch(() => ({ data: [], error: null })),
         supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }).catch(() => ({ data: { users: [] }, error: null })),
+        supabaseAdmin.from('license_services').select('license_id, service_id, services(name)'),
       ]);
 
       const limitsMap = new Map();
@@ -106,6 +113,22 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      const licenseServicesMap = new Map<string, string[]>();
+      (licenseServicesRes?.data || []).forEach((ls: any) => {
+        const lid = String(ls.license_id);
+        const svcName = ls.services?.name;
+        if (svcName) {
+          const list = licenseServicesMap.get(lid) || [];
+          list.push(svcName);
+          licenseServicesMap.set(lid, list);
+        }
+      });
+
+      const packagesMap = new Map<string, string>();
+      (packagesRes?.data || []).forEach((pkg: any) => {
+        packagesMap.set(String(pkg.id), pkg.name);
+      });
+
       const augmentedGenLicenses = (generatorLicensesRes.data || []).map((lic: any) => {
         const usedByLicId = limitsMap.get(String(lic.id)) || 0;
         const usedByUserId = lic.redeemed_by ? (limitsMap.get(String(lic.redeemed_by)) || 0) : 0;
@@ -117,10 +140,20 @@ export async function GET(request: NextRequest) {
           effectiveLimit = (guildLimit !== null && guildLimit !== undefined) ? guildLimit : 15;
         }
 
+        const pkgName = lic.package_id ? packagesMap.get(String(lic.package_id)) : null;
+        const boundServices = licenseServicesMap.get(String(lic.id)) || [];
+        let scopeLabel = 'All Services';
+        if (pkgName) {
+          scopeLabel = `[Package] ${pkgName}`;
+        } else if (boundServices.length > 0) {
+          scopeLabel = boundServices.join(', ');
+        }
+
         return {
           ...lic,
           used_today: Math.max(usedByLicId, usedByUserId),
           effective_limit: effectiveLimit,
+          scope_label: scopeLabel,
         };
       });
 
@@ -171,6 +204,7 @@ export async function GET(request: NextRequest) {
         securityLockouts: lockoutsRes.data || [],
         generatorLicenses: augmentedGenLicenses,
         services: servicesRes.data || [],
+        packages: packagesRes?.data || [],
         licenses: apiLicensesRes.data || [],
         plans: plansRes.data || [],
         decryptions: decryptionsRes.data || [],

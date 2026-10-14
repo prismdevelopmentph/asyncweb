@@ -150,7 +150,9 @@ export default function AdminPage() {
   // Form Inputs: Generator License
   const [genLicKey, setGenLicKey] = useState('');
   const [genLicUserId, setGenLicUserId] = useState('');
-  const [genLicDailyLimit, setGenLicDailyLimit] = useState('15');
+  const [genLicScope, setGenLicScope] = useState('All');
+  const [genLicTier, setGenLicTier] = useState<'daily' | 'weekly' | 'monthly' | 'lifetime'>('lifetime');
+  const [genLicDailyLimit, setGenLicDailyLimit] = useState('');
 
   // Dropdown & Edit Limit Modal State
   const [activeDropdownId, setActiveDropdownId] = useState<number | null>(null);
@@ -327,7 +329,9 @@ export default function AdminPage() {
           action: 'generate_generator_license',
           ownerUserId,
           targetUserId: genLicUserId.trim() || null,
-          dailyLimit: genLicDailyLimit,
+          scope: genLicScope,
+          tier: genLicTier,
+          dailyLimit: genLicTier === 'lifetime' ? (genLicDailyLimit || null) : undefined,
           licenseKey: genLicKey.trim() || undefined,
         }),
       });
@@ -339,6 +343,9 @@ export default function AdminPage() {
       setShowGenLicenseModal(false);
       setGenLicUserId('');
       setGenLicKey('');
+      setGenLicScope('All');
+      setGenLicTier('lifetime');
+      setGenLicDailyLimit('');
       fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
@@ -830,6 +837,7 @@ export default function AdminPage() {
   const securityLockouts = adminData?.securityLockouts || [];
   const generatorLicenses = adminData?.generatorLicenses || [];
   const services = adminData?.services || [];
+  const packages = adminData?.packages || [];
   const plansList = adminData?.plans || [];
   const decryptionsList = adminData?.decryptions || [];
   const fixesList = adminData?.fixes || [];
@@ -1266,6 +1274,8 @@ export default function AdminPage() {
                     <thead className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-900/70 text-[10px] font-mono text-zinc-400 uppercase tracking-wider backdrop-blur-md">
                       <tr>
                         <th className="py-3 px-4">License Key</th>
+                        <th className="py-3 px-4">Scope</th>
+                        <th className="py-3 px-4">Tier</th>
                         <th className="py-3 px-4">Redeemed By</th>
                         <th className="py-3 px-4">HWID</th>
                         <th className="py-3 px-4">Daily Usage / Limit</th>
@@ -1277,7 +1287,7 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-zinc-800/60 font-mono">
                       {filteredGenLicenses.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-zinc-500 font-mono">
+                          <td colSpan={9} className="py-8 text-center text-zinc-500 font-mono">
                             No generator licenses found.
                           </td>
                         </tr>
@@ -1291,6 +1301,25 @@ export default function AdminPage() {
                                   {copiedKey === lic.license_key ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                                 </button>
                               </div>
+                            </td>
+                            <td className="py-3 px-4 font-mono">
+                              <span
+                                className={`text-[11px] px-2 py-0.5 rounded font-mono truncate max-w-[140px] inline-block ${
+                                  lic.scope_label && lic.scope_label.startsWith('[Package]')
+                                    ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
+                                    : lic.scope_label === 'All Services'
+                                    ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                                    : 'bg-blue-500/10 text-blue-300 border border-blue-500/30'
+                                }`}
+                                title={lic.scope_label || 'All Services'}
+                              >
+                                {lic.scope_label || 'All Services'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-mono">
+                              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+                                {lic.tier || 'lifetime'}
+                              </span>
                             </td>
                             <td className="py-3 px-4 font-mono text-zinc-300 whitespace-nowrap min-w-[175px]">
                               {lic.redeemed_by ? (
@@ -2056,6 +2085,77 @@ export default function AdminPage() {
 
             <form onSubmit={handleGenerateGenLicense} className="space-y-4">
               <div>
+                <label className="block text-[11px] font-mono uppercase text-zinc-400 mb-1.5">Scope (Package or Standalone Service)</label>
+                <select
+                  value={genLicScope}
+                  onChange={(e) => setGenLicScope(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700 font-mono"
+                >
+                  <option value="All">All Services (Full Access)</option>
+                  {packages.length > 0 && (
+                    <optgroup label="Packages">
+                      {packages.map((pkg: any) => (
+                        <option key={`pkg-${pkg.id}`} value={pkg.name}>
+                          [Package] {pkg.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {services.length > 0 && (
+                    <optgroup label="Standalone Services">
+                      {services.map((svc: any) => (
+                        <option key={`svc-${svc.id}`} value={svc.name}>
+                          {svc.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                <p className="text-[10px] text-zinc-500 mt-1 font-mono">
+                  Packages grant all services bound to the package. Standalone grants only that specific service.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-mono uppercase text-zinc-400 mb-1.5">Subscription Tier</label>
+                <select
+                  value={genLicTier}
+                  onChange={(e) => setGenLicTier(e.target.value as any)}
+                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700 font-mono"
+                >
+                  <option value="lifetime">Lifetime (No expiration, configurable limit)</option>
+                  <option value="monthly">Monthly (30 Days - 15 claims/day)</option>
+                  <option value="weekly">Weekly (7 Days - 10 claims/day)</option>
+                  <option value="daily">Daily (1 Day - 5 claims/day)</option>
+                </select>
+              </div>
+
+              {genLicTier === 'lifetime' ? (
+                <div>
+                  <label className="block text-[11px] font-mono uppercase text-zinc-400 mb-1.5">
+                    Custom Daily Limit (Lifetime Only)
+                  </label>
+                  <input
+                    type="number"
+                    value={genLicDailyLimit}
+                    onChange={(e) => setGenLicDailyLimit(e.target.value)}
+                    placeholder="Leave empty or 0 for server default"
+                    className="w-full px-3.5 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 font-mono"
+                  />
+                  <p className="text-[10px] text-zinc-500 mt-1 font-mono">
+                    Empty or 0 defaults to the server default limit.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800 text-zinc-400 text-xs font-mono flex items-center justify-between">
+                  <span>Tier Locked Limit:</span>
+                  <span className="text-purple-400 font-bold">
+                    {genLicTier === 'daily' ? '5 / day' : genLicTier === 'weekly' ? '10 / day' : '15 / day'}
+                  </span>
+                </div>
+              )}
+
+              <div>
                 <label className="block text-[11px] font-mono uppercase text-zinc-400 mb-1.5">Target Discord User ID (Optional)</label>
                 <input
                   type="text"
@@ -2072,18 +2172,7 @@ export default function AdminPage() {
                   type="text"
                   value={genLicKey}
                   onChange={(e) => setGenLicKey(e.target.value)}
-                  placeholder="Auto-generated if empty (LIC-XXXX-XXXX)"
-                  className="w-full px-3.5 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-mono uppercase text-zinc-400 mb-1.5">Daily Claim Limit (Accounts / Day)</label>
-                <input
-                  type="number"
-                  value={genLicDailyLimit}
-                  onChange={(e) => setGenLicDailyLimit(e.target.value)}
-                  placeholder="15"
+                  placeholder="Auto-generated if empty (LIC-XXXX-XXXX-XXXX)"
                   className="w-full px-3.5 py-2 rounded-lg bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 font-mono"
                 />
               </div>

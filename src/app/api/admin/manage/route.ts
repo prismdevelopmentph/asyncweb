@@ -166,23 +166,216 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'generate_generator_license') {
-      const { targetUserId, dailyLimit, licenseKey } = body;
-      const genKey = licenseKey || ('LIC-' + crypto.randomBytes(4).toString('hex').toUpperCase() + '-' + crypto.randomBytes(4).toString('hex').toUpperCase());
+      const { targetUserId, dailyLimit, licenseKey, scope, tier = 'lifetime' } = body;
 
-      const { data, error } = await supabaseAdmin
+      const normalizedTier = String(tier || 'lifetime').toLowerCase();
+      const validTiers = ['daily', 'weekly', 'monthly', 'lifetime'];
+      if (!validTiers.includes(normalizedTier)) {
+        return NextResponse.json({ error: 'Invalid tier. Choose daily, weekly, monthly, or lifetime.' }, { status: 400 });
+      }
+
+      // Hardcoded daily limits per accountgenerator.py
+      const TIER_LIMITS: Record<string, number | null> = {
+        daily: 5,
+        weekly: 10,
+        monthly: 15,
+        lifetime: null, // uses custom limit or server default (null)
+      };
+
+      // Hardcoded durations in days per accountgenerator.py
+      const TIER_DURATIONS: Record<string, number | null> = {
+        daily: 1,
+        weekly: 7,
+        monthly: 30,
+        lifetime: null, // never expires
+      };
+
+      const customLimitInt = dailyLimit ? parseInt(dailyLimit, 10) : 0;
+      if (customLimitInt > 0 && normalizedTier !== 'lifetime') {
+        return NextResponse.json({ error: 'Custom limit can only be set for Lifetime tier.' }, { status: 400 });
+      }
+
+      // 1. Resolve scope (Package name / Service name / All Services)
+      let service_ids: string[] = [];
+      let package_id: string | null = null;
+      let scope_label = 'All Services';
+
+      const scopeInput = (scope || '').trim();
+
+      if (scopeInput && scopeInput.toLowerCase() !== 'all') {
+        // Try package first
+        const { data: pkgData } = await supabaseAdmin
+          .from('packages')
+          .select('id, name')
+          .ilike('name', scopeInput)
+          .limit(1);
+
+        if (pkgData && pkgData.length > 0) {
+          package_id = pkgData[0].id;
+          scope_label = pkgData[0].name;
+
+          const { data: psData } = await supabaseAdmin
+            .from('package_services')
+            .select('service_id')
+            .eq('package_id', package_id);
+
+          service_ids = (psData || []).map((row: any) => row.service_id);
+        } else {
+          // Try individual service
+          const { data: svcData } = await supabaseAdmin
+            .from('services')
+            .select('id, name')
+            .ilike('name', scopeInput)
+            .limit(1);
+
+          if (!svcData || svcData.length === 0) {
+            return NextResponse.json({ error: `"${scopeInput}" is not a known service or package.` }, { status: 400 });
+          }
+
+          service_ids = [svcData[0].id];
+          scope_label = svcData[0].name;
+        }
+      }
+
+      // 2. Generate unique key if not provided (matching accountgenerator.py format LIC-XXXX-XXXX-XXXX)
+      const generateKey = () => {
+        const seg = () => crypto.randomBytes(3).toString('hex').toUpperCase().slice(0, 4);
+        return `LIC-${seg()}-${seg()}-${seg()}`;
+      };
+
+      let genKey = licenseKey?.trim() ? licenseKey.trim().toUpperCase() : generateKey();
+
+      // Ensure key uniqueness
+      let attempts = 0;
+      while (attempts < 5) {
+        const { data: existing } = await supabaseAdmin
+          .from('licenses')
+          .select('id')
+          .eq('license_key', genKey)
+          .maybeSingle();
+
+        if (!existing) break;
+        genKey = generateKey();
+        attempts++;
+      }
+
+      // 3. Expiry Calculation
+      const durationDays = TIER_DURATIONS[normalizedTier];
+      let expires_at: string | null = null;
+      if (durationDays) {
+        expires_at = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
+      }
+
+      // 4. Daily limit assignment
+      let finalDailyLimit: number | null = null;
+      if (normalizedTier === 'lifetime') {
+        finalDailyLimit = customLimitInt > 0 ? customLimitInt : null;
+      } else {
+        finalDailyLimit = TIER_LIMITS[normalizedTier];
+      }
+
+      // 5. Insert License Record
+      const { data: newLic, error: insertError } = await supabaseAdmin
         .from('licenses')
         .insert({
           license_key: genKey,
-          redeemed_by: targetUserId || null,
-          daily_limit: dailyLimit ? parseInt(dailyLimit) : 15,
+          license_type: 'account',
+          package_id: package_id,
           is_active: true,
-          created_at: new Date().toISOString()
+          tier: normalizedTier,
+          daily_limit: finalDailyLimit,
+          expires_at: expires_at,
+          redeemed_by: targetUserId ? targetUserId.trim() : null,
+          redeemed_at: targetUserId ? new Date().toISOString() : null,
+          created_at: new Date().toISOString(),
         })
         .select()
         .single();
 
-      if (error) throw error;
-      return NextResponse.json({ success: true, message: `Generator License ${genKey} created.`, license: data });
+      if (insertError || !newLic) {
+        throw insertError || new Error('Failed to create license');
+      }
+
+      // 6. Insert license_services junction entries if scope is restricted
+      if (service_ids.length > 0) {
+        const junctionRows = service_ids.map((sid) => ({
+          license_id: newLic.id,
+          service_id: sid,
+        }));
+
+        await supabaseAdmin.from('license_services').insert(junctionRows);
+      }
+
+      // 7. Post to Discord license log channel if configured
+      try {
+        const botToken = (
+          process.env.DISCORD_BOT_TOKEN ||
+          process.env.Discord_bot_token ||
+          process.env.discord_bot_token ||
+          process.env.DISCORD_TOKEN ||
+          process.env.Discord_token ||
+          process.env.discord_token
+        )?.trim();
+
+        if (botToken) {
+          const { data: configRow } = await supabaseAdmin
+            .from('config')
+            .select('value')
+            .eq('key', 'log_license_channel_id')
+            .maybeSingle();
+
+          const logChannelId = configRow?.value?.trim();
+          if (logChannelId) {
+            const limitLabel = normalizedTier === 'lifetime'
+              ? (customLimitInt > 0 ? `${customLimitInt}/day (custom)` : 'Server default')
+              : `${TIER_LIMITS[normalizedTier]}/day`;
+
+            const expiryLabel = expires_at
+              ? `<t:${Math.floor(new Date(expires_at).getTime() / 1000)}:F>`
+              : 'Never (Lifetime)';
+
+            const tierLabel = normalizedTier.charAt(0).toUpperCase() + normalizedTier.slice(1);
+
+            const discordPayload = {
+              embeds: [
+                {
+                  title: 'License Generated',
+                  color: 0x22c55e, // Green
+                  timestamp: new Date().toISOString(),
+                  fields: [
+                    { name: 'License Key', value: `\`${genKey}\``, inline: false },
+                    { name: 'Tier', value: tierLabel, inline: true },
+                    { name: 'Grants Access To', value: scope_label, inline: true },
+                    { name: 'Daily Limit', value: limitLabel, inline: true },
+                    { name: 'Expires', value: expiryLabel, inline: true },
+                    { name: 'Generated By', value: `<@${ownerUserId}> (Web Admin)`, inline: true },
+                  ],
+                },
+              ],
+            };
+
+            await fetch(`https://discord.com/api/v10/channels/${logChannelId}/messages`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bot ${botToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(discordPayload),
+            });
+          }
+        }
+      } catch (logErr) {
+        console.error('[Generate License Log Error]:', logErr);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Generator License ${genKey} created (${scope_label} - ${normalizedTier.toUpperCase()}).`,
+        license: {
+          ...newLic,
+          scope_label,
+        },
+      });
     }
 
     if (action === 'toggle_generator_license') {
