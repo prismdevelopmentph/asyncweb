@@ -1319,18 +1319,18 @@ export default function AdminPage() {
 
               <div className="bg-zinc-950/80 rounded-2xl border border-zinc-800 overflow-hidden shadow-sm">
                 <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <table className="w-full min-w-[1100px] text-left border-collapse text-xs">
                     <thead className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-900/70 text-[10px] font-mono text-zinc-400 uppercase tracking-wider backdrop-blur-md">
                       <tr>
-                        <th className="py-3 px-4">License Key</th>
-                        <th className="py-3 px-4">Scope</th>
-                        <th className="py-3 px-4">Tier</th>
-                        <th className="py-3 px-4">Redeemed By</th>
-                        <th className="py-3 px-4">HWID</th>
-                        <th className="py-3 px-4">Daily Usage / Limit</th>
-                        <th className="py-3 px-4">Created At</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                        <th className="py-3 px-4 whitespace-nowrap">License Key</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Scope</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Tier</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Redeemed By</th>
+                        <th className="py-3 px-4 whitespace-nowrap">HWID</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Daily Usage / Limit</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Created At</th>
+                        <th className="py-3 px-4 whitespace-nowrap">Status</th>
+                        <th className="py-3 px-4 text-right whitespace-nowrap">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-800/60 font-mono">
@@ -1343,7 +1343,7 @@ export default function AdminPage() {
                       ) : (
                         filteredGenLicenses.map((lic: any) => (
                           <tr key={lic.id} className="hover:bg-zinc-900/30 transition-colors">
-                            <td className="py-3 px-4 font-mono font-semibold text-zinc-200 select-all">
+                            <td className="py-3 px-4 font-mono font-semibold text-zinc-200 select-all whitespace-nowrap">
                               <div className="inline-flex items-center gap-2">
                                 <span>{lic.license_key}</span>
                                 <button onClick={() => copyToClipboard(lic.license_key)} className="text-zinc-500 hover:text-white transition-colors">
@@ -1351,9 +1351,9 @@ export default function AdminPage() {
                                 </button>
                               </div>
                             </td>
-                            <td className="py-3 px-4 font-mono">
+                            <td className="py-3 px-4 font-mono whitespace-nowrap">
                               <span
-                                className={`text-[11px] px-2 py-0.5 rounded font-mono truncate max-w-[140px] inline-block ${
+                                className={`text-[11px] px-2 py-0.5 rounded font-mono truncate max-w-[200px] inline-block align-middle ${
                                   lic.scope_label && lic.scope_label.startsWith('[Package]')
                                     ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
                                     : lic.scope_label === 'All Services'
@@ -1365,7 +1365,7 @@ export default function AdminPage() {
                                 {lic.scope_label || 'All Services'}
                               </span>
                             </td>
-                            <td className="py-3 px-4 font-mono">
+                            <td className="py-3 px-4 font-mono whitespace-nowrap">
                               <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
                                 {lic.tier || 'lifetime'}
                               </span>
@@ -1377,7 +1377,7 @@ export default function AdminPage() {
                                 <span className="text-zinc-500">UNREDEEMED</span>
                               )}
                             </td>
-                            <td className="py-3 px-4 font-mono">
+                            <td className="py-3 px-4 font-mono whitespace-nowrap">
                               {lic.hwid ? (
                                 <div className="inline-flex items-center gap-1.5">
                                   <span
@@ -1407,18 +1407,18 @@ export default function AdminPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="py-3 px-4 font-mono">
-                              <div className="inline-flex items-center gap-1.5">
+                            <td className="py-3 px-4 font-mono whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
                                 <span className={`font-semibold ${ (lic.used_today || 0) >= (lic.effective_limit ?? lic.daily_limit ?? 15) ? 'text-rose-400' : 'text-zinc-200' }`}>
                                   {lic.used_today || 0} / {lic.effective_limit ?? lic.daily_limit ?? 15}
                                 </span>
                                 <span className="text-zinc-500 text-[10px]">claimed</span>
                               </div>
                             </td>
-                            <td className="py-3 px-4 font-mono text-zinc-400 text-[11px]">
+                            <td className="py-3 px-4 font-mono text-zinc-400 text-[11px] whitespace-nowrap">
                               {new Date(lic.created_at || Date.now()).toLocaleDateString()}
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 whitespace-nowrap">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium ${lic.is_active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
                                 {lic.is_active ? 'ACTIVE' : 'INACTIVE'}
                               </span>
