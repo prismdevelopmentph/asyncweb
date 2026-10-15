@@ -159,39 +159,47 @@ export default function DevToolsProtection() {
       let detected = false;
       let detectedReason = '';
 
-      // Vector 1: Chromium / V8 RegExp.toString Trap
-      // V8 only formats and calls .toString() on RegExp arguments when DevTools console is open
+      // Vector 1: Chromium / V8 RegExp.toString Trap via console.table
+      // V8 invokes .toString() on objects passed to console.table only when DevTools renders tables
       try {
-        const reg = /./;
+        let isConsoleOpen = false;
+        const reg = / /;
         reg.toString = () => {
+          isConsoleOpen = true;
+          return 'dep-reg-to-string';
+        };
+        console.table({ dep: reg });
+        console.clear();
+
+        if (isConsoleOpen) {
           detected = true;
           detectedReason = 'DevTools Console Evaluation Trap (V8)';
-          return '';
-        };
-        // Print harmless format specifier that trips the trap only when DevTools renders
-        console.log('%c', reg);
+        }
       } catch {}
 
       // Vector 2: Firefox / Safari / WebKit DOM Element Getter Trap
-      // Gecko and WebKit evaluate DOM element property getters when rendering console elements
       try {
+        let isDomOpen = false;
         const div = document.createElement('div');
         Object.defineProperty(div, 'id', {
           get() {
-            detected = true;
-            detectedReason = 'DevTools DOM Element Inspector Trap';
-            return '';
+            isDomOpen = true;
+            return 'devtools-dom-probe';
           },
           configurable: true,
         });
         console.log(div);
+        console.clear();
+
+        if (isDomOpen) {
+          detected = true;
+          detectedReason = 'DevTools DOM Element Inspector Trap';
+        }
       } catch {}
 
       // Vector 3: Debugger Latency Micro-Benchmark
-      // When DevTools debugger / breakpoint engine is active, Function('debugger') introduces measurable delay (>100ms)
       try {
         const t0 = performance.now();
-        // Dynamically evaluate debugger call to evade minifier elimination
         const debugCheck = new Function('debugger');
         debugCheck();
         const delta = performance.now() - t0;
@@ -203,7 +211,6 @@ export default function DevToolsProtection() {
 
       // Vector 4: Hardened Dock Differential Check (Desktop Only)
       if (!isMobileDevice() && typeof window !== 'undefined') {
-        // Skip if window dimensions are collapsed or throttled
         if (window.innerWidth > 100 && window.innerHeight > 100) {
           const widthDiff = window.outerWidth - window.innerWidth;
           const heightDiff = window.outerHeight - window.innerHeight;
@@ -211,7 +218,6 @@ export default function DevToolsProtection() {
 
           if (widthDiff > threshold || heightDiff > threshold) {
             consecutiveDockHits++;
-            // Require 2 consecutive sustained hits (3+ seconds) to filter transient window snapping / resize glitches
             if (consecutiveDockHits >= 2) {
               detected = true;
               detectedReason = 'DevTools Dock Differential Detected';
