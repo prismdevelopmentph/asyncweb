@@ -146,36 +146,101 @@ export default function DevToolsProtection() {
       e.preventDefault();
     };
 
-    // C. DevTools Dock & Resize Differential Polling
-    const checkDimensions = () => {
-      // Mobile browsers dynamically shrink innerHeight for address bars/touch keyboards, causing false differentials (>300px)
-      if (isMobileDevice()) return;
+    // C. Advanced Multi-Vector DevTools Engine Detection
+    let consecutiveDockHits = 0;
 
-      // Desktop browsers: DevTools docked open causes substantial differential (> 380px)
-      const widthDiff = window.outerWidth - window.innerWidth;
-      const heightDiff = window.outerHeight - window.innerHeight;
+    const runEngineDetectors = () => {
+      // 1. Guard against background / minimized tabs — never execute while hidden or unfocused
+      if (typeof document !== 'undefined' && (document.hidden || !document.hasFocus())) {
+        consecutiveDockHits = 0;
+        return;
+      }
 
-      // Microsoft Edge features default built-in sidebars (Copilot / Bing / Tools panel) consuming ~320-350px width.
-      // Increase threshold for Edge to 390px, standard browsers to 380px
-      const threshold = isEdgeBrowser() ? 390 : 380;
+      let detected = false;
+      let detectedReason = '';
 
-      if (widthDiff > threshold || heightDiff > threshold) {
-        triggerLockout('DevTools Dock Differential Detected');
+      // Vector 1: Chromium / V8 RegExp.toString Trap
+      // V8 only formats and calls .toString() on RegExp arguments when DevTools console is open
+      try {
+        const reg = /./;
+        reg.toString = () => {
+          detected = true;
+          detectedReason = 'DevTools Console Evaluation Trap (V8)';
+          return '';
+        };
+        // Print harmless format specifier that trips the trap only when DevTools renders
+        console.log('%c', reg);
+      } catch {}
+
+      // Vector 2: Firefox / Safari / WebKit DOM Element Getter Trap
+      // Gecko and WebKit evaluate DOM element property getters when rendering console elements
+      try {
+        const div = document.createElement('div');
+        Object.defineProperty(div, 'id', {
+          get() {
+            detected = true;
+            detectedReason = 'DevTools DOM Element Inspector Trap';
+            return '';
+          },
+          configurable: true,
+        });
+        console.log(div);
+      } catch {}
+
+      // Vector 3: Debugger Latency Micro-Benchmark
+      // When DevTools debugger / breakpoint engine is active, Function('debugger') introduces measurable delay (>100ms)
+      try {
+        const t0 = performance.now();
+        // Dynamically evaluate debugger call to evade minifier elimination
+        const debugCheck = new Function('debugger');
+        debugCheck();
+        const delta = performance.now() - t0;
+        if (delta > 100) {
+          detected = true;
+          detectedReason = 'DevTools Active Debugger Interception';
+        }
+      } catch {}
+
+      // Vector 4: Hardened Dock Differential Check (Desktop Only)
+      if (!isMobileDevice() && typeof window !== 'undefined') {
+        // Skip if window dimensions are collapsed or throttled
+        if (window.innerWidth > 100 && window.innerHeight > 100) {
+          const widthDiff = window.outerWidth - window.innerWidth;
+          const heightDiff = window.outerHeight - window.innerHeight;
+          const threshold = isEdgeBrowser() ? 400 : 380;
+
+          if (widthDiff > threshold || heightDiff > threshold) {
+            consecutiveDockHits++;
+            // Require 2 consecutive sustained hits (3+ seconds) to filter transient window snapping / resize glitches
+            if (consecutiveDockHits >= 2) {
+              detected = true;
+              detectedReason = 'DevTools Dock Differential Detected';
+            }
+          } else {
+            consecutiveDockHits = 0;
+          }
+        } else {
+          consecutiveDockHits = 0;
+        }
+      }
+
+      if (detected && detectedReason) {
+        triggerLockout(detectedReason);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('contextmenu', handleContextMenu, true);
-    window.addEventListener('resize', checkDimensions, true);
+    window.addEventListener('resize', runEngineDetectors, true);
 
     checkInterval = setInterval(() => {
-      checkDimensions();
+      runEngineDetectors();
     }, 1500);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('contextmenu', handleContextMenu, true);
-      window.removeEventListener('resize', checkDimensions, true);
+      window.removeEventListener('resize', runEngineDetectors, true);
       clearInterval(checkInterval);
     };
   }, []);
