@@ -18,7 +18,8 @@ import {
   LogIn,
   X,
   CheckCircle2,
-  Download
+  Download,
+  ShieldCheck
 } from 'lucide-react';
 
 // --- Official Brand Icon Components (SimpleIcons Vectors) ---
@@ -57,6 +58,72 @@ const ValorantIcon = ({ className }: { className?: string }) => (
     <path d="M4.053 0l7.632 17.509h-3.41L.643 0h3.41zm15.894 0L12.316 17.509h3.41L23.357 0h-3.41zM11.973 24l-3.864-8.868h7.728L11.973 24z" />
   </svg>
 );
+
+// --- Client-Side RFC 6238 TOTP Generator (SHA-1, 6-Digits, 30s Period) ---
+function base32ToArrayBuffer(base32: string): ArrayBuffer {
+  const clean = base32.toUpperCase().replace(/[^A-Z2-7]/g, '');
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0;
+  let value = 0;
+  const output: number[] = [];
+
+  for (let i = 0; i < clean.length; i++) {
+    const idx = alphabet.indexOf(clean[i]);
+    if (idx === -1) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      output.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  const u8 = new Uint8Array(output.length);
+  u8.set(output);
+  return u8.buffer as ArrayBuffer;
+}
+
+function intToArrayBuffer(num: number): ArrayBuffer {
+  const buffer = new ArrayBuffer(8);
+  const view = new DataView(buffer);
+  view.setUint32(0, Math.floor(num / 0x100000000), false);
+  view.setUint32(4, num >>> 0, false);
+  return buffer;
+}
+
+async function generateTotpCode(secretBase32: string): Promise<string> {
+  try {
+    if (typeof window === 'undefined' || !window.crypto?.subtle) return '';
+    const keyBuffer = base32ToArrayBuffer(secretBase32);
+    if (keyBuffer.byteLength === 0) return '';
+
+    const cryptoKey = await window.crypto.subtle.importKey(
+      'raw',
+      keyBuffer,
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    );
+
+    const epoch = Math.floor(Date.now() / 1000);
+    const step = Math.floor(epoch / 30);
+    const counterBuffer = intToArrayBuffer(step);
+
+    const signature = await window.crypto.subtle.sign('HMAC', cryptoKey, counterBuffer);
+    const hmac = new Uint8Array(signature);
+
+    const offset = hmac[hmac.length - 1] & 0x0f;
+    const binary =
+      ((hmac[offset] & 0x7f) << 24) |
+      ((hmac[offset + 1] & 0xff) << 16) |
+      ((hmac[offset + 2] & 0xff) << 8) |
+      (hmac[offset + 3] & 0xff);
+
+    const otp = binary % 1000000;
+    return otp.toString().padStart(6, '0');
+  } catch {
+    return '';
+  }
+}
 
 // --- Types & Cache ---
 interface HistoryItem {
@@ -160,6 +227,37 @@ export default function AccountGeneratorPage() {
   }, [user]);
 
   const [downloadingClient, setDownloadingClient] = useState(false);
+
+  // 2FA Authenticator States
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [totpSecondsLeft, setTotpSecondsLeft] = useState(30);
+
+  // Real-time 2FA Code generator & countdown ticker
+  useEffect(() => {
+    let mounted = true;
+
+    const updateTotp = async () => {
+      const sec = 30 - (Math.floor(Date.now() / 1000) % 30);
+      if (mounted) setTotpSecondsLeft(sec);
+
+      const cleanKey = totpSecret.replace(/[\s-]/g, '').toUpperCase();
+      if (!cleanKey) {
+        if (mounted) setTotpCode('');
+        return;
+      }
+
+      const code = await generateTotpCode(cleanKey);
+      if (mounted) setTotpCode(code);
+    };
+
+    updateTotp();
+    const interval = setInterval(updateTotp, 1000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [totpSecret]);
 
   const handleDownloadApp = () => {
     if (authLoading) {
@@ -624,6 +722,76 @@ export default function AccountGeneratorPage() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* 2FA Authenticator Tool Bar (Option B) */}
+              <div className="mt-5 p-3 sm:p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-inner">
+                {/* Left: Title & Icon */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div className="text-xs font-bold text-white tracking-wide">
+                    2FA Authenticator
+                  </div>
+                </div>
+
+                {/* Middle: Secret Input Box */}
+                <div className="relative flex-1 max-w-xl">
+                  <input
+                    type="text"
+                    value={totpSecret}
+                    onChange={(e) => setTotpSecret(e.target.value.replace(/[\s-]/g, '').toUpperCase())}
+                    placeholder="Paste 2FA Secret Key (e.g. 5P5VWCZF4RAZKCG...)"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500/50 transition-colors pr-8 select-all"
+                    spellCheck={false}
+                    autoComplete="off"
+                  />
+                  {totpSecret && (
+                    <button
+                      onClick={() => {
+                        setTotpSecret('');
+                        setTotpCode('');
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                      title="Clear key"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Right: Code Display & Countdown & Copy Button */}
+                <div className="flex items-center gap-2 shrink-0 justify-end">
+                  {totpCode ? (
+                    <div className="flex items-center gap-2.5 bg-zinc-950 border border-emerald-500/40 px-3 py-1.5 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                      <span className="font-mono text-base font-black text-emerald-400 tracking-wider">
+                        {totpCode.slice(0, 3)} {totpCode.slice(3)}
+                      </span>
+                      <div
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                          totpSecondsLeft <= 5
+                            ? 'bg-rose-500/20 text-rose-400 animate-pulse'
+                            : 'bg-zinc-800 text-zinc-300'
+                        }`}
+                        title="Seconds remaining"
+                      >
+                        {totpSecondsLeft}s
+                      </div>
+                      <button
+                        onClick={() => handleCopyText(totpCode, 'Copied 2FA Code!')}
+                        className="p-1 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                        title="Copy 6-digit code"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] font-mono text-zinc-500 px-3 py-2 bg-zinc-950/60 border border-zinc-800/60 rounded-lg">
+                      {totpSecret ? 'Invalid Secret Key' : 'Waiting for 2FA key...'}
+                    </div>
+                  )}
                 </div>
               </div>
 
