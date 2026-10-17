@@ -414,13 +414,27 @@ export async function POST(request: NextRequest) {
 
     if (action === 'reset_generator_usage') {
       const { licenseId, targetUserId } = body;
-      if (!licenseId && !targetUserId) return NextResponse.json({ error: 'Missing licenseId or targetUserId' }, { status: 400 });
-
-      if (targetUserId) {
-        await supabaseAdmin.from('claims').delete().eq('user_id', String(targetUserId));
+      if (!licenseId && !targetUserId) {
+        return NextResponse.json({ error: 'Missing licenseId or targetUserId' }, { status: 400 });
       }
 
-      return NextResponse.json({ success: true, message: `User generation claims reset successfully.` });
+      const nowIso = new Date().toISOString();
+
+      if (licenseId) {
+        await supabaseAdmin
+          .from('user_limits')
+          .update({ count: 0, updated_at: nowIso })
+          .eq('license_id', String(licenseId));
+      }
+
+      if (targetUserId) {
+        await supabaseAdmin
+          .from('user_limits')
+          .update({ count: 0, updated_at: nowIso })
+          .eq('discord_user_id', String(targetUserId));
+      }
+
+      return NextResponse.json({ success: true, message: 'User generation claims reset to 0.' });
     }
 
     if (action === 'reset_generator_hwid') {
