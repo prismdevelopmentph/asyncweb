@@ -2,14 +2,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import DiscordLoginButton from '@/components/DiscordLoginButton';
-import { createClient } from '@/lib/supabase-server';
 import { Shield, Sparkles, ArrowRight, Key, Check, Star, RefreshCw, Lock } from 'lucide-react';
 
-export default async function HomePage() {
-  const supabaseServer = await createClient();
-  const { data: { user } } = await supabaseServer.auth.getUser();
-
+export default function HomePage() {
   // Account Generator Dedicated Tier Pricelist
   const generatorTiers = [
     {

@@ -100,7 +100,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop Navigation Links (Mathematically Centered) */}
-        <nav className="hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-0 shadow-sm">
+        <nav className="hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-30 shadow-sm pointer-events-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -108,7 +108,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all relative z-30 cursor-pointer ${
                   isActive
                     ? 'bg-zinc-800 text-white shadow-sm'
                     : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
