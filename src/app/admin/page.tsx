@@ -174,6 +174,12 @@ export default function AdminPage() {
   const [restockContent, setRestockContent] = useState('');
   const [restockFileName, setRestockFileName] = useState('');
 
+  // Bundle Modal State
+  const [showCreateBundleModal, setShowCreateBundleModal] = useState(false);
+  const [bundleName, setBundleName] = useState('');
+  const [bundleDescription, setBundleDescription] = useState('');
+  const [bundleSelectedServices, setBundleSelectedServices] = useState<number[]>([]);
+
   // Form Inputs: Plan Assignment (Decrypt VIP)
   const [planUserId, setPlanUserId] = useState('');
   const [planUsername, setPlanUsername] = useState('');
@@ -503,6 +509,50 @@ export default function AdminPage() {
       fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
+    }
+  };
+
+  const handleCreateBundle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bundleName.trim()) {
+      setActionError('Bundle name is required');
+      return;
+    }
+    if (bundleSelectedServices.length === 0) {
+      setActionError('Select at least one service to include in the bundle');
+      return;
+    }
+
+    setActionMessage('');
+    setActionError('');
+    setSubmitting(true);
+
+    try {
+      const res = await fetch('/api/admin/manage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_package',
+          ownerUserId,
+          name: bundleName.trim(),
+          description: bundleDescription.trim(),
+          serviceIds: bundleSelectedServices,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to create bundle');
+
+      setActionMessage(json.message);
+      setShowCreateBundleModal(false);
+      setBundleName('');
+      setBundleDescription('');
+      setBundleSelectedServices([]);
+      fetchAdminData(true);
+    } catch (err: any) {
+      setActionError(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1148,11 +1198,11 @@ export default function AdminPage() {
             {activeTab === 'generator' && (
               <div className="flex items-center gap-2.5">
                 <button
-                  onClick={() => setShowRestockModal(true)}
+                  onClick={() => setShowCreateBundleModal(true)}
                   className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-semibold text-xs flex items-center gap-2 transition-all shadow-sm shrink-0"
                 >
-                  <Upload className="w-4 h-4 text-purple-400" />
-                  <span>Restock</span>
+                  <Package className="w-4 h-4 text-purple-400" />
+                  <span>Create a Bundle</span>
                 </button>
 
                 <button
@@ -1286,41 +1336,90 @@ export default function AdminPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {services.map((svc: any) => (
-                  <div key={svc.id} className="bg-zinc-900/60 rounded-3xl p-5 border border-zinc-800/80 hover:border-zinc-700 transition-all flex flex-col justify-between shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="font-bold text-white text-base tracking-wide">{svc.name}</span>
-                      <span className="px-2.5 py-1 rounded-full bg-zinc-800 border border-zinc-700/60 text-zinc-400 font-mono text-[11px]">
-                        ID: {svc.id}
-                      </span>
-                    </div>
+                {services.map((svc: any) => {
+                  const stockNum = svc.stock_count ?? 0;
+                  const inStock = stockNum > 0;
+                  return (
+                    <div key={svc.id} className="bg-zinc-900/60 rounded-3xl p-5 border border-zinc-800/80 hover:border-zinc-700 transition-all flex flex-col justify-between shadow-sm">
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-bold text-white text-base tracking-wide flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${inStock ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
+                            {svc.name}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-full bg-zinc-800 border border-zinc-700/60 text-zinc-400 font-mono text-[11px]">
+                            ID: {svc.id}
+                          </span>
+                        </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-zinc-800/80">
-                      <span className="text-xs text-zinc-500 font-mono">Stock Module</span>
-                      <button
-                        onClick={() => {
-                          setRestockService(svc.name);
-                          setShowRestockModal(true);
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/80 text-zinc-200 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-colors"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Restock</span>
-                      </button>
+                        <div className="my-4 p-3.5 rounded-2xl bg-zinc-950/60 border border-zinc-800/60 flex items-center justify-between">
+                          <div>
+                            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Current Stock</div>
+                            <div className="flex items-baseline gap-1.5 mt-0.5">
+                              <span className={`text-2xl font-black font-mono tracking-tight ${inStock ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {stockNum.toLocaleString()}
+                              </span>
+                              <span className="text-[11px] text-zinc-500 font-medium font-mono">accounts</span>
+                            </div>
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold border ${
+                            inStock 
+                              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' 
+                              : 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                          }`}>
+                            {inStock ? 'AVAILABLE' : 'OUT OF STOCK'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80">
+                        <span className="text-xs text-zinc-500 font-mono">Stock Module</span>
+                        <button
+                          onClick={() => {
+                            setRestockService(svc.name);
+                            setShowRestockModal(true);
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/80 text-zinc-200 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-colors"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Restock</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             {/* Packages / Bundles */}
-            {packages.length > 0 && (
-              <div>
-                <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-2 mb-4">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-2">
                   <Package className="w-4 h-4 text-indigo-400" />
                   <span>Configured Packages & Bundles ({packages.length})</span>
                 </h3>
+                <button
+                  onClick={() => setShowCreateBundleModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-colors"
+                >
+                  <PlusCircle className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Create a Bundle</span>
+                </button>
+              </div>
 
+              {packages.length === 0 ? (
+                <div className="p-8 rounded-3xl bg-zinc-900/40 border border-zinc-800/60 text-center">
+                  <Package className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                  <p className="text-xs text-zinc-400 mb-3">No bundled service packages created yet.</p>
+                  <button
+                    onClick={() => setShowCreateBundleModal(true)}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs inline-flex items-center gap-1.5"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Create Your First Bundle</span>
+                  </button>
+                </div>
+              ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {packages.map((pkg: any) => (
                     <div key={pkg.id} className="bg-zinc-900/60 rounded-3xl p-5 border border-zinc-800/80 hover:border-purple-500/40 transition-all flex flex-col justify-between shadow-sm">
@@ -1351,8 +1450,8 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Generator License Keys Table */}
             <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
@@ -1361,12 +1460,12 @@ export default function AdminPage() {
                   <Key className="w-4 h-4 text-amber-400" />
                   <span>ACTIVE GENERATOR LICENSES ({filteredGenLicenses.length})</span>
                 </div>
-                <span className="text-xs text-zinc-500 font-mono">Real-time daily quota enforcement</span>
+                <span className="text-xs text-zinc-500 font-mono">10 licenses per view &bull; scroll for more</span>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[580px] overflow-y-auto custom-scrollbar relative">
                 <table className="w-full min-w-[1100px] text-left border-collapse text-xs">
-                  <thead>
+                  <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                     <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                       <th className="py-4 px-6">License Key</th>
                       <th className="py-4 px-6">Scope</th>
@@ -2307,6 +2406,123 @@ export default function AdminPage() {
                 >
                   <Check className="w-4 h-4" />
                   <span>Assign Access</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 6: CREATE BUNDLE ── */}
+      {showCreateBundleModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Package className="w-5 h-5 text-purple-400" />
+                <span>Create Service Bundle / Package</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setShowCreateBundleModal(false);
+                  setBundleName('');
+                  setBundleDescription('');
+                  setBundleSelectedServices([]);
+                }}
+                className="text-zinc-500 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateBundle} className="space-y-4">
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Bundle Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Full Access Pass, Gaming Bundle"
+                  value={bundleName}
+                  onChange={(e) => setBundleName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Description (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Includes Rockstar, Steam, and Discord generator access"
+                  value={bundleDescription}
+                  onChange={(e) => setBundleDescription(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-2">
+                  Select Included Services ({bundleSelectedServices.length} selected)
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-3 rounded-2xl bg-zinc-950/70 border border-zinc-800/80">
+                  {services.length === 0 ? (
+                    <div className="text-xs text-zinc-500 py-2">No services found</div>
+                  ) : (
+                    services.map((svc: any) => {
+                      const isSelected = bundleSelectedServices.includes(svc.id);
+                      return (
+                        <label
+                          key={svc.id}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-purple-950/30 border-purple-500/40 text-purple-200'
+                              : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-400 hover:border-zinc-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setBundleSelectedServices([...bundleSelectedServices, svc.id]);
+                                } else {
+                                  setBundleSelectedServices(bundleSelectedServices.filter((id) => id !== svc.id));
+                                }
+                              }}
+                              className="rounded border-zinc-700 text-purple-600 focus:ring-purple-500 focus:ring-offset-0 bg-zinc-800 cursor-pointer"
+                            />
+                            <span className="font-semibold text-xs text-white">{svc.name}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-zinc-500">
+                            {svc.stock_count ?? 0} in stock
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateBundleModal(false);
+                    setBundleName('');
+                    setBundleDescription('');
+                    setBundleSelectedServices([]);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !bundleName.trim() || bundleSelectedServices.length === 0}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/20 disabled:opacity-50"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Create Bundle</span>
                 </button>
               </div>
             </form>

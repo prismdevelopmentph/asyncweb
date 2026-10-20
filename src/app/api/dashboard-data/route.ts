@@ -216,11 +216,45 @@ export async function GET(request: NextRequest) {
         }
       });
 
+      // Compute real-time available stock count per service
+      const stockCounts = await Promise.all(
+        (servicesRes.data || []).map(async (svc: any) => {
+          let count = 0;
+          try {
+            const { data: stockRpc } = await supabaseAdmin.rpc('get_service_stock', {
+              p_service_name: svc.name,
+            });
+            if (typeof stockRpc === 'number') {
+              return { id: svc.id, count: stockRpc };
+            }
+          } catch {}
+
+          try {
+            const tbl = `accounts_${svc.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')}`;
+            const { count: exactCount } = await supabaseAdmin
+              .from(tbl)
+              .select('id', { count: 'exact', head: true })
+              .eq('is_used', false);
+            count = exactCount ?? 0;
+          } catch {}
+
+          return { id: svc.id, count };
+        })
+      );
+
+      const stockMap = new Map<number, number>();
+      stockCounts.forEach((sc) => stockMap.set(sc.id, sc.count));
+
+      const enrichedServices = (servicesRes.data || []).map((svc: any) => ({
+        ...svc,
+        stock_count: stockMap.get(svc.id) ?? 0,
+      }));
+
       return NextResponse.json({
         isOwner: true,
         securityLockouts: lockoutsRes.data || [],
         generatorLicenses: augmentedGenLicenses,
-        services: servicesRes.data || [],
+        services: enrichedServices,
         packages: enrichedPackages,
         licenses: apiLicensesRes.data || [],
         plans: plansRes.data || [],

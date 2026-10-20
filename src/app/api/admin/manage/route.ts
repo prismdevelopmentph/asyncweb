@@ -465,6 +465,64 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: `Generator License deleted permanently.` });
     }
 
+    if (action === 'create_package') {
+      const { name, description, serviceIds } = body;
+      if (!name || !name.trim()) {
+        return NextResponse.json({ error: 'Bundle name is required' }, { status: 400 });
+      }
+      if (!Array.isArray(serviceIds) || serviceIds.length === 0) {
+        return NextResponse.json({ error: 'Select at least one service to include in the bundle' }, { status: 400 });
+      }
+
+      const { data: existingPkg } = await supabaseAdmin
+        .from('packages')
+        .select('id')
+        .ilike('name', name.trim())
+        .maybeSingle();
+
+      if (existingPkg) {
+        return NextResponse.json({ error: `A bundle with name "${name.trim()}" already exists` }, { status: 400 });
+      }
+
+      const { data: newPkg, error: pkgErr } = await supabaseAdmin
+        .from('packages')
+        .insert({
+          name: name.trim(),
+          description: description?.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (pkgErr || !newPkg) {
+        throw pkgErr || new Error('Failed to create bundle package');
+      }
+
+      const junctionRows = serviceIds.map((sid: number | string) => ({
+        package_id: newPkg.id,
+        service_id: Number(sid),
+      }));
+
+      const { error: psErr } = await supabaseAdmin.from('package_services').insert(junctionRows);
+      if (psErr) throw psErr;
+
+      return NextResponse.json({
+        success: true,
+        message: `Bundle "${newPkg.name}" created with ${serviceIds.length} services.`,
+        package: newPkg,
+      });
+    }
+
+    if (action === 'delete_package') {
+      const { packageId } = body;
+      if (!packageId) return NextResponse.json({ error: 'Missing packageId' }, { status: 400 });
+
+      await supabaseAdmin.from('package_services').delete().eq('package_id', packageId);
+      const { error } = await supabaseAdmin.from('packages').delete().eq('id', packageId);
+      if (error) throw error;
+
+      return NextResponse.json({ success: true, message: 'Bundle deleted successfully.' });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (err: any) {
     console.error('Admin management error:', err);
