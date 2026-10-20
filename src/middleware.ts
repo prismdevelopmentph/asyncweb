@@ -224,7 +224,31 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+  // 4. Subdomain Multi-Tenant Routing
+  const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
+  const isGenSubdomain = host.startsWith('gen.') || host.includes('gen.asyncdevph.xyz');
+
+  if (isGenSubdomain) {
+    // If accessing root / on gen subdomain, rewrite internally to /generator
+    if (req.nextUrl.pathname === '/') {
+      const rewriteUrl = req.nextUrl.clone();
+      rewriteUrl.pathname = '/generator';
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('x-subdomain', 'gen');
+      return res;
+    }
+
+    // If accessing /generator directly on gen subdomain, redirect to / for clean URLs
+    if (req.nextUrl.pathname === '/generator') {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  const response = NextResponse.next();
+  response.headers.set('x-subdomain', isGenSubdomain ? 'gen' : 'main');
+  return response;
 }
 
 export const config = {

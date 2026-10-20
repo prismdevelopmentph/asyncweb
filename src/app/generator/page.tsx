@@ -19,7 +19,10 @@ import {
   X,
   CheckCircle2,
   Download,
-  ShieldCheck
+  ShieldCheck,
+  Shield,
+  ArrowUpRight,
+  Zap
 } from 'lucide-react';
 
 // --- Official Brand Icon Components (SimpleIcons Vectors) ---
@@ -548,101 +551,216 @@ export default function AccountGeneratorPage() {
       {/* Main Workspace Canvas */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
         
-        {/* Top Status Ribbon */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 bg-zinc-950/80 rounded-2xl p-4 sm:p-5 border border-zinc-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
-              <Sparkles className="w-4 h-4 text-purple-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold tracking-tight text-white">
-                  Account Generator
+        {/* Session Loading Spinner */}
+        {authLoading ? (
+          <div className="py-28 flex flex-col items-center justify-center text-center">
+            <div className="w-9 h-9 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mb-4" />
+            <span className="text-xs font-mono text-zinc-400 tracking-wider">
+              Verifying credentials...
+            </span>
+          </div>
+        ) : !user ? (
+          /* Dedicated Split-Screen Showcase & Authentication Gateway */
+          <div className="py-4 sm:py-8 lg:py-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              
+              {/* Left Column: ASYNC Infrastructure Showcase */}
+              <div className="lg:col-span-7 flex flex-col justify-center">
+                {/* Status Pill */}
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-mono font-medium mb-5 w-fit">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  ASYNC CLOUD INFRASTRUCTURE
+                </div>
+
+                {/* Main Headline */}
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
+                  High-speed multi-service <br className="hidden sm:inline" />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-white">
+                    account infrastructure.
+                  </span>
                 </h1>
+
+                {/* Subtitle */}
+                <p className="mt-4 text-sm sm:text-base text-zinc-400 max-w-xl leading-relaxed">
+                  Automated credential generation across verified gaming and digital entertainment networks. Instant delivery backed by real-time inventory synchronization.
+                </p>
+
+                {/* Live Platform Ecosystem Badges */}
+                <div className="mt-8 pt-6 border-t border-zinc-800/80">
+                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                    Supported Platforms & Ecosystems
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {servicesConfig.map((svc) => {
+                      const IconComp = svc.icon;
+                      return (
+                        <div
+                          key={svc.id}
+                          className="flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors"
+                        >
+                          <div className={`w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 ${svc.color}`}>
+                            <IconComp className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-zinc-200 truncate">{svc.name}</div>
+                            <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                              <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                              Active Pool
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Direct Link to Store Card */}
+                <a
+                  href="https://asyncdevph.xyz"
+                  className="mt-6 flex items-center justify-between gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-950/30 to-zinc-900/60 border border-purple-500/30 hover:border-purple-400/60 transition-all group shadow-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-semibold text-white group-hover:text-purple-200 transition-colors flex items-center gap-1.5">
+                        <span>Need license keys? Visit our store</span>
+                        <span className="text-purple-400">&rarr;</span>
+                      </div>
+                      <div className="text-[11px] text-zinc-400 font-mono">
+                        Get instant access to tier licenses and generator quotas at asyncdevph.xyz
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                </a>
+
+                {/* Left Showcase Footer */}
+                <div className="mt-8 text-xs text-zinc-600 font-mono">
+                  &copy; 2026 ASYNC DEVELOPMENT. All rights reserved.
+                </div>
               </div>
-              <p className="text-xs text-zinc-400 font-medium">
-                Instant multi-service account generation & license key manager
-              </p>
+
+              {/* Right Column: Sleek Auth Gateway */}
+              <div className="lg:col-span-5">
+                <div className="relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-3xl blur-xl opacity-60" />
+
+                  <div className="relative bg-zinc-950/90 border border-zinc-800 rounded-2xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
+                        <Lock className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        OAuth Gateway
+                      </div>
+                    </div>
+
+                    <h2 className="text-xl font-bold tracking-tight text-white mb-2">
+                      Sign in to your account
+                    </h2>
+                    <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
+                      Authenticate with Discord to access your active generator keys, inventory queues, and account history.
+                    </p>
+
+                    {/* Discord OAuth Login Button */}
+                    <button
+                      onClick={handleDiscordLogin}
+                      className="w-full py-3 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all duration-150 shadow-[0_0_20px_rgba(88,101,242,0.35)] hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] active:scale-[0.99] cursor-pointer"
+                    >
+                      <DiscordIcon className="w-5 h-5 fill-current" />
+                      <span>Continue with Discord</span>
+                    </button>
+
+                    {/* Security Notice */}
+                    <div className="mt-6 pt-5 border-t border-zinc-800/80 space-y-2.5">
+                      <div className="flex items-start gap-2 text-[11px] text-zinc-400 leading-relaxed">
+                        <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+                        <span>Secured session with end-to-end OAuth2 token validation.</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-600 leading-relaxed font-mono">
+                        By signing in, you agree to our Terms of Service. Generator access is restricted to authorized license holders.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span className="font-mono text-[11px] uppercase tracking-wider">Engine Online</span>
-            </div>
-
-            {userPlan.hasPlan ? (
-              <button
-                onClick={handleDownloadApp}
-                disabled={downloadingClient}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm disabled:opacity-50"
-                title="Download Desktop App (ASYNC V2)"
-              >
-                <Download className={`w-3.5 h-3.5 text-purple-400 ${downloadingClient ? 'animate-bounce' : ''}`} />
-                <span>{downloadingClient ? 'Downloading...' : 'Download App'}</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => triggerToast('Active license plan required to download the desktop app.')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 text-xs text-zinc-500 font-mono font-medium cursor-not-allowed opacity-75 hover:border-zinc-700/50"
-                title="Active license required to download"
-              >
-                <Lock className="w-3.5 h-3.5 text-zinc-600" />
-                <span>Download App</span>
-              </button>
-            )}
-
-            {user && (
-              <button
-                onClick={() => {
-                  setActivationError(null);
-                  setActivationSuccess(null);
-                  setActivateModalOpen(true);
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-xs text-purple-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
-                title="Activate or Redeem a License Key"
-              >
-                <Key className="w-3.5 h-3.5 text-purple-400" />
-                <span>Activate License</span>
-              </button>
-            )}
-
-            {user && (
-              <button
-                onClick={() => fetchStatus(discordUserId)}
-                disabled={loadingStatus}
-                className="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
-                title="Refresh Records"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingStatus ? 'animate-spin text-purple-400' : ''}`} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Auth Check Screen */}
-        {!user && !authLoading ? (
-          <div className="bg-zinc-950 rounded-2xl p-10 sm:p-14 border border-zinc-800 text-center my-12">
-            <div className="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-5 text-purple-400">
-              <Lock className="w-7 h-7" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-white mb-2">
-              Authentication Required
-            </h2>
-            <p className="text-zinc-400 max-w-md mx-auto text-xs sm:text-sm mb-6 leading-relaxed">
-              Connect your Discord account to access the Account Generator, manage license keys, and view generated account details.
-            </p>
-            <button
-              onClick={handleDiscordLogin}
-              className="px-6 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-2.5 mx-auto transition-colors"
-            >
-              <LogIn size={15} />
-              Login with Discord
-            </button>
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Top Status Ribbon */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-950/80 rounded-2xl p-4 sm:p-5 border border-zinc-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-bold tracking-tight text-white">
+                      Account Generator
+                    </h1>
+                  </div>
+                  <p className="text-xs text-zinc-400 font-medium">
+                    Instant multi-service account generation & license key manager
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                  <span className="font-mono text-[11px] uppercase tracking-wider">Engine Online</span>
+                </div>
+
+                {userPlan.hasPlan ? (
+                  <button
+                    onClick={handleDownloadApp}
+                    disabled={downloadingClient}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm disabled:opacity-50"
+                    title="Download Desktop App (ASYNC V2)"
+                  >
+                    <Download className={`w-3.5 h-3.5 text-purple-400 ${downloadingClient ? 'animate-bounce' : ''}`} />
+                    <span>{downloadingClient ? 'Downloading...' : 'Download App'}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => triggerToast('Active license plan required to download the desktop app.')}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 text-xs text-zinc-500 font-mono font-medium cursor-not-allowed opacity-75 hover:border-zinc-700/50"
+                    title="Active license required to download"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-zinc-600" />
+                    <span>Download App</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setActivationError(null);
+                    setActivationSuccess(null);
+                    setActivateModalOpen(true);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-xs text-purple-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
+                  title="Activate or Redeem a License Key"
+                >
+                  <Key className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Activate License</span>
+                </button>
+
+                <button
+                  onClick={() => fetchStatus(discordUserId)}
+                  disabled={loadingStatus}
+                  className="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
+                  title="Refresh Records"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingStatus ? 'animate-spin text-purple-400' : ''}`} />
+                </button>
+              </div>
+            </div>
             
             {/* Panel 1: Generator Main Panel */}
             <section className="bg-zinc-950/80 rounded-2xl p-6 sm:p-8 border border-zinc-800">

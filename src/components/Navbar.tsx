@@ -14,6 +14,13 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isGenSubdomain, setIsGenSubdomain] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsGenSubdomain(window.location.host.startsWith('gen.'));
+    }
+  }, []);
 
   const syncSecurityCookie = (userObj: any) => {
     if (typeof document === 'undefined') return;
@@ -67,10 +74,15 @@ export default function Navbar() {
     router.push('/');
   };
 
-  const navItems = [
-    { name: 'Home', href: '/', icon: Sparkles },
-    { name: 'Generator', href: '/generator', icon: Key },
-  ];
+  const navItems = isGenSubdomain
+    ? [
+        { name: 'Generator', href: '/', icon: Key, external: false },
+        { name: 'Store ↗', href: 'https://asyncdevph.xyz', icon: Sparkles, external: true },
+      ]
+    : [
+        { name: 'Home', href: '/', icon: Sparkles, external: false },
+        { name: 'Generator', href: '/generator', icon: Key, external: false },
+      ];
 
   const userAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/images/Profile.png';
   const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'Discord User';
@@ -94,7 +106,7 @@ export default function Navbar() {
               ASYNC DEVELOPMENT
             </span>
             <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono tracking-wider">
-              Developer Tools & Automation Platform
+              {isGenSubdomain ? 'Account Generator Infrastructure' : 'Developer Tools & Automation Platform'}
             </p>
           </div>
         </Link>
@@ -103,7 +115,19 @@ export default function Navbar() {
         <nav className="hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-30 shadow-sm pointer-events-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = !item.external && pathname === item.href;
+            if (item.external) {
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all relative z-30 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900"
+                >
+                  <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                  {item.name}
+                </a>
+              );
+            }
             return (
               <Link
                 key={item.href}
@@ -177,7 +201,20 @@ export default function Navbar() {
         <div className="md:hidden mt-3 pt-3 border-t border-zinc-800 max-w-7xl mx-auto flex flex-col gap-1.5 bg-zinc-950 p-3 rounded-xl border border-zinc-800 animate-in slide-in-from-top duration-200">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = !item.external && pathname === item.href;
+            if (item.external) {
+              return (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all text-zinc-400 hover:text-white hover:bg-zinc-900"
+                >
+                  <Icon className="w-4 h-4 text-zinc-400" />
+                  <span>{item.name}</span>
+                </a>
+              );
+            }
             return (
               <Link
                 key={item.href}

@@ -161,7 +161,23 @@ export async function GET(request: Request) {
       });
     }
 
-    const redirectTarget = `${protocol}://${host}/generator`;
+    // Determine target host from state parameter or fallback to request host
+    let targetHost = host;
+    let targetProtocol = protocol;
+
+    const stateParam = searchParams.get('state');
+    if (stateParam) {
+      try {
+        const parsed = JSON.parse(Buffer.from(stateParam, 'base64').toString('utf8'));
+        if (parsed.host) targetHost = parsed.host;
+        if (parsed.protocol) targetProtocol = parsed.protocol;
+      } catch {}
+    }
+
+    const isGenHost = targetHost.startsWith('gen.') || targetHost.includes('gen.asyncdevph.xyz');
+    const redirectTarget = isGenHost
+      ? `${targetProtocol}://${targetHost}/`
+      : `${targetProtocol}://${targetHost}/generator`;
 
     const { data: magicLink } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
