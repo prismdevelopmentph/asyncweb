@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
               p_service_name: svc.name,
             });
             if (typeof stockRpc === 'number') {
-              return { id: svc.id, count: stockRpc };
+              return { id: String(svc.id), count: stockRpc };
             }
           } catch {}
 
@@ -238,16 +238,16 @@ export async function GET(request: NextRequest) {
             count = exactCount ?? 0;
           } catch {}
 
-          return { id: svc.id, count };
+          return { id: String(svc.id), count };
         })
       );
 
-      const stockMap = new Map<number, number>();
-      stockCounts.forEach((sc) => stockMap.set(sc.id, sc.count));
+      const stockMap = new Map<string, number>();
+      stockCounts.forEach((sc) => stockMap.set(String(sc.id), sc.count));
 
       const enrichedServices = (servicesRes.data || []).map((svc: any) => ({
         ...svc,
-        stock_count: stockMap.get(svc.id) ?? 0,
+        stock_count: stockMap.get(String(svc.id)) ?? 0,
       }));
 
       return NextResponse.json({

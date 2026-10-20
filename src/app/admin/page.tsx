@@ -217,14 +217,15 @@ export default function AdminPage() {
   const fetchAdminData = async (forceRefresh = false) => {
     if (!ownerUserId) return;
 
-    const cacheKey = `async_admin_cache_v2_${ownerUserId}`;
+    const cacheKey = `async_admin_cache_v4_${ownerUserId}`;
 
     if (!forceRefresh) {
       try {
         const cachedStr = sessionStorage.getItem(cacheKey);
         if (cachedStr) {
           const cached = JSON.parse(cachedStr);
-          if (cached.data?.userProfiles && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+          const hasStockEnriched = cached.data?.services?.some((s: any) => typeof s.stock_count === 'number');
+          if (cached.data?.userProfiles && hasStockEnriched && Date.now() - cached.timestamp < 60000) {
             setAdminData(cached.data);
             setDataLoading(false);
             return;
@@ -1115,7 +1116,10 @@ export default function AdminPage() {
             </button>
 
             <button
-              onClick={() => setActiveTab('generator')}
+              onClick={() => {
+                setActiveTab('generator');
+                fetchAdminData(true);
+              }}
               className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'generator'
                   ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
@@ -1333,6 +1337,14 @@ export default function AdminPage() {
                   <Layers className="w-4 h-4 text-purple-400" />
                   <span>Service Inventory & Stock Levels</span>
                 </h3>
+                <button
+                  onClick={() => fetchAdminData(true)}
+                  disabled={dataLoading}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-purple-400 ${dataLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Stock</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
