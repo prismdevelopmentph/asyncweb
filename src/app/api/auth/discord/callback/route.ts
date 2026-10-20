@@ -49,13 +49,15 @@ export async function GET(request: Request) {
       if (userRes.ok) {
         discordUser = await userRes.json();
 
-        // Automatically join user to target Discord server via guilds.join
+        // Automatically join user strictly to server 1535200881363001374 via guilds.join
+        const TARGET_GUILD_ID = '1535200881363001374';
         const botToken = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
-        const targetGuildId = process.env.DISCORD_GUILD_ID || '1535200881363001374';
 
-        if (botToken && targetGuildId && discordUser?.id) {
+        if (!botToken) {
+          console.warn('[Discord Guild Join] Skipped: DISCORD_BOT_TOKEN is not defined in environment variables.');
+        } else if (discordUser?.id) {
           try {
-            const joinRes = await fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/members/${discordUser.id}`, {
+            const joinRes = await fetch(`https://discord.com/api/v10/guilds/${TARGET_GUILD_ID}/members/${discordUser.id}`, {
               method: 'PUT',
               headers: {
                 Authorization: `Bot ${botToken}`,
@@ -67,12 +69,12 @@ export async function GET(request: Request) {
             });
 
             if (joinRes.status === 201) {
-              console.log(`[Discord Guild Join] Added user ${discordUser.id} to guild ${targetGuildId}`);
+              console.log(`[Discord Guild Join] Successfully added user ${discordUser.id} to server ${TARGET_GUILD_ID}`);
             } else if (joinRes.status === 204) {
-              console.log(`[Discord Guild Join] User ${discordUser.id} is already in guild ${targetGuildId}`);
+              console.log(`[Discord Guild Join] User ${discordUser.id} is already a member of server ${TARGET_GUILD_ID}`);
             } else {
               const joinErr = await joinRes.json().catch(() => ({}));
-              console.warn(`[Discord Guild Join Warning] Status ${joinRes.status}:`, joinErr);
+              console.warn(`[Discord Guild Join Warning] Status ${joinRes.status} on guild ${TARGET_GUILD_ID}:`, joinErr);
             }
           } catch (joinEx) {
             console.error('[Discord Guild Join Error]:', joinEx);
