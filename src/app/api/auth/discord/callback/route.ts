@@ -161,7 +161,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const redirectTarget = `${protocol}://${host}/generator${joinFeedback ? `?discord_join=${joinFeedback}` : ''}`;
+    const redirectTarget = `${protocol}://${host}/generator`;
 
     const { data: magicLink } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
