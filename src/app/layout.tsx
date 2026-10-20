@@ -26,6 +26,7 @@ export const metadata: Metadata = {
 };
 
 import DevToolsProtection from "@/components/DevToolsProtection";
+import SessionInactivityTracker from "@/components/SessionInactivityTracker";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <DevToolsProtection />
+        <SessionInactivityTracker />
         {children}
       </body>
     </html>
