@@ -5,8 +5,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
 
-  const host = request.headers.get('host') || 'asyncdevph.xyz';
-  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.asyncdevph.xyz';
+  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
 
   if (!code) {
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     let joinFeedback = '';
 
     if (clientSecret) {
-      const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+      let tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -33,10 +33,33 @@ export async function GET(request: Request) {
         })
       });
 
+      // If token exchange failed, retry with alternate www/non-www redirect_uri to prevent subdomain mismatch
+      if (!tokenRes.ok && redirectUri.includes('asyncdevph.xyz')) {
+        const altRedirectUri = redirectUri.includes('://www.')
+          ? redirectUri.replace('://www.', '://')
+          : redirectUri.replace('://', '://www.');
+
+        const retryRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: altRedirectUri
+          })
+        });
+
+        if (retryRes.ok) {
+          tokenRes = retryRes;
+        }
+      }
+
       if (!tokenRes.ok) {
-        const errJson = await tokenRes.json();
+        const errJson = await tokenRes.json().catch(() => ({}));
         console.error('[Discord OAuth Token Error]:', errJson);
-        return NextResponse.redirect(`${protocol}://${host}/generator?error=token_exchange_failed`);
+        return NextResponse.redirect(`${protocol}://${host}/generator?error=token_exchange_failed&err_details=${encodeURIComponent(JSON.stringify(errJson))}`);
       }
 
       const tokenData = await tokenRes.json();

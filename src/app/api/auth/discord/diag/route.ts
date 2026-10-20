@@ -105,14 +105,15 @@ export async function GET() {
     }
 
     // Fetch recent users from Supabase to inspect join feedback
-    const { data: userList } = await supabaseAdmin.auth.admin.listUsers({ perPage: 5 });
+    const { data: userList } = await supabaseAdmin.auth.admin.listUsers({ perPage: 10 });
     results.recentLogins = userList?.users?.map((u: any) => ({
       email: u.email,
-      name: u.user_metadata?.full_name,
-      discord_id: u.user_metadata?.provider_id,
-      join_status: u.user_metadata?.discord_join_status,
-      join_timestamp: u.user_metadata?.discord_join_timestamp,
+      name: u.user_metadata?.full_name || 'unknown',
+      discord_id: u.user_metadata?.provider_id || null,
+      join_status: u.user_metadata?.discord_join_status ?? 'NOT_RECORDED_YET',
+      join_timestamp: u.user_metadata?.discord_join_timestamp ?? null,
       created_at: u.created_at,
+      last_sign_in: u.last_sign_in_at || null,
     }));
 
     results.status = 'READY';
