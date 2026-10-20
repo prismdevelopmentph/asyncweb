@@ -574,15 +574,15 @@ export default function AccountGeneratorPage() {
 
                 {/* Main Headline */}
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
-                  High-speed multi-service <br className="hidden sm:inline" />
+                  Instant Digital <br className="hidden sm:inline" />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-300 to-white">
-                    account infrastructure.
+                    Account Delivery
                   </span>
                 </h1>
 
                 {/* Subtitle */}
                 <p className="mt-4 text-sm sm:text-base text-zinc-400 max-w-xl leading-relaxed">
-                  Automated credential generation across verified gaming and digital entertainment networks. Instant delivery backed by real-time inventory synchronization.
+                  Receive your account details instantly across supported gaming and entertainment services. Built for fast delivery, real-time availability, and a smooth access experience.
                 </p>
 
                 {/* Live Platform Ecosystem Badges */}
