@@ -26,7 +26,6 @@ export default function Footer() {
         {/* Quick Links */}
         <div className="flex items-center gap-6 text-xs text-zinc-400 font-medium">
           <Link href="/" className="hover:text-white transition-colors">Home</Link>
-          <Link href="/decrypt" className="hover:text-white transition-colors">Decryptor</Link>
           <Link href="/generator" className="hover:text-white transition-colors">Generator</Link>
           <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
         </div>

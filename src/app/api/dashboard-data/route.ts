@@ -23,9 +23,6 @@ export async function GET(request: NextRequest) {
         servicesRes,
         packagesRes,
         apiLicensesRes,
-        plansRes,
-        decryptionsRes,
-        fixesRes,
         userLimitsRes,
         userGuildLocksRes,
         guildConfigRes,
@@ -58,20 +55,6 @@ export async function GET(request: NextRequest) {
           .from('api_licenses')
           .select('*')
           .order('id', { ascending: false }),
-        supabaseAdmin
-          .from('plan_subscriptions')
-          .select('*')
-          .order('id', { ascending: false }),
-        supabaseAdmin
-          .from('decryptions')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabaseAdmin
-          .from('fixes')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100),
         supabaseAdmin
           .from('user_limits')
           .select('*'),
@@ -207,15 +190,6 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      (plansRes.data || []).forEach((p: any) => {
-        if (p.user_id && p.username && !userProfiles[String(p.user_id)]) {
-          userProfiles[String(p.user_id)] = {
-            name: p.username,
-            username: p.username,
-          };
-        }
-      });
-
       // Compute real-time available stock count per service
       const stockCounts = await Promise.all(
         (servicesRes.data || []).map(async (svc: any) => {
@@ -257,9 +231,6 @@ export async function GET(request: NextRequest) {
         services: enrichedServices,
         packages: enrichedPackages,
         licenses: apiLicensesRes.data || [],
-        plans: plansRes.data || [],
-        decryptions: decryptionsRes.data || [],
-        fixes: fixesRes.data || [],
         claimLogs: claimLogsRes.data || [],
         downloadLogs: downloadLogsRes.data || [],
         userProfiles,

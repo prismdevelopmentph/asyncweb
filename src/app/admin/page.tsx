@@ -16,7 +16,6 @@ import {
   RefreshCw,
   Sparkles,
   Wrench,
-  FileCode,
   Download,
   Search,
   ArrowLeft,
@@ -135,7 +134,7 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'decrypt' | 'audit' | 'chat'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'audit' | 'chat'>('security');
   const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'unbans'>('claims');
   const [chatChannel, setChatChannel] = useState<'support' | 'general'>('support');
   const [chatTickets, setChatTickets] = useState<any[]>([]);
@@ -144,7 +143,6 @@ export default function AdminPage() {
   const [adminChatInput, setAdminChatInput] = useState('');
   const [sendingAdminChat, setSendingAdminChat] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-  const [showAssignPlanModal, setShowAssignPlanModal] = useState(false);
   const [showGenLicenseModal, setShowGenLicenseModal] = useState(false);
   const [showManualBanModal, setShowManualBanModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,12 +178,6 @@ export default function AdminPage() {
   const [bundleDescription, setBundleDescription] = useState('');
   const [bundleSelectedServices, setBundleSelectedServices] = useState<number[]>([]);
 
-  // Form Inputs: Plan Assignment (Decrypt VIP)
-  const [planUserId, setPlanUserId] = useState('');
-  const [planUsername, setPlanUsername] = useState('');
-  const [planType, setPlanType] = useState<'combo' | 'dumper' | 'decrypt'>('combo');
-  const [planDuration, setPlanDuration] = useState<'month' | 'lifetime'>('month');
-
   const [actionMessage, setActionMessage] = useState('');
   const [actionError, setActionError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -217,7 +209,7 @@ export default function AdminPage() {
   const fetchAdminData = async (forceRefresh = false) => {
     if (!ownerUserId) return;
 
-    const cacheKey = `async_admin_cache_v4_${ownerUserId}`;
+    const cacheKey = `async_admin_cache_v5_${ownerUserId}`;
 
     if (!forceRefresh) {
       try {
@@ -612,41 +604,6 @@ export default function AdminPage() {
     reader.readAsText(file);
   };
 
-  const handleAssignPlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setActionMessage('');
-    setActionError('');
-    setSubmitting(true);
-
-    try {
-      const res = await fetch('/api/admin/manage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'assign_plan',
-          ownerUserId,
-          targetUserId: planUserId.trim(),
-          username: planUsername.trim() || 'User',
-          planType,
-          duration: planDuration,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to assign plan');
-
-      setActionMessage(json.message);
-      setShowAssignPlanModal(false);
-      setPlanUserId('');
-      setPlanUsername('');
-      fetchAdminData(true);
-    } catch (err: any) {
-      setActionError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   // ── ADMIN CHAT & SUPPORT FUNCTIONS ──
   const fetchSupportTickets = async () => {
     setChatLoading(true);
@@ -891,9 +848,6 @@ export default function AdminPage() {
   const generatorLicenses = adminData?.generatorLicenses || [];
   const services = adminData?.services || [];
   const packages = adminData?.packages || [];
-  const plansList = adminData?.plans || [];
-  const decryptionsList = adminData?.decryptions || [];
-  const fixesList = adminData?.fixes || [];
   const claimLogs = adminData?.claimLogs || [];
   const downloadLogs = adminData?.downloadLogs || [];
   const userProfiles = adminData?.userProfiles || {};
@@ -921,22 +875,6 @@ export default function AdminPage() {
     matchDiscordUser(lic.redeemed_by, searchQuery.toLowerCase()) ||
     (lic.hwid || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (lic.scope_label || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredPlans = plansList.filter((p: any) =>
-    matchDiscordUser(p.user_id, searchQuery.toLowerCase()) ||
-    (p.plan_type || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredDecryptions = decryptionsList.filter((d: any) =>
-    matchDiscordUser(d.user_id, searchQuery.toLowerCase()) ||
-    (d.script_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (d.gofile_url || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredFixes = fixesList.filter((f: any) =>
-    matchDiscordUser(f.user_id, searchQuery.toLowerCase()) ||
-    (f.file_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredClaimLogs = claimLogs.filter((c: any) =>
@@ -1080,17 +1018,17 @@ export default function AdminPage() {
 
           <div className="bg-zinc-900/60 rounded-3xl p-6 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase font-mono tracking-wider text-zinc-400">Asset Telemetry</span>
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <FileCode className="w-4 h-4" />
+              <span className="text-xs uppercase font-mono tracking-wider text-zinc-400">Packages & Bundles</span>
+              <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                <Package className="w-4 h-4" />
               </div>
             </div>
             <div>
               <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
-                {decryptionsList.length}
+                {packages.length}
               </div>
               <p className="text-xs text-zinc-500 mt-1 font-mono">
-                Decryptions & mesh fixes
+                Configured service bundles
               </p>
             </div>
           </div>
@@ -1130,21 +1068,6 @@ export default function AdminPage() {
               <span>Generator & Stock</span>
               <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
                 {generatorLicenses.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('decrypt')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'decrypt'
-                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <FileCode className="w-4 h-4 text-emerald-400" />
-              <span>Decrypt & VIP</span>
-              <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                {plansList.length}
               </span>
             </button>
 
@@ -1217,16 +1140,6 @@ export default function AdminPage() {
                   <span>Generate Key</span>
                 </button>
               </div>
-            )}
-
-            {activeTab === 'decrypt' && (
-              <button
-                onClick={() => setShowAssignPlanModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-2 transition-all shadow-md shrink-0"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Assign VIP</span>
-              </button>
             )}
           </div>
         </div>
@@ -1655,130 +1568,6 @@ export default function AdminPage() {
                                 </div>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── TAB 3: DECRYPT & VIP PLANS ── */}
-        {activeTab === 'decrypt' && (
-          <div className="space-y-8">
-            {/* VIP Plans Table */}
-            <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
-              <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5 font-mono text-xs text-purple-300 font-semibold">
-                  <Crown className="w-4 h-4 text-purple-400" />
-                  <span>ACTIVE DECRYPT & DUMPER VIP ENROLLED ({filteredPlans.length})</span>
-                </div>
-                <span className="text-xs text-zinc-500 font-mono">Managed via Bot & Web</span>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
-                      <th className="py-4 px-6">User ID</th>
-                      <th className="py-4 px-6">Username</th>
-                      <th className="py-4 px-6">Plan Type</th>
-                      <th className="py-4 px-6">Expires At</th>
-                      <th className="py-4 px-6">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/50 font-mono">
-                    {filteredPlans.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-16 text-center text-zinc-500 font-sans">
-                          No VIP plans found matching search.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredPlans.map((plan: any) => (
-                        <tr key={plan.id} className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="py-4 px-6 font-mono font-semibold text-zinc-200">
-                            <DiscordUserBadge userId={plan.user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
-                          </td>
-                          <td className="py-4 px-6 font-medium text-zinc-200 font-sans">
-                            {plan.username || 'User'}
-                          </td>
-                          <td className="py-4 px-6 font-mono uppercase text-xs">
-                            <span className="px-2.5 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30">
-                              {plan.plan_type}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 font-mono text-zinc-400 text-xs">
-                            {plan.expires_at ? new Date(plan.expires_at).toLocaleDateString() : 'LIFETIME'}
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                              ACTIVE
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Decryptions Log */}
-            <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
-              <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
-                <div className="flex items-center gap-2.5 font-mono text-xs text-emerald-300 font-semibold">
-                  <FileCode className="w-4 h-4 text-emerald-400" />
-                  <span>RECENT DECRYPTED SCRIPTS & ASSETS ({filteredDecryptions.length})</span>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
-                      <th className="py-4 px-6">Script / Asset Name</th>
-                      <th className="py-4 px-6">User ID</th>
-                      <th className="py-4 px-6">Date Processed</th>
-                      <th className="py-4 px-6 text-right">Host Link</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/50 font-mono">
-                    {filteredDecryptions.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-16 text-center text-zinc-500 font-sans">
-                          No recent script decryptions recorded.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredDecryptions.map((d: any) => (
-                        <tr key={d.id} className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="py-4 px-6 font-medium text-white font-sans">
-                            {d.script_name || 'Decrypted Archive'}
-                          </td>
-                          <td className="py-4 px-6 font-mono text-zinc-300">
-                            <DiscordUserBadge userId={d.user_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
-                          </td>
-                          <td className="py-4 px-6 font-mono text-zinc-400 text-xs">
-                            {new Date(d.created_at || Date.now()).toLocaleString()}
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            {d.gofile_url ? (
-                              <a
-                                href={d.gofile_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-purple-300 hover:text-white transition-colors"
-                              >
-                                <span>GoFile</span>
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </a>
-                            ) : (
-                              <span className="text-zinc-600">Expired</span>
-                            )}
                           </td>
                         </tr>
                       ))
@@ -2340,92 +2129,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* ── MODAL 5: ASSIGN VIP PLAN ── */}
-      {showAssignPlanModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-purple-400" />
-                <span>Assign VIP Plan Access</span>
-              </h3>
-              <button onClick={() => setShowAssignPlanModal(false)} className="text-zinc-500 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAssignPlan} className="space-y-4">
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">User Discord ID</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 719482630633947166"
-                  value={planUserId}
-                  onChange={(e) => setPlanUserId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Username (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Nicolas"
-                  value={planUsername}
-                  onChange={(e) => setPlanUsername(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Plan Type</label>
-                <select
-                  value={planType}
-                  onChange={(e) => setPlanType(e.target.value as any)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="combo">Combo (Decrypt + Dumper)</option>
-                  <option value="decrypt">Lua Script Decryptor Only</option>
-                  <option value="dumper">Asset Dumper Only</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Plan Duration</label>
-                <select
-                  value={planDuration}
-                  onChange={(e) => setPlanDuration(e.target.value as any)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="month">1 Month (30 Days)</option>
-                  <option value="lifetime">Lifetime Access</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAssignPlanModal(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold flex items-center gap-2 transition-all shadow-lg disabled:opacity-50"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Assign Access</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL 6: CREATE BUNDLE ── */}
+      {/* ── MODAL 5: CREATE BUNDLE ── */}
       {showCreateBundleModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl">
