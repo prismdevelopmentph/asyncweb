@@ -48,6 +48,36 @@ export async function GET(request: Request) {
 
       if (userRes.ok) {
         discordUser = await userRes.json();
+
+        // Automatically join user to target Discord server via guilds.join
+        const botToken = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
+        const targetGuildId = process.env.DISCORD_GUILD_ID || '1535200881363001374';
+
+        if (botToken && targetGuildId && discordUser?.id) {
+          try {
+            const joinRes = await fetch(`https://discord.com/api/v10/guilds/${targetGuildId}/members/${discordUser.id}`, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bot ${botToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                access_token: accessToken,
+              }),
+            });
+
+            if (joinRes.status === 201) {
+              console.log(`[Discord Guild Join] Added user ${discordUser.id} to guild ${targetGuildId}`);
+            } else if (joinRes.status === 204) {
+              console.log(`[Discord Guild Join] User ${discordUser.id} is already in guild ${targetGuildId}`);
+            } else {
+              const joinErr = await joinRes.json().catch(() => ({}));
+              console.warn(`[Discord Guild Join Warning] Status ${joinRes.status}:`, joinErr);
+            }
+          } catch (joinEx) {
+            console.error('[Discord Guild Join Error]:', joinEx);
+          }
+        }
       }
     }
 
