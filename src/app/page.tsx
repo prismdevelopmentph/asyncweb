@@ -20,7 +20,7 @@ export default function HomePage() {
         'Automated real-time stock updates',
         'Clean 50-item generation history log'
       ],
-      href: '/generator',
+      href: 'https://gen.asyncdevph.xyz',
       ctaText: 'Get Single Access',
       highlight: false
     },
@@ -37,7 +37,7 @@ export default function HomePage() {
         'Priority stock allocation',
         'Instant key redemption system'
       ],
-      href: '/generator',
+      href: 'https://gen.asyncdevph.xyz',
       ctaText: 'Get FiveM Bundle',
       highlight: false
     },
@@ -54,7 +54,7 @@ export default function HomePage() {
         'Instant stock claiming & key redemption',
         'Discord role sync & full cloud history'
       ],
-      href: '/generator',
+      href: 'https://gen.asyncdevph.xyz',
       ctaText: 'Get All Access',
       highlight: true
     }
@@ -97,9 +97,9 @@ export default function HomePage() {
 
           {/* FLAGSHIP HERO ACTION */}
           <div className="w-full max-w-xl mx-auto text-left mb-6">
-            <Link
-              href="/generator"
-              className="group relative p-6 rounded-3xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900/50 transition-all duration-200 flex flex-col justify-between shadow-lg shadow-purple-950/10"
+            <a
+              href="https://gen.asyncdevph.xyz"
+              className="group relative p-6 rounded-3xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900/50 transition-all duration-200 flex flex-col justify-between shadow-lg shadow-purple-950/10 block cursor-pointer"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -124,7 +124,7 @@ export default function HomePage() {
                 <span className="font-semibold uppercase tracking-wider text-[11px]">Launch Generator Dashboard</span>
                 <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
               </div>
-            </Link>
+            </a>
           </div>
         </div>
 

@@ -49,7 +49,7 @@ export default function Footer() {
           ) : (
             <>
               <Link href="/" className="hover:text-white transition-colors">Home</Link>
-              <Link href="/generator" className="hover:text-white transition-colors">Generator</Link>
+              <a href="https://gen.asyncdevph.xyz" className="hover:text-white transition-colors">Generator</a>
             </>
           )}
         </div>

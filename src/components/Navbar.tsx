@@ -88,7 +88,7 @@ export default function Navbar() {
       ]
     : [
         { name: 'Home', href: '/', icon: Sparkles, external: false },
-        { name: 'Generator', href: '/generator', icon: Key, external: false },
+        { name: 'Generator', href: 'https://gen.asyncdevph.xyz', icon: Key, external: true },
       ];
 
   const userAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || '/images/Profile.png';
