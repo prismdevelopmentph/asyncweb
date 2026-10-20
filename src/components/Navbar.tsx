@@ -111,39 +111,41 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Desktop Navigation Links (Mathematically Centered) */}
-        <nav className="hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-30 shadow-sm pointer-events-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = !item.external && pathname === item.href;
-            if (item.external) {
+        {/* Desktop Navigation Links (Mathematically Centered) - Hidden on gen subdomain */}
+        {!isGenSubdomain && (
+          <nav className="hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-30 shadow-sm pointer-events-auto">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = !item.external && pathname === item.href;
+              if (item.external) {
+                return (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all relative z-30 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900"
+                  >
+                    <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                    {item.name}
+                  </a>
+                );
+              }
               return (
-                <a
+                <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all relative z-30 cursor-pointer text-zinc-400 hover:text-white hover:bg-zinc-900"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all relative z-30 cursor-pointer ${
+                    isActive
+                      ? 'bg-zinc-800 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                  }`}
                 >
-                  <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-purple-400' : 'text-zinc-400'}`} />
                   {item.name}
-                </a>
+                </Link>
               );
-            }
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all relative z-30 cursor-pointer ${
-                  isActive
-                    ? 'bg-zinc-800 text-white shadow-sm'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-purple-400' : 'text-zinc-400'}`} />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+            })}
+          </nav>
+        )}
 
         {/* Auth Controls & Mobile Menu Toggle */}
         <div className="flex items-center gap-2.5 z-10">
@@ -174,7 +176,7 @@ export default function Navbar() {
                 <span className="hidden xs:inline">Sign Out</span>
               </button>
             </div>
-          ) : (
+          ) : !isGenSubdomain ? (
             <button
               onClick={handleDiscordLogin}
               className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs sm:text-sm transition-colors shadow-sm"
@@ -182,22 +184,24 @@ export default function Navbar() {
               <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>Login</span>
             </button>
-          )}
+          ) : null}
 
-          {/* Mobile Hamburger Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
-            aria-label="Toggle navigation menu"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5 text-zinc-400" />}
-          </button>
+          {/* Mobile Hamburger Button (Only on apex domain) */}
+          {!isGenSubdomain && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5 text-zinc-400" />}
+            </button>
+          )}
         </div>
 
       </div>
 
       {/* Mobile Slide-Down Navigation Menu */}
-      {mobileMenuOpen && (
+      {!isGenSubdomain && mobileMenuOpen && (
         <div className="md:hidden mt-3 pt-3 border-t border-zinc-800 max-w-7xl mx-auto flex flex-col gap-1.5 bg-zinc-950 p-3 rounded-xl border border-zinc-800 animate-in slide-in-from-top duration-200">
           {navItems.map((item) => {
             const Icon = item.icon;
