@@ -680,7 +680,7 @@ export default function AccountGeneratorPage() {
                     <div className="mt-6 pt-5 border-t border-zinc-800/80 space-y-2.5">
                       <div className="flex items-start gap-2 text-[11px] text-zinc-400 leading-relaxed">
                         <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
-                        <span>Secured session with end-to-end OAuth2 token validation.</span>
+                        <span>Secured session</span>
                       </div>
                       <p className="text-[10px] text-zinc-600 leading-relaxed font-mono">
                         By signing in, you agree to our Terms of Service. Generator access is restricted to authorized license holders.
