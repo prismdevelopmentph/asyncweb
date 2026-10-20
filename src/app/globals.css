@@ -32,6 +32,12 @@ body {
   overflow-x: hidden;
 }
 
+/* Zero-flash subdomain styles: hide storefront navbar controls immediately at parse time */
+html[data-subdomain="gen"] .nav-storefront-item,
+body[data-subdomain="gen"] .nav-storefront-item {
+  display: none !important;
+}
+
 /* Vercel-style Minimalist Cyber Grid */
 .dev-grid-bg {
   background-size: 32px 32px;

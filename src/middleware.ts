@@ -227,6 +227,8 @@ export async function middleware(req: NextRequest) {
   // 4. Subdomain Multi-Tenant Routing
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
   const isGenSubdomain = host.startsWith('gen.') || host.includes('gen.asyncdevph.xyz');
+  const isProd = host.includes('asyncdevph.xyz');
+  const cookieDomain = isProd ? '.asyncdevph.xyz' : undefined;
 
   if (isGenSubdomain) {
     // If accessing root / on gen subdomain, rewrite internally to /generator
@@ -235,6 +237,7 @@ export async function middleware(req: NextRequest) {
       rewriteUrl.pathname = '/generator';
       const res = NextResponse.rewrite(rewriteUrl);
       res.headers.set('x-subdomain', 'gen');
+      res.cookies.set('async_subdomain', 'gen', { path: '/', domain: cookieDomain });
       return res;
     }
 
@@ -242,12 +245,15 @@ export async function middleware(req: NextRequest) {
     if (req.nextUrl.pathname === '/generator') {
       const redirectUrl = req.nextUrl.clone();
       redirectUrl.pathname = '/';
-      return NextResponse.redirect(redirectUrl);
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.set('async_subdomain', 'gen', { path: '/', domain: cookieDomain });
+      return res;
     }
   }
 
   const response = NextResponse.next();
   response.headers.set('x-subdomain', isGenSubdomain ? 'gen' : 'main');
+  response.cookies.set('async_subdomain', isGenSubdomain ? 'gen' : 'main', { path: '/', domain: cookieDomain });
   return response;
 }
 

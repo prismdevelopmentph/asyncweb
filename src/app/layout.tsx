@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,13 +29,18 @@ export const metadata: Metadata = {
 import DevToolsProtection from "@/components/DevToolsProtection";
 import SessionInactivityTracker from "@/components/SessionInactivityTracker";
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const headersList = await headers();
+  const host = (headersList.get("x-forwarded-host") || headersList.get("host") || "").toLowerCase();
+  const isGenSubdomain = host.startsWith("gen.") || host.includes("gen.asyncdevph.xyz");
+
   return (
     <html
       lang="en"
+      data-subdomain={isGenSubdomain ? "gen" : "main"}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" data-subdomain={isGenSubdomain ? "gen" : "main"}>
         <DevToolsProtection />
         <SessionInactivityTracker />
         {children}

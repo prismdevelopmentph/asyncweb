@@ -5,11 +5,16 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 export default function Footer() {
-  const [isGenSubdomain, setIsGenSubdomain] = useState(false);
+  const [isGenSubdomain, setIsGenSubdomain] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.host.startsWith('gen.') || window.location.host.includes('gen.asyncdevph.xyz');
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIsGenSubdomain(window.location.host.startsWith('gen.'));
+      setIsGenSubdomain(window.location.host.startsWith('gen.') || window.location.host.includes('gen.asyncdevph.xyz'));
     }
   }, []);
 

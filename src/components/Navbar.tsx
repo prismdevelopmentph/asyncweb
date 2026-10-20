@@ -14,16 +14,23 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isGenSubdomain, setIsGenSubdomain] = useState(false);
+  const [isGenSubdomain, setIsGenSubdomain] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.host.startsWith('gen.') || window.location.host.includes('gen.asyncdevph.xyz');
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIsGenSubdomain(window.location.host.startsWith('gen.'));
+      setIsGenSubdomain(window.location.host.startsWith('gen.') || window.location.host.includes('gen.asyncdevph.xyz'));
     }
   }, []);
 
   const syncSecurityCookie = (userObj: any) => {
     if (typeof document === 'undefined') return;
+    const isProd = window.location.hostname.toLowerCase().includes('asyncdevph.xyz');
+    const domainAttr = isProd ? '; Domain=.asyncdevph.xyz' : '';
     if (userObj) {
       const discordId =
         userObj.user_metadata?.provider_id ||
@@ -33,10 +40,10 @@ export default function Navbar() {
         userObj.id ||
         null;
       if (discordId) {
-        document.cookie = `async_security_uid=${discordId}; Path=/; Max-Age=31536000; SameSite=Lax`;
+        document.cookie = `async_security_uid=${discordId}; Path=/; Max-Age=31536000; SameSite=Lax${domainAttr}`;
       }
     } else {
-      document.cookie = 'async_security_uid=; Path=/; Max-Age=0; SameSite=Lax';
+      document.cookie = `async_security_uid=; Path=/; Max-Age=0; SameSite=Lax${domainAttr}`;
     }
   };
 
@@ -106,14 +113,15 @@ export default function Navbar() {
               ASYNC DEVELOPMENT
             </span>
             <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono tracking-wider">
-              {isGenSubdomain ? 'Account Generator Infrastructure' : 'Developer Tools & Automation Platform'}
+              <span className="hidden [html[data-subdomain='gen']_&]:inline [body[data-subdomain='gen']_&]:inline">Account Generator Infrastructure</span>
+              <span className="inline [html[data-subdomain='gen']_&]:hidden [body[data-subdomain='gen']_&]:hidden">Developer Tools & Automation Platform</span>
             </p>
           </div>
         </Link>
 
         {/* Desktop Navigation Links (Mathematically Centered) - Hidden on gen subdomain */}
         {!isGenSubdomain && (
-          <nav className="hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-30 shadow-sm pointer-events-auto">
+          <nav className="nav-storefront-item hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-30 shadow-sm pointer-events-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = !item.external && pathname === item.href;
@@ -179,7 +187,7 @@ export default function Navbar() {
           ) : !isGenSubdomain ? (
             <button
               onClick={handleDiscordLogin}
-              className="flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs sm:text-sm transition-colors shadow-sm"
+              className="nav-storefront-item flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs sm:text-sm transition-colors shadow-sm"
             >
               <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>Login</span>
@@ -190,7 +198,7 @@ export default function Navbar() {
           {!isGenSubdomain && (
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              className="nav-storefront-item md:hidden p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5 text-zinc-400" />}
@@ -202,7 +210,7 @@ export default function Navbar() {
 
       {/* Mobile Slide-Down Navigation Menu */}
       {!isGenSubdomain && mobileMenuOpen && (
-        <div className="md:hidden mt-3 pt-3 border-t border-zinc-800 max-w-7xl mx-auto flex flex-col gap-1.5 bg-zinc-950 p-3 rounded-xl border border-zinc-800 animate-in slide-in-from-top duration-200">
+        <div className="nav-storefront-item md:hidden mt-3 pt-3 border-t border-zinc-800 max-w-7xl mx-auto flex flex-col gap-1.5 bg-zinc-950 p-3 rounded-xl border border-zinc-800 animate-in slide-in-from-top duration-200">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = !item.external && pathname === item.href;
