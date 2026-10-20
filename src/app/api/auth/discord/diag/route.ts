@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
   const TARGET_GUILD_ID = '1535200881363001374';
@@ -86,6 +87,33 @@ export async function GET() {
         rolesEvaluated: botRoleObjects.map(r => ({ name: r.name, id: r.id }))
       };
     }
+
+    // Check if user nicolas or query is member
+    const searchRes = await fetch(`https://discord.com/api/v10/guilds/${TARGET_GUILD_ID}/members/search?query=nicolas&limit=10`, {
+      headers: { Authorization: `Bot ${botToken}` }
+    });
+    if (searchRes.ok) {
+      const foundMembers = await searchRes.json();
+      results.nicolasSearch = foundMembers.map((m: any) => ({
+        id: m.user?.id,
+        username: m.user?.username,
+        global_name: m.user?.global_name,
+        joined_at: m.joined_at,
+      }));
+    } else {
+      results.nicolasSearchError = await searchRes.json().catch(() => ({}));
+    }
+
+    // Fetch recent users from Supabase to inspect join feedback
+    const { data: userList } = await supabaseAdmin.auth.admin.listUsers({ perPage: 5 });
+    results.recentLogins = userList?.users?.map((u: any) => ({
+      email: u.email,
+      name: u.user_metadata?.full_name,
+      discord_id: u.user_metadata?.provider_id,
+      join_status: u.user_metadata?.discord_join_status,
+      join_timestamp: u.user_metadata?.discord_join_timestamp,
+      created_at: u.created_at,
+    }));
 
     results.status = 'READY';
     results.message = 'Bot token is valid and bot is present in target guild 1535200881363001374.';
