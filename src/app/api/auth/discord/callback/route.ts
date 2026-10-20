@@ -175,7 +175,8 @@ export async function GET(request: Request) {
     }
 
     const isGenHost = targetHost.startsWith('gen.') || targetHost.includes('gen.asyncdevph.xyz');
-    const redirectTarget = isGenHost
+    const isAdminHost = targetHost.startsWith('admin.') || targetHost.includes('admin.asyncdevph.xyz');
+    const redirectTarget = (isGenHost || isAdminHost)
       ? `${targetProtocol}://${targetHost}/`
       : `${targetProtocol}://${targetHost}/generator`;
 

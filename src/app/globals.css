@@ -34,7 +34,9 @@ body {
 
 /* Zero-flash subdomain styles: hide storefront navbar controls immediately at parse time */
 html[data-subdomain="gen"] .nav-storefront-item,
-body[data-subdomain="gen"] .nav-storefront-item {
+body[data-subdomain="gen"] .nav-storefront-item,
+html[data-subdomain="admin"] .nav-storefront-item,
+body[data-subdomain="admin"] .nav-storefront-item {
   display: none !important;
 }
 

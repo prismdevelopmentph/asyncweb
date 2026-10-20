@@ -227,6 +227,7 @@ export async function middleware(req: NextRequest) {
   // 4. Subdomain Multi-Tenant Routing
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
   const isGenSubdomain = host.startsWith('gen.') || host.includes('gen.asyncdevph.xyz');
+  const isAdminSubdomain = host.startsWith('admin.') || host.includes('admin.asyncdevph.xyz');
   const isProd = host.includes('asyncdevph.xyz');
   const cookieDomain = isProd ? '.asyncdevph.xyz' : undefined;
 
@@ -251,9 +252,37 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  if (isAdminSubdomain) {
+    // If accessing root / on admin subdomain, rewrite internally to /admin
+    if (req.nextUrl.pathname === '/') {
+      const rewriteUrl = req.nextUrl.clone();
+      rewriteUrl.pathname = '/admin';
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('x-subdomain', 'admin');
+      res.cookies.set('async_subdomain', 'admin', { path: '/', domain: cookieDomain });
+      return res;
+    }
+
+    // If accessing /admin directly on admin subdomain, redirect to / for clean URLs
+    if (req.nextUrl.pathname === '/admin') {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.set('async_subdomain', 'admin', { path: '/', domain: cookieDomain });
+      return res;
+    }
+  }
+
+  // If hitting /admin on the apex domain in production, redirect to admin.asyncdevph.xyz
+  if (!isAdminSubdomain && req.nextUrl.pathname === '/admin' && isProd) {
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    return NextResponse.redirect(`${protocol}://admin.asyncdevph.xyz/`);
+  }
+
+  const subdomainTag = isGenSubdomain ? 'gen' : isAdminSubdomain ? 'admin' : 'main';
   const response = NextResponse.next();
-  response.headers.set('x-subdomain', isGenSubdomain ? 'gen' : 'main');
-  response.cookies.set('async_subdomain', isGenSubdomain ? 'gen' : 'main', { path: '/', domain: cookieDomain });
+  response.headers.set('x-subdomain', subdomainTag);
+  response.cookies.set('async_subdomain', subdomainTag, { path: '/', domain: cookieDomain });
   return response;
 }
 

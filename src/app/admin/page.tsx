@@ -922,13 +922,13 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
-            <Link
-              href="/dashboard"
+            <a
+              href="https://asyncdevph.xyz/dashboard"
               className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Dashboard</span>
-            </Link>
+              <span>Back to Store</span>
+            </a>
 
             <button
               onClick={() => fetchAdminData(true)}

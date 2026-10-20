@@ -32,15 +32,15 @@ import SessionInactivityTracker from "@/components/SessionInactivityTracker";
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const host = (headersList.get("x-forwarded-host") || headersList.get("host") || "").toLowerCase();
-  const isGenSubdomain = host.startsWith("gen.") || host.includes("gen.asyncdevph.xyz");
+  const subdomain = host.startsWith("gen.") ? "gen" : host.startsWith("admin.") ? "admin" : "main";
 
   return (
     <html
       lang="en"
-      data-subdomain={isGenSubdomain ? "gen" : "main"}
+      data-subdomain={subdomain}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col" data-subdomain={isGenSubdomain ? "gen" : "main"}>
+      <body className="min-h-full flex flex-col" data-subdomain={subdomain}>
         <DevToolsProtection />
         <SessionInactivityTracker />
         {children}

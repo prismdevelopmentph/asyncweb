@@ -20,10 +20,17 @@ export default function Navbar() {
     }
     return false;
   });
+  const [isAdminSubdomain, setIsAdminSubdomain] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.host.startsWith('admin.') || window.location.host.includes('admin.asyncdevph.xyz');
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsGenSubdomain(window.location.host.startsWith('gen.') || window.location.host.includes('gen.asyncdevph.xyz'));
+      setIsAdminSubdomain(window.location.host.startsWith('admin.') || window.location.host.includes('admin.asyncdevph.xyz'));
     }
   }, []);
 
@@ -114,13 +121,14 @@ export default function Navbar() {
             </span>
             <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono tracking-wider">
               <span className="hidden [html[data-subdomain='gen']_&]:inline [body[data-subdomain='gen']_&]:inline">Account Generator Infrastructure</span>
-              <span className="inline [html[data-subdomain='gen']_&]:hidden [body[data-subdomain='gen']_&]:hidden">Developer Tools & Automation Platform</span>
+              <span className="hidden [html[data-subdomain='admin']_&]:inline [body[data-subdomain='admin']_&]:inline">Operations & Administration Panel</span>
+              <span className="inline [html[data-subdomain='gen']_&]:hidden [body[data-subdomain='gen']_&]:hidden [html[data-subdomain='admin']_&]:hidden [body[data-subdomain='admin']_&]:hidden">Developer Tools & Automation Platform</span>
             </p>
           </div>
         </Link>
 
-        {/* Desktop Navigation Links (Mathematically Centered) - Hidden on gen subdomain */}
-        {!isGenSubdomain && (
+        {/* Desktop Navigation Links (Mathematically Centered) - Hidden on subdomains */}
+        {!isGenSubdomain && !isAdminSubdomain && (
           <nav className="nav-storefront-item hidden md:flex items-center gap-1 bg-zinc-950 px-2 py-1.5 rounded-full border border-zinc-800 absolute left-1/2 -translate-x-1/2 z-30 shadow-sm pointer-events-auto">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -184,7 +192,7 @@ export default function Navbar() {
                 <span className="hidden xs:inline">Sign Out</span>
               </button>
             </div>
-          ) : !isGenSubdomain ? (
+          ) : (!isGenSubdomain && !isAdminSubdomain) ? (
             <button
               onClick={handleDiscordLogin}
               className="nav-storefront-item flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs sm:text-sm transition-colors shadow-sm"
@@ -195,7 +203,7 @@ export default function Navbar() {
           ) : null}
 
           {/* Mobile Hamburger Button (Only on apex domain) */}
-          {!isGenSubdomain && (
+          {!isGenSubdomain && !isAdminSubdomain && (
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="nav-storefront-item md:hidden p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
@@ -209,7 +217,7 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Slide-Down Navigation Menu */}
-      {!isGenSubdomain && mobileMenuOpen && (
+      {!isGenSubdomain && !isAdminSubdomain && mobileMenuOpen && (
         <div className="nav-storefront-item md:hidden mt-3 pt-3 border-t border-zinc-800 max-w-7xl mx-auto flex flex-col gap-1.5 bg-zinc-950 p-3 rounded-xl border border-zinc-800 animate-in slide-in-from-top duration-200">
           {navItems.map((item) => {
             const Icon = item.icon;
