@@ -18,6 +18,7 @@ export async function GET(request: Request) {
 
   try {
     let discordUser: any = null;
+    let joinFeedback = '';
 
     if (clientSecret) {
       const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
@@ -52,8 +53,10 @@ export async function GET(request: Request) {
         // Automatically join user strictly to server 1535200881363001374 via guilds.join
         const TARGET_GUILD_ID = '1535200881363001374';
         const botToken = process.env.DISCORD_BOT_TOKEN || process.env.DISCORD_TOKEN;
+        joinFeedback = '';
 
         if (!botToken) {
+          joinFeedback = 'no_bot_token';
           console.warn('[Discord Guild Join] Skipped: DISCORD_BOT_TOKEN is not defined in environment variables.');
         } else if (discordUser?.id) {
           try {
@@ -69,14 +72,18 @@ export async function GET(request: Request) {
             });
 
             if (joinRes.status === 201) {
+              joinFeedback = 'success_joined';
               console.log(`[Discord Guild Join] Successfully added user ${discordUser.id} to server ${TARGET_GUILD_ID}`);
             } else if (joinRes.status === 204) {
+              joinFeedback = 'already_member';
               console.log(`[Discord Guild Join] User ${discordUser.id} is already a member of server ${TARGET_GUILD_ID}`);
             } else {
               const joinErr = await joinRes.json().catch(() => ({}));
+              joinFeedback = `err_${joinRes.status}_code_${joinErr.code || 'unknown'}_${encodeURIComponent(joinErr.message || '')}`;
               console.warn(`[Discord Guild Join Warning] Status ${joinRes.status} on guild ${TARGET_GUILD_ID}:`, joinErr);
             }
-          } catch (joinEx) {
+          } catch (joinEx: any) {
+            joinFeedback = `exception_${encodeURIComponent(joinEx.message || 'unknown')}`;
             console.error('[Discord Guild Join Error]:', joinEx);
           }
         }
@@ -127,11 +134,13 @@ export async function GET(request: Request) {
       });
     }
 
+    const redirectTarget = `${protocol}://${host}/generator${joinFeedback ? `?discord_join=${joinFeedback}` : ''}`;
+
     const { data: magicLink } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: userEmail,
       options: {
-        redirectTo: `${protocol}://${host}/generator`
+        redirectTo: redirectTarget
       }
     });
 
@@ -139,7 +148,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(magicLink.properties.action_link);
     }
 
-    return NextResponse.redirect(`${protocol}://${host}/generator`);
+    return NextResponse.redirect(redirectTarget);
   } catch (err: any) {
     console.error('[Discord OAuth Callback Error]:', err);
     return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_error`);

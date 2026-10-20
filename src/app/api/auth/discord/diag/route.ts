@@ -58,7 +58,35 @@ export async function GET() {
       return NextResponse.json(results);
     }
 
+    const memberData = await guildMemberRes.json();
     results.inTargetGuild = true;
+    results.botRoles = memberData.roles || [];
+
+    // Audit bot permissions inside target guild
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${TARGET_GUILD_ID}/roles`, {
+      headers: { Authorization: `Bot ${botToken}` }
+    });
+
+    if (rolesRes.ok) {
+      const allRoles: any[] = await rolesRes.json();
+      const botRoleObjects = allRoles.filter(r => memberData.roles?.includes(r.id) || r.id === TARGET_GUILD_ID);
+      let hasInvite = false;
+      let hasAdmin = false;
+
+      for (const r of botRoleObjects) {
+        const perms = BigInt(r.permissions || '0');
+        if ((perms & BigInt(0x1)) !== BigInt(0)) hasInvite = true;
+        if ((perms & BigInt(0x8)) !== BigInt(0)) hasAdmin = true;
+      }
+
+      results.permissionAudit = {
+        hasCreateInstantInvite: hasInvite,
+        hasAdministrator: hasAdmin,
+        canAddMembers: hasInvite || hasAdmin,
+        rolesEvaluated: botRoleObjects.map(r => ({ name: r.name, id: r.id }))
+      };
+    }
+
     results.status = 'READY';
     results.message = 'Bot token is valid and bot is present in target guild 1535200881363001374.';
     return NextResponse.json(results);
@@ -68,3 +96,4 @@ export async function GET() {
     return NextResponse.json(results);
   }
 }
+
