@@ -1,8 +1,18 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart } from 'lucide-react';
 
 export default function Footer() {
+  const [isGenSubdomain, setIsGenSubdomain] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsGenSubdomain(window.location.host.startsWith('gen.'));
+    }
+  }, []);
+
   return (
     <footer className="w-full bg-black border-t border-zinc-800/80 py-10 px-4 lg:px-8 mt-20 relative overflow-hidden">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
@@ -19,15 +29,24 @@ export default function Footer() {
           </div>
           <div>
             <span className="text-sm font-bold text-white tracking-wide">ASYNC DEVELOPMENT</span>
-            <p className="text-xs text-zinc-400">Developer Tools & Automation Platform</p>
+            <p className="text-xs text-zinc-400">
+              {isGenSubdomain ? 'Account Generator Infrastructure' : 'Developer Tools & Automation Platform'}
+            </p>
           </div>
         </div>
 
         {/* Quick Links */}
         <div className="flex items-center gap-6 text-xs text-zinc-400 font-medium">
-          <Link href="/" className="hover:text-white transition-colors">Home</Link>
-          <Link href="/generator" className="hover:text-white transition-colors">Generator</Link>
-          <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
+          {isGenSubdomain ? (
+            <a href="https://asyncdevph.xyz" className="hover:text-white transition-colors">
+              Store
+            </a>
+          ) : (
+            <>
+              <Link href="/" className="hover:text-white transition-colors">Home</Link>
+              <Link href="/generator" className="hover:text-white transition-colors">Generator</Link>
+            </>
+          )}
         </div>
 
         {/* Copyright */}
