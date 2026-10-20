@@ -45,8 +45,16 @@ import {
   ExternalLink,
   Laptop,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  LogIn,
+  ArrowUpRight
 } from 'lucide-react';
+
+const DiscordIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.057a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.793 8.18 1.793 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z" />
+  </svg>
+);
 
 function DiscordUserBadge({
   userId,
@@ -77,7 +85,7 @@ function DiscordUserBadge({
       tooltipText = profile.name || profile.username || rawId;
     }
   } else if (rawId === '719482630633947166') {
-    tooltipText = 'Maik (Owner)';
+    tooltipText = 'Mark (Owner)';
   } else if (rawId === 'ASYNC-V2') {
     tooltipText = 'ASYNC V2 Engine';
   }
@@ -758,7 +766,7 @@ export default function AdminPage() {
       channel: chatChannel,
       ticket_id: chatChannel === 'support' ? selectedTicketId : null,
       sender_id: ownerUserId || '719482630633947166',
-      sender_name: 'Maik (Admin)',
+      sender_name: 'Mark (Admin)',
       sender_avatar: user?.user_metadata?.avatar_url || null,
       content,
       is_admin: true,
@@ -775,7 +783,7 @@ export default function AdminPage() {
           channel: chatChannel,
           ticketId: chatChannel === 'support' ? selectedTicketId : null,
           senderId: ownerUserId || '719482630633947166',
-          senderName: 'Maik (Admin)',
+          senderName: 'Mark (Admin)',
           senderAvatar: user?.user_metadata?.avatar_url || null,
           content,
           isAdmin: true,
@@ -814,28 +822,189 @@ export default function AdminPage() {
 
   // Security Gate: Non-owner access blocked
   if (!user || !isOwner) {
+    const handleAdminDiscordLogin = () => {
+      window.location.href = '/api/auth/discord/login';
+    };
+
     return (
-      <div className="min-h-screen bg-[#09090b] text-zinc-100 relative font-sans">
+      <div className="min-h-screen bg-black text-zinc-100 relative overflow-hidden font-sans selection:bg-purple-600 selection:text-white dev-grid-bg flex flex-col justify-between">
         <Navbar />
 
-        <main className="max-w-md mx-auto px-6 py-32 flex flex-col items-center justify-center text-center">
-          <div className="bg-zinc-900/90 p-8 sm:p-10 rounded-3xl border border-zinc-800/80 w-full shadow-2xl backdrop-blur-xl">
-            <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-6 text-rose-400 shadow-inner">
-              <ShieldAlert className="w-7 h-7" />
-            </div>
+        <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 flex-1 flex flex-col justify-center">
+          <div className="py-4 sm:py-8 lg:py-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              
+              {/* Left Column: Operations Showcase */}
+              <div className="lg:col-span-7 flex flex-col justify-center">
+                {/* Status Pill */}
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-mono font-medium mb-5 w-fit">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  ASYNC CORE OPERATIONS // RESTRICTED ACCESS
+                </div>
 
-            <h1 className="text-2xl font-bold mb-2 text-white tracking-tight">Access Restricted</h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mb-8 leading-relaxed">
-              This control panel is strictly restricted to authorized system Owners. If you are an Owner, please sign in with your designated Discord account.
-            </p>
+                {/* Main Headline */}
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
+                  System Operations & <br className="hidden sm:inline" />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-purple-300 to-white">
+                    Control Infrastructure.
+                  </span>
+                </h1>
 
-            {!user ? (
-              <DiscordLoginButton size="lg" className="w-full" text="Sign in as Owner" />
-            ) : (
-              <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400">
-                User ID: <span className="text-zinc-200">{ownerUserId}</span> (Unauthorized)
+                {/* Subtitle */}
+                <p className="mt-4 text-sm sm:text-base text-zinc-400 max-w-xl leading-relaxed">
+                  Centralized administrative console for real-time security enforcement, generator license provisioning, stock tracking, and user audit telemetry.
+                </p>
+
+                {/* Core Administrative Capabilities */}
+                <div className="mt-8 pt-6 border-t border-zinc-800/80">
+                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                    Subsystem Modules & Control Surfaces
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0 text-rose-400">
+                        <ShieldAlert className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Security & Lockouts</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Firewall enforcement & IP bans</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0 text-purple-400">
+                        <Key className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Generator Licenses</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Key provisioning & daily limits</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-emerald-400">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Stock & Inventory</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Multi-service import & pools</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-blue-400">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Audit Telemetry</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Claims & download records</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Return Link to Storefront */}
+                <a
+                  href="https://asyncdevph.xyz"
+                  className="mt-6 flex items-center justify-between gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-950/30 to-zinc-900/60 border border-purple-500/30 hover:border-purple-400/60 transition-all group shadow-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-semibold text-white group-hover:text-purple-200 transition-colors flex items-center gap-1.5">
+                        <span>Looking for customer storefront? Visit asyncdevph.xyz</span>
+                        <span className="text-purple-400">&rarr;</span>
+                      </div>
+                      <div className="text-[11px] text-zinc-400 font-mono">
+                        Return to public product marketplace and digital goods
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                </a>
+
+                {/* Left Showcase Footer */}
+                <div className="mt-8 text-xs text-zinc-600 font-mono">
+                  &copy; 2026 ASYNC DEVELOPMENT. All rights reserved.
+                </div>
               </div>
-            )}
+
+              {/* Right Column: Sleek Owner Auth Gateway */}
+              <div className="lg:col-span-5">
+                <div className="relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 via-purple-600/20 to-indigo-600/20 rounded-3xl blur-xl opacity-60" />
+
+                  <div className="relative bg-zinc-950/90 border border-zinc-800 rounded-2xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400">
+                        <Crown className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        Owner Gateway
+                      </div>
+                    </div>
+
+                    <h2 className="text-xl font-bold tracking-tight text-white mb-2">
+                      Sign in to your account
+                    </h2>
+                    <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
+                      Authenticate with an authorized Discord Owner account to access core operations and generator administration.
+                    </p>
+
+                    {!user ? (
+                      /* Continue with Discord Button */
+                      <button
+                        onClick={handleAdminDiscordLogin}
+                        className="w-full py-3 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all duration-150 shadow-[0_0_20px_rgba(88,101,242,0.35)] hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] active:scale-[0.99] cursor-pointer"
+                      >
+                        <DiscordIcon className="w-5 h-5 fill-current" />
+                        <span>Continue with Discord</span>
+                      </button>
+                    ) : (
+                      /* Unauthorized Session Display + Switch Account */
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800/60 text-left">
+                          <div className="flex items-center gap-2 text-rose-300 text-xs font-semibold mb-1">
+                            <ShieldAlert className="w-4 h-4 text-rose-400" />
+                            <span>Unauthorized Discord Account</span>
+                          </div>
+                          <p className="text-[11px] text-zinc-400 leading-relaxed">
+                            Connected as <span className="font-mono text-zinc-200">{ownerUserId}</span>. This account does not have Owner privileges.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={async () => {
+                            await supabase.auth.signOut();
+                            window.location.href = '/api/auth/discord/login';
+                          }}
+                          className="w-full py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                        >
+                          <LogIn className="w-4 h-4" />
+                          <span>Switch to Owner Account</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Security Notice */}
+                    <div className="mt-6 pt-5 border-t border-zinc-800/80 space-y-2.5">
+                      <div className="flex items-start gap-2 text-[11px] text-zinc-400 leading-relaxed">
+                        <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+                        <span>Secured session</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-600 leading-relaxed font-mono">
+                        Access is strictly restricted to designated Owner Discord IDs. All unauthorized attempts are logged.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </main>
 

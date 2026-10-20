@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
       });
 
       const userProfiles: Record<string, { name: string; username?: string }> = {
-        '719482630633947166': { name: 'Maik', username: 'Owner' },
+        '719482630633947166': { name: 'Mark', username: 'Owner' },
         'ASYNC-V2': { name: 'ASYNC V2', username: 'Engine' },
       };
 
