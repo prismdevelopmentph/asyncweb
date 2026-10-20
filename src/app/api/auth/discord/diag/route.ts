@@ -14,6 +14,31 @@ export async function GET() {
     botTokenConfigured: !!botToken,
   };
 
+  // Test Client Secret validity via OAuth2 client_credentials grant
+  try {
+    const ccRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: 'client_credentials',
+        scope: 'identify'
+      })
+    });
+
+    if (ccRes.ok) {
+      results.clientSecretValid = true;
+    } else {
+      const ccErr = await ccRes.json().catch(() => ({}));
+      results.clientSecretValid = false;
+      results.clientSecretError = ccErr;
+    }
+  } catch (err: any) {
+    results.clientSecretValid = false;
+    results.clientSecretError = err.message;
+  }
+
   if (!botToken) {
     results.status = 'ERROR';
     results.message = 'DISCORD_BOT_TOKEN is missing from environment variables';
