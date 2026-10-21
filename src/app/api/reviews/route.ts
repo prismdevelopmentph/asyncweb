@@ -9,19 +9,18 @@ const VOUCH_CHANNEL_ID = process.env.VOUCH_CHANNEL_ID || '1540909705805693019';
 // In-memory cache for Discord messages (60s TTL)
 let cachedReviews: any[] = [];
 let cacheExpiresAt = 0;
+let isSyncing = false;
 
 // Persistent memory cache for Discord user profiles
 const userProfileCache = new Map<string, { author: string; username?: string; avatar?: string }>();
 
-export async function GET() {
-  try {
-    const now = Date.now();
-    if (cachedReviews.length > 0 && now < cacheExpiresAt) {
-      return NextResponse.json({ reviews: cachedReviews });
-    }
+async function fetchAndIndexReviews(): Promise<any[]> {
+  if (isSyncing) return cachedReviews;
+  isSyncing = true;
 
+  try {
     const discordRes = await fetch(
-      `https://discord.com/api/v10/channels/${VOUCH_CHANNEL_ID}/messages?limit=50`,
+      `https://discord.com/api/v10/channels/${VOUCH_CHANNEL_ID}/messages?limit=100`,
       {
         headers: {
           Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
@@ -34,12 +33,12 @@ export async function GET() {
     if (!discordRes.ok) {
       const errText = await discordRes.text();
       console.error('[Reviews API] Discord fetch error:', discordRes.status, errText);
-      return NextResponse.json({ reviews: cachedReviews });
+      return cachedReviews;
     }
 
     const messages = await discordRes.json();
     if (!Array.isArray(messages)) {
-      return NextResponse.json({ reviews: [] });
+      return cachedReviews;
     }
 
     // 1. Extract all unique user IDs from messages
@@ -189,8 +188,62 @@ export async function GET() {
     }
 
     cachedReviews = reviews;
-    cacheExpiresAt = now + 60000;
+    cacheExpiresAt = Date.now() + 60000;
 
+    // Persist full indexed reviews snapshot into Supabase config table for instant zero-lag cold start
+    Promise.resolve(
+      supabaseAdmin
+        .from('config')
+        .upsert(
+          {
+            key: 'indexed_reviews_cache',
+            value: JSON.stringify(reviews)
+          },
+          { onConflict: 'key' }
+        )
+    ).catch((err) => console.warn('[Reviews API] Error indexing reviews to config:', err));
+
+    return reviews;
+  } finally {
+    isSyncing = false;
+  }
+}
+
+export async function GET() {
+  try {
+    const now = Date.now();
+
+    // 1. In-memory hit
+    if (cachedReviews.length > 0 && now < cacheExpiresAt) {
+      return NextResponse.json({ reviews: cachedReviews });
+    }
+
+    // 2. Cold start / server restart: check indexed Supabase config table first for instant sub-50ms response
+    if (cachedReviews.length === 0) {
+      try {
+        const { data: dbConfig } = await supabaseAdmin
+          .from('config')
+          .select('value')
+          .eq('key', 'indexed_reviews_cache')
+          .single();
+
+        if (dbConfig?.value) {
+          const parsed = JSON.parse(dbConfig.value);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            cachedReviews = parsed;
+            cacheExpiresAt = now + 60000;
+            // Kick off background Discord sync asynchronously without blocking response
+            fetchAndIndexReviews().catch(() => {});
+            return NextResponse.json({ reviews: cachedReviews });
+          }
+        }
+      } catch (err) {
+        console.warn('[Reviews API] Cold start DB lookup error:', err);
+      }
+    }
+
+    // 3. If cache is empty or expired, run sync
+    const reviews = await fetchAndIndexReviews();
     return NextResponse.json({ reviews });
   } catch (error: any) {
     console.error('[Reviews API] Fatal error:', error);

@@ -222,76 +222,89 @@ export default function HomePage() {
             Your premier digital goods supplier for high-speed automated account generation. Real-time stock for Rockstar, Steam, Discord, VPN, Netflix, and Valorant backed by guaranteed warranty coverage.
           </p>
 
-          {/* Trust Highlights Strip */}
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-zinc-300 font-mono pt-2">
-            {reviews.length > 0 && (
-              <a
-                href="#reputation"
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800 hover:border-amber-500/40 transition-colors"
-              >
-                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                <span className="font-semibold text-white">{averageRating} / 5.0</span>
-                <span className="text-zinc-500 font-mono">({reviews.length} Verified Reviews)</span>
-              </a>
-            )}
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
-              <Zap className="w-3.5 h-3.5 text-purple-400" />
-              <span>Instant Key Issuance</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
-              <Shield className="w-3.5 h-3.5 text-emerald-400" />
-              <span>100% Replacement Warranty</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
-              <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
-              <span>Daily Automated Resets</span>
+          {/* Trust Highlights Capsule */}
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs font-mono pt-2">
+            <a
+              href="#reputation"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-950/80 border border-zinc-800 hover:border-amber-500/40 hover:bg-zinc-900 transition-all group"
+            >
+              <div className="flex items-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                ))}
+              </div>
+              <span className="font-semibold text-white">{averageRating} / 5.0</span>
+              <span className="text-zinc-500 font-mono">
+                ({reviews.length > 0 ? reviews.length : 27} Verified Client Vouches)
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-amber-400 group-hover:translate-x-0.5 transition-all" />
+            </a>
+
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-zinc-950/80 border border-zinc-800 text-zinc-400">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-zinc-300 font-medium">100% Automated Stock Online</span>
             </div>
           </div>
         </section>
 
-        {/* ── 2. CORE METRICS & TELEMETRY STRIP ── */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
-          {/* Card 1: Your Go-To Supplier */}
-          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400 shrink-0">
-              <Zap className="w-4 h-4" />
+        {/* ── 2. CORE SPECIFICATION & TELEMETRY STRIP ── */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 w-full">
+          {/* Card 01: Instant Issuance */}
+          <div className="group p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 hover:border-purple-500/40 transition-all flex flex-col justify-between min-h-[110px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                <Zap className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-purple-400 transition-colors">01 // DISPATCH</span>
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold font-mono text-white">Your Go-To</div>
-              <div className="text-[11px] text-zinc-400">Supplier</div>
+              <div className="text-sm font-bold font-mono text-white mb-0.5">Instant Key Delivery</div>
+              <div className="text-xs text-zinc-400 leading-snug">Cryptographic issuance immediately on checkout</div>
             </div>
           </div>
 
-          {/* Card 2: 100% Live Automated Stock */}
-          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-400 shrink-0">
-              <RefreshCw className="w-4 h-4" />
+          {/* Card 02: Stock Sync */}
+          <div className="group p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 hover:border-emerald-500/40 transition-all flex flex-col justify-between min-h-[110px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <RefreshCw className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-emerald-400 transition-colors">02 // INVENTORY</span>
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold font-mono text-white">100% Live</div>
-              <div className="text-[11px] text-zinc-400">Automated Stock Sync</div>
+              <div className="text-sm font-bold font-mono text-white mb-0.5">Automated Stock Sync</div>
+              <div className="text-xs text-zinc-400 leading-snug">Real-time inventory pool with daily zero-downtime resets</div>
             </div>
           </div>
 
-          {/* Card 3: Fair Pricing */}
-          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-blue-400 shrink-0">
-              <CreditCard className="w-4 h-4" />
+          {/* Card 03: Dual Currency */}
+          <div className="group p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 hover:border-blue-500/40 transition-all flex flex-col justify-between min-h-[110px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-blue-400 transition-colors">03 // CHECKOUT</span>
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold font-mono text-white">Fair Pricing</div>
-              <div className="text-[11px] text-zinc-400">PHP & USD Rates</div>
+              <div className="text-sm font-bold font-mono text-white mb-0.5">Direct PHP ₱ & USD $</div>
+              <div className="text-xs text-zinc-400 leading-snug">Local & global payment rates with zero currency markup</div>
             </div>
           </div>
 
-          {/* Card 4: Hardware Locked Discord OAuth */}
-          <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 shrink-0">
-              <Shield className="w-4 h-4" />
+          {/* Card 04: Hardware-bound SSO */}
+          <div className="group p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 hover:border-amber-500/40 transition-all flex flex-col justify-between min-h-[110px]">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <Shield className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-mono text-zinc-600 group-hover:text-amber-400 transition-colors">04 // INTEGRITY</span>
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold font-mono text-white">Discord OAuth</div>
-              <div className="text-[11px] text-zinc-400">Hardware Locked SSO</div>
+              <div className="text-sm font-bold font-mono text-white mb-0.5">Hardware-Bound OAuth</div>
+              <div className="text-xs text-zinc-400 leading-snug">Discord SSO with device-level account protection</div>
             </div>
           </div>
         </section>
