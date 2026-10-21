@@ -18,13 +18,11 @@ import {
   ArrowUpRight,
   CreditCard,
   ExternalLink,
-  Star,
   Lock,
   Clock,
   MessageSquare,
   CheckCircle2,
-  Users,
-  Award
+  Users
 } from 'lucide-react';
 
 type Currency = 'PHP' | 'USD';
@@ -125,70 +123,6 @@ const CATEGORIES = [
   { id: 'all', label: 'All Licenses', count: LICENSES.length },
   { id: 'single', label: 'Single Access', count: LICENSES.filter(p => p.category === 'single').length },
   { id: 'bundle', label: 'Bundles & Packages', count: LICENSES.filter(p => p.category === 'bundle').length },
-];
-
-// ── VERIFIED CUSTOMER REPUTATION & VOUCHES ──
-const REVIEWS = [
-  {
-    id: 'rev-1',
-    author: 'Kaelen',
-    role: 'FiveM Server Developer',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-    rating: 5,
-    tier: 'FiveM Package Bundle',
-    date: 'Yesterday',
-    comment: 'Been running a high-pop FiveM server for 8 months. Getting Rockstar & VPN accounts was always a pain with flaky public sellers. ASYNC’s FiveM bundle gives our staff team instant accounts without ever hitting a dead pool. 10/10 reliability.'
-  },
-  {
-    id: 'rev-2',
-    author: 'zSpecter',
-    role: 'Competitive Gamer',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-    rating: 5,
-    tier: 'Single Service Tier (Steam)',
-    date: '2 days ago',
-    comment: 'Grabbed a Steam service key. Expected phone/guard verification issues like other shops, but it was pristine. First-time login worked instantly, VAC clean, and daily limits reset right on schedule.'
-  },
-  {
-    id: 'rev-3',
-    author: 'Ares_V',
-    role: 'Gaming Community Host',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
-    rating: 5,
-    tier: 'All-Access Unlimited Pass',
-    date: '3 days ago',
-    comment: 'The All-Access Pass is unmatched value. Whenever stock updates hit, the priority queue actually kicks in and all 6 services are unlocked. Cloud history is clean and saving is seamless.'
-  },
-  {
-    id: 'rev-4',
-    author: 'Ryker',
-    role: 'FiveM Player',
-    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80',
-    rating: 5,
-    tier: 'Single Service Tier (Rockstar)',
-    date: '4 days ago',
-    comment: 'Instant automated license issuance. Picked the Rockstar tier and was generating accounts within 30 seconds of paying. Opened a ticket on Discord to ask about bundles and Mark replied in 4 minutes.'
-  },
-  {
-    id: 'rev-5',
-    author: 'GhostOps',
-    role: 'Security Engineer & Enthusiast',
-    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80',
-    rating: 5,
-    tier: 'FiveM Package Bundle',
-    date: 'Last week',
-    comment: 'Hardware-locked token architecture is something you rarely see on digital shops. Knowing my key cannot be shared or stolen provides genuine peace of mind. CyberGhost VPN pools are rock solid.'
-  },
-  {
-    id: 'rev-6',
-    author: 'DexterPH',
-    role: 'Verified Client',
-    avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=120&auto=format&fit=crop&q=80',
-    rating: 5,
-    tier: 'All-Access Unlimited Pass',
-    date: 'Last week',
-    comment: 'Native Philippine Peso (PHP ₱) pricing makes checkout so easy. No ridiculous foreign bank exchange fees or crypto gas delays. Direct fair rates and instant automated key delivery.'
-  }
 ];
 
 // ── KEY PLATFORM FEATURES ──
@@ -292,18 +226,17 @@ export default function HomePage() {
 
           {/* Trust Highlights Strip */}
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-zinc-300 font-mono pt-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
-              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-              <span className="font-semibold text-white">4.9 / 5.0</span>
-              <span className="text-zinc-500">(240+ Verified Reviews)</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
               <Zap className="w-3.5 h-3.5 text-purple-400" />
               <span>Instant Key Issuance</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
               <Shield className="w-3.5 h-3.5 text-emerald-400" />
               <span>100% Replacement Warranty</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
+              <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+              <span>Daily Automated Resets</span>
             </div>
           </div>
         </section>
@@ -623,98 +556,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── 5. REPUTATION & CUSTOMER VOUCHES ── */}
-        <section id="reputation" className="w-full space-y-10 scroll-mt-24 pt-4">
-          
-          {/* Header with Aggregate Rating */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 sm:p-8 rounded-3xl bg-zinc-950/90 border border-zinc-800">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-mono mb-3">
-                <Award className="w-3.5 h-3.5 text-amber-400" />
-                <span>CUSTOMER REPUTATION // VERIFIED FEEDBACK</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
-                Trusted by Gamers & Developers
-              </h2>
-              <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed max-w-xl">
-                See what real players, FiveM community owners, and competitive gamers say about our automated fulfillment speed and account longevity.
-              </p>
-            </div>
-
-            {/* Scorecard Box */}
-            <div className="flex items-center gap-6 px-6 py-4 rounded-2xl bg-zinc-900/80 border border-zinc-800 shrink-0">
-              <div className="text-center">
-                <div className="text-3xl sm:text-4xl font-extrabold font-mono text-white flex items-center justify-center gap-1">
-                  <span>4.9</span>
-                  <Star className="w-6 h-6 text-amber-400 fill-amber-400" />
-                </div>
-                <div className="text-[11px] font-mono text-zinc-400 mt-0.5">Overall Rating</div>
-              </div>
-              <div className="h-10 w-px bg-zinc-800" />
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold font-mono text-purple-400">1,200+</div>
-                <div className="text-[11px] font-mono text-zinc-400 mt-0.5">Orders Delivered</div>
-              </div>
-              <div className="h-10 w-px bg-zinc-800 hidden sm:block" />
-              <div className="text-center hidden sm:block">
-                <div className="text-2xl sm:text-3xl font-bold font-mono text-emerald-400">99.8%</div>
-                <div className="text-[11px] font-mono text-zinc-400 mt-0.5">Success Rate</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Testimonial Cards Grid (6 Reviews) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {REVIEWS.map((rev) => (
-              <div
-                key={rev.id}
-                className="p-6 rounded-3xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors flex flex-col justify-between"
-              >
-                <div>
-                  {/* Star Rating & Verified Badge */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-1">
-                      {[...Array(rev.rating)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                      ))}
-                    </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
-                      Verified Buyer
-                    </span>
-                  </div>
-
-                  {/* Comment */}
-                  <p className="text-xs text-zinc-300 leading-relaxed mb-6 italic">
-                    &ldquo;{rev.comment}&rdquo;
-                  </p>
-                </div>
-
-                {/* Author Info */}
-                <div className="pt-4 border-t border-zinc-900 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0">
-                      <Image
-                        src={rev.avatar}
-                        alt={rev.author}
-                        fill
-                        unoptimized
-                        className="object-cover"
-                      />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white">{rev.author}</div>
-                      <div className="text-[10px] text-zinc-500 font-mono">{rev.role}</div>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] text-zinc-600 font-mono">{rev.date}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── 6. HOW IT WORKS: 4-STEP PIPELINE ── */}
+        {/* ── 5. HOW IT WORKS: 4-STEP PIPELINE ── */}
         <section id="how-it-works" className="w-full space-y-10 scroll-mt-24 pt-4">
           <div className="text-center max-w-xl mx-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] font-mono mb-3">
