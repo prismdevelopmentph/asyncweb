@@ -555,7 +555,7 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Reviews Grid */}
+          {/* Reviews Infinite Marquee */}
           {loadingReviews ? (
             <div className="p-12 text-center rounded-3xl bg-zinc-950/50 border border-zinc-800/80">
               <RefreshCw className="w-6 h-6 text-zinc-500 animate-spin mx-auto mb-2" />
@@ -571,58 +571,150 @@ export default function HomePage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {reviews.map((rev) => (
-                <div
-                  key={rev.id}
-                  className="p-6 rounded-3xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors flex flex-col justify-between"
-                >
-                  <div>
-                    {/* Star Rating & Verified Badge */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-1">
-                        {[...Array(rev.rating)].map((_, i) => (
-                          <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                        ))}
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
-                        Verified Client
-                      </span>
-                    </div>
-
-                    {/* Comment */}
-                    <p className="text-xs text-zinc-300 leading-relaxed mb-6 italic">
-                      &ldquo;{rev.comment}&rdquo;
-                    </p>
-                  </div>
-
-                  {/* Author Info */}
-                  <div className="pt-4 border-t border-zinc-900 flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative w-8 h-8 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0">
-                        <Image
-                          src={rev.avatar}
-                          alt={rev.author}
-                          fill
-                          unoptimized
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold text-white font-mono flex items-center gap-1.5 truncate">
-                          <span className="truncate">{rev.author}</span>
-                          {rev.username && rev.username.toLowerCase() !== rev.author.toLowerCase() && (
-                            <span className="text-[10px] text-zinc-500 font-normal shrink-0">@{rev.username}</span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-zinc-500 font-mono truncate">{rev.service}</div>
-                      </div>
-                    </div>
-
-                    <span className="text-[10px] text-zinc-600 font-mono shrink-0 ml-2">{rev.date}</span>
-                  </div>
+            <div className="relative w-full space-y-4">
+              {/* Controls bar / indicator */}
+              <div className="flex items-center justify-between px-2 text-xs font-mono text-zinc-500">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>LIVE REPUTATION STREAM &bull; HOVER TO PAUSE</span>
                 </div>
-              ))}
+                <div className="hidden sm:block text-[11px] text-zinc-600">
+                  {reviews.length} Verified Entries Looping
+                </div>
+              </div>
+
+              {/* Marquee Wrapper with side fade gradients */}
+              <div className="relative w-full overflow-hidden marquee-pause py-2">
+                {/* Left & Right ambient fade masks */}
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-12 sm:w-32 bg-gradient-to-r from-black via-black/80 to-transparent z-10" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-12 sm:w-32 bg-gradient-to-l from-black via-black/80 to-transparent z-10" />
+
+                <div className="space-y-4">
+                  {/* Row 1: Scrolling Right to Left */}
+                  <div className="animate-marquee-left flex gap-4">
+                    {/* Render duplicated list for seamless infinite loop */}
+                    {[
+                      ...(reviews.length >= 6 ? reviews.filter((_, i) => i % 2 === 0) : reviews),
+                      ...(reviews.length >= 6 ? reviews.filter((_, i) => i % 2 === 0) : reviews),
+                      ...(reviews.length >= 6 ? reviews.filter((_, i) => i % 2 === 0) : reviews)
+                    ].map((rev, idx) => (
+                      <div
+                        key={`row1-${rev.id}-${idx}`}
+                        className="w-[300px] sm:w-[360px] shrink-0 p-5 rounded-3xl bg-zinc-950/80 border border-zinc-800/80 hover:border-purple-500/40 hover:bg-zinc-900/90 transition-all flex flex-col justify-between"
+                      >
+                        <div>
+                          {/* Star Rating & Verified Badge */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-1">
+                              {[...Array(rev.rating)].map((_, i) => (
+                                <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                              ))}
+                            </div>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
+                              Verified
+                            </span>
+                          </div>
+
+                          {/* Comment */}
+                          <p className="text-xs text-zinc-300 leading-relaxed mb-4 italic line-clamp-3">
+                            &ldquo;{rev.comment}&rdquo;
+                          </p>
+                        </div>
+
+                        {/* Author Info */}
+                        <div className="pt-3 border-t border-zinc-900 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="relative w-7 h-7 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0">
+                              <Image
+                                src={rev.avatar}
+                                alt={rev.author}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-white font-mono flex items-center gap-1 truncate">
+                                <span className="truncate">{rev.author}</span>
+                                {rev.username && rev.username.toLowerCase() !== rev.author.toLowerCase() && (
+                                  <span className="text-[10px] text-zinc-500 font-normal shrink-0">@{rev.username}</span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-zinc-500 font-mono truncate">{rev.service}</div>
+                            </div>
+                          </div>
+
+                          <span className="text-[10px] text-zinc-600 font-mono shrink-0 ml-2">{rev.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Row 2: Scrolling Left to Right (when >= 6 reviews exist) */}
+                  {reviews.length >= 6 && (
+                    <div className="animate-marquee-right flex gap-4">
+                      {[
+                        ...reviews.filter((_, i) => i % 2 !== 0),
+                        ...reviews.filter((_, i) => i % 2 !== 0),
+                        ...reviews.filter((_, i) => i % 2 !== 0)
+                      ].map((rev, idx) => (
+                        <div
+                          key={`row2-${rev.id}-${idx}`}
+                          className="w-[300px] sm:w-[360px] shrink-0 p-5 rounded-3xl bg-zinc-950/80 border border-zinc-800/80 hover:border-purple-500/40 hover:bg-zinc-900/90 transition-all flex flex-col justify-between"
+                        >
+                          <div>
+                            {/* Star Rating & Verified Badge */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-1">
+                                {[...Array(rev.rating)].map((_, i) => (
+                                  <Star key={i} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                                ))}
+                              </div>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
+                                Verified
+                              </span>
+                            </div>
+
+                            {/* Comment */}
+                            <p className="text-xs text-zinc-300 leading-relaxed mb-4 italic line-clamp-3">
+                              &ldquo;{rev.comment}&rdquo;
+                            </p>
+                          </div>
+
+                          {/* Author Info */}
+                          <div className="pt-3 border-t border-zinc-900 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="relative w-7 h-7 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0">
+                                <Image
+                                  src={rev.avatar}
+                                  alt={rev.author}
+                                  fill
+                                  unoptimized
+                                  className="object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-white font-mono flex items-center gap-1 truncate">
+                                  <span className="truncate">{rev.author}</span>
+                                  {rev.username && rev.username.toLowerCase() !== rev.author.toLowerCase() && (
+                                    <span className="text-[10px] text-zinc-500 font-normal shrink-0">@{rev.username}</span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-zinc-500 font-mono truncate">{rev.service}</div>
+                              </div>
+                            </div>
+
+                            <span className="text-[10px] text-zinc-600 font-mono shrink-0 ml-2">{rev.date}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </section>
