@@ -12,27 +12,20 @@ import {
   Key,
   Check,
   RefreshCw,
-  Lock,
   Search,
-  Terminal,
-  Cpu,
   Server,
   Zap,
-  Clock,
-  Layers,
   ArrowUpRight,
-  SlidersHorizontal,
-  ChevronRight,
   CreditCard,
   ExternalLink
 } from 'lucide-react';
 
 type Currency = 'PHP' | 'USD';
 
-interface Product {
+interface LicenseTier {
   id: string;
   title: string;
-  category: 'generator' | 'tools' | 'fivem' | 'accounts';
+  category: 'single' | 'bundle';
   categoryLabel: string;
   badge?: string;
   priceUSD: number;
@@ -48,24 +41,24 @@ interface Product {
   highlight?: boolean;
 }
 
-const PRODUCTS: Product[] = [
-  // ── GENERATOR LICENSES ──
+// ONLY REAL CURRENTLY AVAILABLE LICENSES — NO DUMMIES
+const LICENSES: LicenseTier[] = [
   {
     id: 'gen-per-service',
     title: 'Single Service Generator License',
-    category: 'generator',
-    categoryLabel: 'Generator License',
+    category: 'single',
+    categoryLabel: 'Single Access Tier',
     badge: 'SINGLE ACCESS',
     priceUSD: 20,
     pricePHP: 1150,
     originalPriceUSD: 25,
     originalPricePHP: 1450,
-    description: 'Dedicated access to 1 account generation service of your choice (Rockstar, Steam, Discord, CyberGhost, or Netflix).',
+    description: 'Dedicated access to 1 account generation service of your choice (Rockstar, Steam, Discord, CyberGhost VPN, or Netflix).',
     features: [
-      'Choice of 1 dedicated generation pool',
-      'Standard daily generation quota (automated resets)',
-      'Real-time automated stock updates',
-      'Full account retrieval history log'
+      'Choice of 1 dedicated generation service (Rockstar, Steam, Discord, etc.)',
+      'Standard daily generation quota with automated daily resets',
+      'Real-time automated stock updates & replenishment',
+      'Full account retrieval history log (50-item persistent cache)'
     ],
     deliveryType: 'Instant Automated License Key',
     deliveryTime: '< 2 seconds',
@@ -76,19 +69,19 @@ const PRODUCTS: Product[] = [
   {
     id: 'gen-fivem-bundle',
     title: 'FiveM Package Generator Bundle',
-    category: 'generator',
-    categoryLabel: 'Generator License',
+    category: 'bundle',
+    categoryLabel: 'Bundle Package',
     badge: 'FIVEM BUNDLE',
     priceUSD: 45,
     pricePHP: 2550,
     originalPriceUSD: 55,
     originalPricePHP: 3100,
-    description: 'The definitive bundle for FiveM players and developers: Rockstar, Steam, Discord, and CyberGhost VPN all unlocked.',
+    description: 'The definitive complete package for FiveM players and server developers: Rockstar, Steam, Discord, and CyberGhost VPN all unlocked.',
     features: [
-      'Rockstar + Steam + Discord + CyberGhost included',
-      'Elevated daily quota with priority stock queue',
-      'Hardware-locked security token',
-      'Instant key redemption in web portal'
+      'Rockstar + Steam + Discord + CyberGhost VPN included',
+      'Elevated daily quota with priority stock allocation queue',
+      'Instant key redemption in web portal',
+      'Hardware-locked security token with cloud sync'
     ],
     deliveryType: 'Instant Automated License Key',
     deliveryTime: '< 2 seconds',
@@ -99,194 +92,32 @@ const PRODUCTS: Product[] = [
   {
     id: 'gen-all-access',
     title: 'All-Access Unlimited Generator Pass',
-    category: 'generator',
-    categoryLabel: 'Generator License',
+    category: 'bundle',
+    categoryLabel: 'Full Access Pass',
     badge: 'MOST POPULAR',
     priceUSD: 75,
     pricePHP: 4250,
     originalPriceUSD: 95,
     originalPricePHP: 5400,
-    description: 'Complete unrestricted pass to ALL current and future Account Generator services (Steam, Discord, Rockstar, VPN, Netflix, Valorant).',
+    description: 'Complete unrestricted pass to ALL current and future Account Generator services (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant).',
     features: [
-      'Every generator service fully unlocked',
-      'Highest daily generation cap & zero cooldown',
-      'Guaranteed priority restock allocation',
-      'Discord role sync & automated cloud backup'
+      'Every generator service fully unlocked (Rockstar, Steam, Discord, VPN, Netflix, Valorant)',
+      'Highest daily generation cap with zero cooldown restrictions',
+      'Guaranteed priority stock queue on automated restocks',
+      'Discord role sync & automated cloud history backup'
     ],
     deliveryType: 'Instant Automated License Key',
     deliveryTime: '< 2 seconds',
     icon: Sparkles,
     gradient: 'from-purple-600/20 via-zinc-900/80 to-black',
     highlight: true
-  },
-
-  // ── SOFTWARE & DEV TOOLS ──
-  {
-    id: 'tool-deobfuscator',
-    title: 'AST JavaScript & Lua Deobfuscator',
-    category: 'tools',
-    categoryLabel: 'Developer Tools',
-    badge: 'DEVELOPER TOOL',
-    priceUSD: 35,
-    pricePHP: 1980,
-    originalPriceUSD: 45,
-    originalPricePHP: 2550,
-    description: 'Automated syntax-tree AST deobfuscation engine for string decryption, control-flow reconstruction, and dead-code elimination.',
-    features: [
-      'Babel AST AST-level transformation engine',
-      'Automated string array & hex unpacker',
-      'Control flow unflattening & dead code stripping',
-      'High-throughput CLI & web processing client'
-    ],
-    deliveryType: 'Secure Binary & Access Token',
-    deliveryTime: 'Instant Download',
-    icon: Terminal,
-    gradient: 'from-emerald-950/40 via-zinc-900/60 to-black'
-  },
-  {
-    id: 'tool-dumper',
-    title: 'Client Memory Dumper & Payload Extractor',
-    category: 'tools',
-    categoryLabel: 'Developer Tools',
-    badge: 'BINARY UTILITY',
-    priceUSD: 50,
-    pricePHP: 2850,
-    originalPriceUSD: 65,
-    originalPricePHP: 3700,
-    description: 'Low-level memory dumping tool engineered to extract injected runtime scripts, unmapped modules, and decrypted payload buffers.',
-    features: [
-      'In-memory module stomping detection & dump',
-      'VAD tree walking & section carver',
-      'Exported PE rebuilding & fixup headers',
-      'Built for x64 Windows 10/11 environments'
-    ],
-    deliveryType: 'Compiled Executable & Guide',
-    deliveryTime: 'Instant Download',
-    icon: Cpu,
-    gradient: 'from-blue-950/40 via-zinc-900/60 to-black'
-  },
-  {
-    id: 'tool-telemetry-replayer',
-    title: 'Network Telemetry & Packet Replayer',
-    category: 'tools',
-    categoryLabel: 'Developer Tools',
-    badge: 'LAB HARNESS',
-    priceUSD: 40,
-    pricePHP: 2250,
-    originalPriceUSD: 50,
-    originalPricePHP: 2800,
-    description: 'Synthetic network telemetry generator and packet capture inspection tool designed for client-server protocol validation.',
-    features: [
-      'Encrypted payload replay & diff analysis',
-      'Custom proxy harness with latency emulator',
-      'Automated session ticket forgery tester',
-      'Full API documentation & integration scripts'
-    ],
-    deliveryType: 'Digital Toolkit Package',
-    deliveryTime: 'Instant Delivery',
-    icon: Zap,
-    gradient: 'from-amber-950/40 via-zinc-900/60 to-black'
-  },
-
-  // ── FIVEM SERVER ASSETS ──
-  {
-    id: 'fivem-core-framework',
-    title: 'ASYNC FiveM Clean Core Framework',
-    category: 'fivem',
-    categoryLabel: 'FiveM Assets',
-    badge: 'SERVER CORE',
-    priceUSD: 60,
-    pricePHP: 3400,
-    originalPriceUSD: 80,
-    originalPricePHP: 4500,
-    description: 'Optimized server-side framework built for 0.02ms resmon idle, responsive SQL indexing, and seamless custom inventory integration.',
-    features: [
-      'Ultra-clean 0.02ms idle client resource footprint',
-      'Modern oxmysql schema with pre-built indices',
-      'Complete auth, character selector & multijob core',
-      'Full documentation and setup installer'
-    ],
-    deliveryType: 'Git Repository Access & Zip Package',
-    deliveryTime: 'Instant Download',
-    icon: Server,
-    gradient: 'from-purple-950/40 via-zinc-900/60 to-black'
-  },
-  {
-    id: 'fivem-anticheat-suite',
-    title: 'FiveM Anti-Cheat Emulation & Audit Suite',
-    category: 'fivem',
-    categoryLabel: 'FiveM Assets',
-    badge: 'SECURITY AUDIT',
-    priceUSD: 85,
-    pricePHP: 4800,
-    originalPriceUSD: 110,
-    originalPricePHP: 6200,
-    description: 'Comprehensive vulnerability audit harness simulating Lua injection vectors, trigger abuse, and weapon modifier exploits.',
-    features: [
-      'Server-side state-validation middleware',
-      'Automated injection & NUI event scanner',
-      'Token spoofing & remote callback protections',
-      'Includes active monitoring dashboard'
-    ],
-    deliveryType: 'Source Code & Deployment License',
-    deliveryTime: 'Instant Delivery',
-    icon: Shield,
-    gradient: 'from-rose-950/40 via-zinc-900/60 to-black'
-  },
-
-  // ── ACCOUNTS & SUBSCRIPTIONS ──
-  {
-    id: 'acc-vpn-lifetime',
-    title: 'CyberGhost VPN Premium Dedicated Access',
-    category: 'accounts',
-    categoryLabel: 'Accounts & VPN',
-    badge: 'LIFETIME ACCESS',
-    priceUSD: 15,
-    pricePHP: 850,
-    originalPriceUSD: 25,
-    originalPricePHP: 1400,
-    description: 'High-speed dedicated VPN credentials optimized for zero-leak IP masking, low latency, and gaming tunnel bypass.',
-    features: [
-      '10Gbps gaming-optimized server infrastructure',
-      'Strict zero-logging protocol enforcement',
-      'Multi-platform client support (Win/Mac/Mobile)',
-      'Automated warranty & replacement safeguard'
-    ],
-    deliveryType: 'Direct Credentials Delivery',
-    deliveryTime: 'Instant Automated',
-    icon: Lock,
-    gradient: 'from-zinc-900 via-zinc-950 to-black'
-  },
-  {
-    id: 'acc-steam-aged',
-    title: 'Clean Steam Aged Account (CS2 Prime Ready)',
-    category: 'accounts',
-    categoryLabel: 'Accounts & VPN',
-    badge: 'PRIME VERIFIED',
-    priceUSD: 25,
-    pricePHP: 1400,
-    originalPriceUSD: 35,
-    originalPricePHP: 1950,
-    description: 'Hand-registered aged Steam accounts with clean VAC standing, full first-mail access, and CS2 Prime status enabled.',
-    features: [
-      'Original creation email credentials provided',
-      'Clean zero-ban VAC standing & high trust factor',
-      'Market unlocked and ready for FiveM/Rockstar linking',
-      'Instant automated credential dispatch'
-    ],
-    deliveryType: 'Automated Account Details Dispatch',
-    deliveryTime: '< 2 seconds',
-    icon: Key,
-    gradient: 'from-indigo-950/40 via-zinc-900/60 to-black'
   }
 ];
 
 const CATEGORIES = [
-  { id: 'all', label: 'All Digital Goods', count: PRODUCTS.length },
-  { id: 'generator', label: 'Generator Licenses', count: PRODUCTS.filter(p => p.category === 'generator').length },
-  { id: 'tools', label: 'Developer Tools', count: PRODUCTS.filter(p => p.category === 'tools').length },
-  { id: 'fivem', label: 'FiveM Server Assets', count: PRODUCTS.filter(p => p.category === 'fivem').length },
-  { id: 'accounts', label: 'Accounts & VPN', count: PRODUCTS.filter(p => p.category === 'accounts').length },
+  { id: 'all', label: 'All Licenses', count: LICENSES.length },
+  { id: 'single', label: 'Single Access', count: LICENSES.filter(p => p.category === 'single').length },
+  { id: 'bundle', label: 'Bundles & Packages', count: LICENSES.filter(p => p.category === 'bundle').length },
 ];
 
 export default function HomePage() {
@@ -294,9 +125,9 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Filter products by category and search query
-  const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((item) => {
+  // Filter licenses by category and search query
+  const filteredLicenses = useMemo(() => {
+    return LICENSES.filter((item) => {
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const matchesSearch =
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -324,7 +155,7 @@ export default function HomePage() {
           {/* Status Telemetry Pill */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-mono mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="tracking-wider uppercase">ASYNC TOOLS // DIGITAL MARKETPLACE</span>
+            <span className="tracking-wider uppercase">ASYNC TOOLS // YOUR GO-TO SUPPLIER</span>
           </div>
 
           {/* Brand Logo Avatar */}
@@ -345,7 +176,7 @@ export default function HomePage() {
 
           {/* Subtitle */}
           <p className="max-w-2xl mx-auto text-zinc-400 text-sm sm:text-base mb-8 leading-relaxed font-normal">
-            Automated digital goods catalog, developer reverse-engineering utilities, and multi-service account generation infrastructure with sub-second automated delivery.
+            Automated digital delivery and multi-service account generation infrastructure with real-time inventory for Rockstar, Steam, Discord, VPN, Netflix, and Valorant.
           </p>
 
           {/* Flagship Account Generator Gateway Card */}
@@ -383,16 +214,18 @@ export default function HomePage() {
 
         {/* ── CORE METRICS & TELEMETRY STRIP ── */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
+          {/* Card 1: Your Go-To Supplier */}
           <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400 shrink-0">
               <Zap className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold font-mono text-white">&lt; 2.0s</div>
-              <div className="text-[11px] text-zinc-400">Automated Dispatch</div>
+              <div className="text-sm sm:text-base font-bold font-mono text-white">Your Go-To</div>
+              <div className="text-[11px] text-zinc-400">Supplier</div>
             </div>
           </div>
 
+          {/* Card 2: 100% Live Automated Stock */}
           <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-emerald-400 shrink-0">
               <RefreshCw className="w-4 h-4" />
@@ -403,16 +236,18 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Card 3: Fair Pricing */}
           <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-blue-400 shrink-0">
               <CreditCard className="w-4 h-4" />
             </div>
             <div>
-              <div className="text-sm sm:text-base font-bold font-mono text-white">PHP & USD</div>
-              <div className="text-[11px] text-zinc-400">1:1 Direct Currency</div>
+              <div className="text-sm sm:text-base font-bold font-mono text-white">Fair Pricing</div>
+              <div className="text-[11px] text-zinc-400">PHP & USD Rates</div>
             </div>
           </div>
 
+          {/* Card 4: Hardware Locked Discord OAuth */}
           <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 flex items-center gap-3.5">
             <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-amber-400 shrink-0">
               <Shield className="w-4 h-4" />
@@ -424,7 +259,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── STOREFRONT CATALOG SECTION ── */}
+        {/* ── STOREFRONT: AVAILABLE GENERATOR LICENSES ── */}
         <section id="catalog" className="w-full space-y-6 pt-4">
           
           {/* Header Controls: Section Title + Currency Toggle */}
@@ -432,10 +267,10 @@ export default function HomePage() {
             <div>
               <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-purple-300 text-[10px] font-mono mb-1.5">
                 <Sparkles className="w-3 h-3 text-purple-400" />
-                <span>OFFICIAL STOREFRONT</span>
+                <span>OFFICIAL LICENSES</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                Digital Goods & Assets
+                Available Generator Licenses
               </h2>
             </div>
 
@@ -500,7 +335,7 @@ export default function HomePage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products or tools..."
+                placeholder="Search generator licenses..."
                 className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-950 border border-zinc-800 focus:border-purple-500/60 focus:outline-none text-xs text-zinc-200 placeholder-zinc-500 transition-colors font-sans"
               />
               {searchQuery && (
@@ -514,13 +349,13 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Products Grid */}
-          {filteredProducts.length === 0 ? (
+          {/* Licenses Grid */}
+          {filteredLicenses.length === 0 ? (
             <div className="p-12 text-center rounded-3xl bg-zinc-950/50 border border-zinc-800/80">
               <Search className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
-              <h3 className="text-base font-semibold text-white mb-1">No products match your filter</h3>
+              <h3 className="text-base font-semibold text-white mb-1">No licenses match your filter</h3>
               <p className="text-xs text-zinc-400 max-w-sm mx-auto mb-4">
-                Try searching with different keywords or switch to &quot;All Digital Goods&quot;.
+                Try searching with different keywords or switch back to &quot;All Licenses&quot;.
               </p>
               <button
                 onClick={() => { setSelectedCategory('all'); setSearchQuery(''); }}
@@ -531,30 +366,30 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredProducts.map((product) => {
-                const Icon = product.icon;
+              {filteredLicenses.map((license) => {
+                const Icon = license.icon;
                 return (
                   <article
-                    key={product.id}
+                    key={license.id}
                     className={`group rounded-3xl bg-zinc-950/80 border flex flex-col justify-between overflow-hidden transition-all duration-200 hover:border-purple-500/50 hover:shadow-xl hover:shadow-purple-950/15 ${
-                      product.highlight
+                      license.highlight
                         ? 'border-purple-500/40 relative'
                         : 'border-zinc-800/80'
                     }`}
                   >
-                    {product.highlight && (
+                    {license.highlight && (
                       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-purple-400 to-transparent" />
                     )}
 
                     {/* Card Media Header (16:9 aspect) */}
-                    <div className={`relative w-full aspect-[16/9] bg-gradient-to-br ${product.gradient} p-5 flex flex-col justify-between border-b border-zinc-800/80 overflow-hidden`}>
+                    <div className={`relative w-full aspect-[16/9] bg-gradient-to-br ${license.gradient} p-5 flex flex-col justify-between border-b border-zinc-800/80 overflow-hidden`}>
                       {/* Ambient Grid Accent */}
                       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent opacity-40 pointer-events-none" />
 
                       {/* Top Badges */}
                       <div className="flex items-center justify-between relative z-10">
                         <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-zinc-200 font-semibold backdrop-blur-md">
-                          {product.badge || product.categoryLabel}
+                          {license.badge || license.categoryLabel}
                         </span>
 
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-zinc-950/80 border border-zinc-800 text-[10px] font-mono text-zinc-300 backdrop-blur-md">
@@ -572,8 +407,8 @@ export default function HomePage() {
 
                       {/* Bottom Media Bar */}
                       <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-zinc-400">
-                        <span>{product.deliveryType}</span>
-                        <span className="text-zinc-500">{product.deliveryTime}</span>
+                        <span>{license.deliveryType}</span>
+                        <span className="text-zinc-500">{license.deliveryTime}</span>
                       </div>
                     </div>
 
@@ -582,22 +417,22 @@ export default function HomePage() {
                       <div>
                         {/* Meta Category Indicator */}
                         <div className="text-[11px] font-mono text-purple-400 mb-1.5 uppercase tracking-wider">
-                          {product.categoryLabel}
+                          {license.categoryLabel}
                         </div>
 
                         {/* Title */}
                         <h3 className="text-base font-bold text-white group-hover:text-purple-200 transition-colors leading-snug mb-2">
-                          {product.title}
+                          {license.title}
                         </h3>
 
                         {/* Description */}
                         <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2 mb-4">
-                          {product.description}
+                          {license.description}
                         </p>
 
-                        {/* Feature Preview Bullets (Top 2) */}
+                        {/* Feature Preview Bullets */}
                         <div className="space-y-1.5 mb-5 pb-5 border-b border-zinc-800/80">
-                          {product.features.slice(0, 2).map((feat, idx) => (
+                          {license.features.slice(0, 2).map((feat, idx) => (
                             <div key={idx} className="flex items-start gap-2 text-xs text-zinc-300">
                               <Check className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
                               <span className="text-zinc-400 line-clamp-1">{feat}</span>
@@ -611,42 +446,27 @@ export default function HomePage() {
                         <div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-xl font-mono font-bold text-white">
-                              {formatPrice(product.priceUSD, product.pricePHP)}
+                              {formatPrice(license.priceUSD, license.pricePHP)}
                             </span>
-                            {product.originalPriceUSD && (
+                            {license.originalPriceUSD && (
                               <span className="text-xs text-zinc-600 line-through font-mono">
-                                {formatPrice(product.originalPriceUSD, product.originalPricePHP || 0)}
+                                {formatPrice(license.originalPriceUSD, license.originalPricePHP || 0)}
                               </span>
                             )}
                           </div>
                           <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
-                            1:1 Direct Currency
+                            Direct Pricing
                           </div>
                         </div>
 
                         {/* Link / Modal Trigger (Phase 2 Target) */}
-                        {product.category === 'generator' ? (
-                          <a
-                            href="https://gen.asyncdevph.xyz"
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/40 text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer group/btn"
-                          >
-                            <span>Inspect & Access</span>
-                            <ArrowRight className="w-3.5 h-3.5 text-purple-400 group-hover/btn:translate-x-0.5 transition-transform" />
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              // Phase 2 will pop up the Product Details Modal
-                              const targetEl = document.getElementById('how-it-works');
-                              targetEl?.scrollIntoView({ behavior: 'smooth' });
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/40 text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer group/btn"
-                          >
-                            <span>Inspect Product</span>
-                            <ArrowRight className="w-3.5 h-3.5 text-purple-400 group-hover/btn:translate-x-0.5 transition-transform" />
-                          </button>
-                        )}
+                        <a
+                          href="https://gen.asyncdevph.xyz"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/40 text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer group/btn"
+                        >
+                          <span>Inspect License</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-purple-400 group-hover/btn:translate-x-0.5 transition-transform" />
+                        </a>
                       </div>
                     </div>
                   </article>
@@ -667,7 +487,7 @@ export default function HomePage() {
               How Instant Delivery Works
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm mt-1.5">
-              Zero manual delays. Transparent 1:1 pricing with automated cryptographic dispatch.
+              Zero manual delays. Transparent direct pricing with automated cryptographic dispatch.
             </p>
           </div>
 
@@ -676,9 +496,9 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
                 01
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">Select Digital Asset</h3>
+              <h3 className="text-sm font-bold text-white mb-1.5">Select License Tier</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Browse generator license tiers, AST deobfuscators, memory carvers, or FiveM server cores.
+                Choose between Single Service Access, FiveM Package Bundle, or the All-Access Pass.
               </p>
             </div>
 
@@ -686,9 +506,9 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
                 02
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">1:1 Direct Checkout</h3>
+              <h3 className="text-sm font-bold text-white mb-1.5">Direct Checkout</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Pay directly in Philippine Peso (PHP ₱) or US Dollar (USD $) via store balance without hidden rates.
+                Pay directly in Philippine Peso (PHP ₱) or US Dollar (USD $) via store balance without hidden markups.
               </p>
             </div>
 
@@ -698,7 +518,7 @@ export default function HomePage() {
               </div>
               <h3 className="text-sm font-bold text-white mb-1.5">Sub-2s Automated Dispatch</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Server processes the order immediately and returns your license key or secure download link.
+                Server processes the order immediately and returns your cryptographic license key token.
               </p>
             </div>
 
@@ -706,9 +526,9 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
                 04
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">Redeem & Deploy</h3>
+              <h3 className="text-sm font-bold text-white mb-1.5">Redeem & Generate</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Input your license token on gen.asyncdevph.xyz or download binaries directly to your workstation.
+                Input your license token on gen.asyncdevph.xyz to immediately unlock accounts and daily quotas.
               </p>
             </div>
           </div>
