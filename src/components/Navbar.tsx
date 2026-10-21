@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Sparkles, LogIn, LogOut, Key, Menu, X, Shield, Zap } from 'lucide-react';
+import { Sparkles, LogIn, LogOut, Key, Menu, X, Shield, Zap, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Navbar() {
@@ -95,7 +95,7 @@ export default function Navbar() {
       ]
     : [
         { name: 'Store', href: '/#catalog', icon: Sparkles, external: false },
-        { name: 'Verify License', href: '/#verify', icon: Shield, external: false },
+        { name: 'Reputation', href: '/#reputation', icon: Star, external: false },
         { name: 'How It Works', href: '/#how-it-works', icon: Zap, external: false },
       ];
 

@@ -20,6 +20,8 @@ export async function GET(request: Request) {
         dailyLimit: 0,
         guildLock: null as string | null,
         allowedServices: [] as string[] | 'all',
+        vouchGiven: true,
+        licenseId: null as string | null,
       },
       stock: {
         steam: 0,
@@ -111,6 +113,8 @@ export async function GET(request: Request) {
           }
           response.userPlan.expiresAt = isLifetime ? 'Never' : (maxExpiresAt ? maxExpiresAt.toISOString() : 'Never');
           response.userPlan.guildLock = userGuildLock;
+          response.userPlan.licenseId = String(mainLic.id);
+          response.userPlan.vouchGiven = Boolean(activeLicenses.some((lic: any) => lic.vouch_given));
 
           // Fetch user limits & license_services across all active licenses
           const activeLicIds = activeLicenses.map((lic: any) => String(lic.id));

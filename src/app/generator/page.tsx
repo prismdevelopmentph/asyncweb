@@ -22,7 +22,9 @@ import {
   ShieldCheck,
   Shield,
   ArrowUpRight,
-  Zap
+  Zap,
+  Star,
+  MessageSquare
 } from 'lucide-react';
 
 // --- Official Brand Icon Components (SimpleIcons Vectors) ---
@@ -197,6 +199,8 @@ export default function AccountGeneratorPage() {
     dailyUsed: number;
     dailyLimit: number;
     allowedServices?: string[] | 'all';
+    vouchGiven?: boolean;
+    licenseId?: string | null;
   }>({
     hasPlan: false,
     name: 'No active plan',
@@ -204,7 +208,17 @@ export default function AccountGeneratorPage() {
     dailyUsed: 0,
     dailyLimit: 0,
     allowedServices: [],
+    vouchGiven: true,
+    licenseId: null,
   });
+
+  // Vouch / Customer Review Modal State
+  const [showVouchModal, setShowVouchModal] = useState(false);
+  const [pendingVouchService, setPendingVouchService] = useState<{ serviceName: string; currentStock: number } | null>(null);
+  const [vouchRating, setVouchRating] = useState<number>(5);
+  const [vouchComment, setVouchComment] = useState<string>('');
+  const [isSubmittingVouch, setIsSubmittingVouch] = useState(false);
+  const [vouchError, setVouchError] = useState<string | null>(null);
 
   const [stock, setStock] = useState<typeof defaultStock>(() => readStockCache() ?? defaultStock);
   const [stockLoading, setStockLoading] = useState(() => readStockCache() === null);
@@ -414,8 +428,54 @@ export default function AccountGeneratorPage() {
     window.location.href = '/api/auth/discord/login';
   };
 
+  const handleSubmitVouch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanComment = vouchComment.trim();
+    if (!cleanComment || cleanComment.length < 2) {
+      setVouchError('Please submit a true review to continue generating.');
+      return;
+    }
+
+    setIsSubmittingVouch(true);
+    setVouchError(null);
+
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: discordUserId,
+          licenseId: userPlan.licenseId,
+          rating: vouchRating,
+          comment: cleanComment,
+          serviceName: pendingVouchService?.serviceName || 'Acc Gen',
+          avatarUrl: user?.user_metadata?.avatar_url || user?.user_metadata?.picture || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to submit review.');
+      }
+
+      setUserPlan(prev => ({ ...prev, vouchGiven: true }));
+      setShowVouchModal(false);
+      triggerToast('Review verified! Continuing generation...');
+
+      if (pendingVouchService) {
+        const { serviceName, currentStock } = pendingVouchService;
+        setPendingVouchService(null);
+        handleClaimAccount(serviceName, currentStock, true);
+      }
+    } catch (err: any) {
+      setVouchError(err.message || 'Error submitting review.');
+    } finally {
+      setIsSubmittingVouch(false);
+    }
+  };
+
   // Account Claim / Generation Handler
-  const handleClaimAccount = async (serviceName: string, currentStock: number) => {
+  const handleClaimAccount = async (serviceName: string, currentStock: number, bypassVouchCheck = false) => {
     if (!user) {
       triggerToast('Please log in with Discord first');
       return;
@@ -428,6 +488,16 @@ export default function AccountGeneratorPage() {
 
     if (currentStock <= 0) {
       triggerToast(`${serviceName} is currently out of stock`);
+      return;
+    }
+
+    // Customer Review Gate: If false, user must submit a true review before continuing
+    if (!bypassVouchCheck && userPlan.vouchGiven === false) {
+      setPendingVouchService({ serviceName, currentStock });
+      setVouchComment('');
+      setVouchRating(5);
+      setVouchError(null);
+      setShowVouchModal(true);
       return;
     }
 
@@ -1031,6 +1101,109 @@ export default function AccountGeneratorPage() {
       <Footer />
 
       {/* Account Generated Modal */}
+      
+      {/* Customer Review / Vouch Submission Modal */}
+      {showVouchModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-hidden animate-in fade-in duration-150"
+        >
+          <div className="relative z-10 w-full max-w-md bg-zinc-950 rounded-3xl p-6 sm:p-7 border border-zinc-800 shadow-2xl text-left">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                  <Star className="w-5 h-5 fill-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Submit Customer Review</h3>
+                  <p className="text-[11px] text-zinc-400 font-mono">Required to unlock account generation</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowVouchModal(false)}
+                className="p-1.5 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-900 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed mb-5">
+              Share your genuine feedback on ASYNC account generator delivery and stock. Once your review is submitted, your account generation unlocks immediately.
+            </p>
+
+            <form onSubmit={handleSubmitVouch} className="space-y-4">
+              {/* Star Rating Selector */}
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase tracking-wider">
+                  Your Rating
+                </label>
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setVouchRating(s)}
+                      className="p-1 transition-transform hover:scale-110 cursor-pointer"
+                    >
+                      <Star
+                        className={`w-6 h-6 ${
+                          s <= vouchRating ? 'text-amber-400 fill-amber-400' : 'text-zinc-600'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs font-mono font-bold text-white ml-2">
+                    {vouchRating} / 5 Stars
+                  </span>
+                </div>
+              </div>
+
+              {/* Review Text */}
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 mb-1.5 uppercase tracking-wider">
+                  Written Review
+                </label>
+                <textarea
+                  rows={3}
+                  value={vouchComment}
+                  onChange={(e) => {
+                    setVouchComment(e.target.value);
+                    if (vouchError) setVouchError(null);
+                  }}
+                  placeholder="Write an honest review about generator speed, stock quality, or ease of use..."
+                  className="w-full p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 focus:border-purple-500/60 focus:outline-none text-xs text-zinc-200 placeholder-zinc-500 resize-none font-sans"
+                />
+              </div>
+
+              {vouchError && (
+                <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-800/60 text-xs text-rose-300">
+                  {vouchError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmittingVouch}
+                className="w-full py-3 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                {isSubmittingVouch ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                    <span>Submitting Review...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-black" />
+                    <span>Submit Review & Continue</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {generatedModal && (
         <div
           role="dialog"
