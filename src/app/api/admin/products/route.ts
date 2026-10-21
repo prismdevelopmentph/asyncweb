@@ -1,208 +1,135 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getUsdToPhpRate, computePricing } from '@/lib/currency';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-export interface ProductTierOption {
-  id: string;
-  tierKey: 'daily' | 'weekly' | 'monthly' | 'lifetime';
+export interface ProductTier {
+  id?: string;
+  tier_key: 'daily' | 'weekly' | 'monthly' | 'lifetime';
   name: string;
-  priceUSD: number;
-  pricePHP: number;
-  originalPriceUSD?: number;
-  originalPricePHP?: number;
-  dailyLimit?: number;
+  price_php: number;
+  discount_percent: number;
+  daily_limit?: number;
 }
 
-export interface DigitalProduct {
+export interface UnifiedProduct {
   id: string;
   title: string;
   category: string;
-  priceUSD: number;
-  pricePHP: number;
-  originalPriceUSD?: number;
-  originalPricePHP?: number;
   description: string;
+  details?: string;
   features: string[];
-  imageUrl?: string;
-  deliveryMode: 'automated_license' | 'stock_pool';
-  licenseTier?: 'daily' | 'weekly' | 'monthly' | 'lifetime';
-  dailyLimit?: number;
-  serviceScope?: 'all' | 'fivem' | 'single';
-  packageId?: string;
-  stockPool?: string[];
   badge?: string;
-  deliveryType?: string;
-  tierOptions?: ProductTierOption[];
-  isActive: boolean;
+  image_url?: string;
+  delivery_mode: 'automated_license' | 'stock_pool';
+  delivery_type?: string;
+  service_scope?: 'all' | 'fivem' | 'single';
+  tiers: ProductTier[];
+  stock_pool?: string[];
+  is_active: boolean;
   highlight?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const DEFAULT_PRODUCTS: DigitalProduct[] = [
-  {
-    id: 'prod_gen_per_service',
-    title: 'Single Service Generator License',
-    category: 'Generator Licenses',
-    priceUSD: 1.0,
-    pricePHP: 50.0,
-    originalPriceUSD: 2.0,
-    originalPricePHP: 100.0,
-    description: 'Dedicated license key for 1 selected game or service tier.',
-    features: [
-      '1 Target Service of Choice (e.g. Rockstar, Steam, Discord)',
-      '15 Generations per Day limit',
-      'Daily 00:00 UTC automated quota reset',
-      'Instant cryptographic key issuance',
-      '100% Replacement warranty guarantee',
-      'Direct Discord bot + Web dashboard access'
-    ],
-    imageUrl: '',
-    deliveryMode: 'automated_license',
-    licenseTier: 'daily',
-    dailyLimit: 15,
-    serviceScope: 'single',
-    stockPool: [],
-    badge: 'SINGLE ACCESS',
-    deliveryType: 'Instant Cryptographic Key',
-    tierOptions: [
-      { id: 'opt_single_daily', tierKey: 'daily', name: '1 Day', priceUSD: 1.0, pricePHP: 50.0, originalPriceUSD: 2.0, originalPricePHP: 100.0, dailyLimit: 15 },
-      { id: 'opt_single_weekly', tierKey: 'weekly', name: '7 Days', priceUSD: 5.0, pricePHP: 250.0, originalPriceUSD: 7.0, originalPricePHP: 350.0, dailyLimit: 15 },
-      { id: 'opt_single_monthly', tierKey: 'monthly', name: '30 Days', priceUSD: 15.0, pricePHP: 750.0, originalPriceUSD: 20.0, originalPricePHP: 1000.0, dailyLimit: 15 },
-      { id: 'opt_single_lifetime', tierKey: 'lifetime', name: 'Lifetime', priceUSD: 30.0, pricePHP: 1500.0, originalPriceUSD: 40.0, originalPricePHP: 2000.0, dailyLimit: 25 }
-    ],
-    isActive: true,
-    highlight: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'prod_gen_fivem_bundle',
-    title: 'FiveM Bundle Generator License',
-    category: 'Generator Licenses',
-    priceUSD: 1.5,
-    pricePHP: 75.0,
-    originalPriceUSD: 3.0,
-    originalPricePHP: 150.0,
-    description: 'Full unban & bypass bundle covering Rockstar, Steam, and Discord.',
-    features: [
-      'Full Rockstar Games account generator',
-      'Steam verified account pool access',
-      'Discord aged unflagged accounts',
-      '15 Generations per Day shared limit',
-      'Real-time automated stock sync',
-      'Priority delivery routing'
-    ],
-    imageUrl: '',
-    deliveryMode: 'automated_license',
-    licenseTier: 'daily',
-    dailyLimit: 15,
-    serviceScope: 'fivem',
-    stockPool: [],
-    badge: 'POPULAR BUNDLE',
-    deliveryType: 'Instant Cryptographic Key',
-    tierOptions: [
-      { id: 'opt_fivem_daily', tierKey: 'daily', name: '1 Day', priceUSD: 1.5, pricePHP: 75.0, originalPriceUSD: 3.0, originalPricePHP: 150.0, dailyLimit: 15 },
-      { id: 'opt_fivem_weekly', tierKey: 'weekly', name: '7 Days', priceUSD: 7.0, pricePHP: 350.0, originalPriceUSD: 10.0, originalPricePHP: 500.0, dailyLimit: 15 },
-      { id: 'opt_fivem_monthly', tierKey: 'monthly', name: '30 Days', priceUSD: 20.0, pricePHP: 1000.0, originalPriceUSD: 25.0, originalPricePHP: 1250.0, dailyLimit: 20 },
-      { id: 'opt_fivem_lifetime', tierKey: 'lifetime', name: 'Lifetime', priceUSD: 40.0, pricePHP: 2000.0, originalPriceUSD: 50.0, originalPricePHP: 2500.0, dailyLimit: 30 }
-    ],
-    isActive: true,
-    highlight: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  },
-  {
-    id: 'prod_gen_all_access',
-    title: 'All-Access Pass Generator License',
-    category: 'Generator Licenses',
-    priceUSD: 2.5,
-    pricePHP: 125.0,
-    originalPriceUSD: 5.0,
-    originalPricePHP: 250.0,
-    description: 'Unrestricted generator access covering every service in our pool.',
-    features: [
-      'Complete catalog access (Rockstar, Steam, Discord, VPN, Netflix, Valorant)',
-      '20 Generations per Day VIP quota',
-      'Daily automated stock priority restocks',
-      'Multi-device session persistence',
-      'Guaranteed replacement coverage',
-      'Direct priority support ticket channel'
-    ],
-    imageUrl: '',
-    deliveryMode: 'automated_license',
-    licenseTier: 'daily',
-    dailyLimit: 20,
-    serviceScope: 'all',
-    stockPool: [],
-    badge: 'VIP ACCESS',
-    deliveryType: 'Instant Cryptographic Key',
-    tierOptions: [
-      { id: 'opt_all_daily', tierKey: 'daily', name: '1 Day', priceUSD: 2.5, pricePHP: 125.0, originalPriceUSD: 5.0, originalPricePHP: 250.0, dailyLimit: 20 },
-      { id: 'opt_all_weekly', tierKey: 'weekly', name: '7 Days', priceUSD: 10.0, pricePHP: 500.0, originalPriceUSD: 15.0, originalPricePHP: 750.0, dailyLimit: 20 },
-      { id: 'opt_all_monthly', tierKey: 'monthly', name: '30 Days', priceUSD: 25.0, pricePHP: 1250.0, originalPriceUSD: 35.0, originalPricePHP: 1750.0, dailyLimit: 25 },
-      { id: 'opt_all_lifetime', tierKey: 'lifetime', name: 'Lifetime', priceUSD: 50.0, pricePHP: 2500.0, originalPriceUSD: 70.0, originalPricePHP: 3500.0, dailyLimit: 50 }
-    ],
-    isActive: true,
-    highlight: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-
-async function getStoredProducts(): Promise<DigitalProduct[]> {
-  try {
-    const { data: row } = await supabaseAdmin
-      .from('config')
-      .select('value')
-      .eq('key', 'storefront_products')
-      .maybeSingle();
-
-    if (row?.value) {
-      const parsed = JSON.parse(row.value);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-
-    // Seed default products into Supabase config if not present
-    await supabaseAdmin
-      .from('config')
-      .upsert({
-        key: 'storefront_products',
-        value: JSON.stringify(DEFAULT_PRODUCTS)
-      }, { onConflict: 'key' });
-
-    return DEFAULT_PRODUCTS;
-  } catch (err) {
-    console.error('[Products API] Error reading products:', err);
-    return DEFAULT_PRODUCTS;
-  }
-}
-
-async function saveProducts(products: DigitalProduct[]): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from('config')
-    .upsert({
-      key: 'storefront_products',
-      value: JSON.stringify(products)
-    }, { onConflict: 'key' });
-
-  if (error) {
-    console.error('[Products API] Error saving products:', error);
-    return false;
-  }
-  return true;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export async function GET() {
   try {
-    const products = await getStoredProducts();
-    return NextResponse.json({ products });
+    const liveRate = await getUsdToPhpRate();
+
+    // 1. Try unified `products` table
+    const { data: dbProducts, error } = await supabaseAdmin
+      .from('products')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    let productsList: any[] = [];
+
+    if (!error && Array.isArray(dbProducts) && dbProducts.length > 0) {
+      productsList = dbProducts;
+    } else {
+      // Fallback to config table
+      const { data: row } = await supabaseAdmin
+        .from('config')
+        .select('value')
+        .eq('key', 'storefront_products')
+        .maybeSingle();
+
+      if (row?.value) {
+        try {
+          productsList = JSON.parse(row.value);
+        } catch {
+          productsList = [];
+        }
+      }
+    }
+
+    // Attach computed pricing for admin review
+    const enriched = productsList.map((p: any) => {
+      const rawTiers = Array.isArray(p.tiers) ? p.tiers : (Array.isArray(p.tierOptions) ? p.tierOptions : []);
+      const tiers = rawTiers.map((t: any, idx: number) => {
+        const tierKey = t.tier_key || t.tierKey || 'daily';
+        const basePhp = Number(t.price_php ?? t.pricePHP ?? 0);
+        const discountPct = Number(t.discount_percent ?? t.discountPercent ?? 0);
+        const pricing = computePricing(basePhp, discountPct, liveRate);
+
+        return {
+          id: t.id || `tier_${tierKey}_${idx}`,
+          tier_key: tierKey,
+          tierKey,
+          name: t.name || (tierKey === 'daily' ? '1 Day' : tierKey === 'weekly' ? '7 Days' : tierKey === 'monthly' ? '30 Days' : 'Lifetime'),
+          price_php: basePhp,
+          pricePHP: pricing.pricePHP,
+          priceUSD: pricing.priceUSD,
+          originalPricePHP: pricing.originalPricePHP,
+          originalPriceUSD: pricing.originalPriceUSD,
+          discount_percent: discountPct,
+          discountPercent: discountPct,
+          hasDiscount: pricing.hasDiscount,
+          daily_limit: t.daily_limit !== undefined ? Number(t.daily_limit) : (t.dailyLimit !== undefined ? Number(t.dailyLimit) : 15),
+          dailyLimit: t.daily_limit !== undefined ? Number(t.daily_limit) : (t.dailyLimit !== undefined ? Number(t.dailyLimit) : 15)
+        };
+      });
+
+      const defaultTier = tiers[0];
+      const flatPhp = Number(p.price_php ?? p.pricePHP ?? (defaultTier ? defaultTier.price_php : 0));
+      const flatDiscount = Number(p.discount_percent ?? p.discountPercent ?? (defaultTier ? defaultTier.discount_percent : 0));
+      const primaryPricing = defaultTier || computePricing(flatPhp, flatDiscount, liveRate);
+
+      return {
+        ...p,
+        imageUrl: p.image_url || p.imageUrl || '',
+        deliveryMode: p.delivery_mode || p.deliveryMode || 'automated_license',
+        deliveryType: p.delivery_type || p.deliveryType || 'Instant Cryptographic Key',
+        serviceScope: p.service_scope || p.serviceScope || 'all',
+        stockPool: Array.isArray(p.stock_pool) ? p.stock_pool : (Array.isArray(p.stockPool) ? p.stockPool : []),
+        isActive: p.is_active !== undefined ? Boolean(p.is_active) : (p.isActive !== undefined ? Boolean(p.isActive) : true),
+        tiers,
+        tierOptions: tiers,
+        pricePHP: primaryPricing.pricePHP,
+        priceUSD: primaryPricing.priceUSD,
+        originalPricePHP: primaryPricing.originalPricePHP,
+        originalPriceUSD: primaryPricing.originalPriceUSD,
+        discountPercent: primaryPricing.discountPercent,
+        hasDiscount: primaryPricing.hasDiscount
+      };
+    });
+
+    return new NextResponse(
+      JSON.stringify({ products: enriched, liveRate }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'
+        }
+      }
+    );
   } catch (error: any) {
-    console.error('[Products API] GET Error:', error);
+    console.error('[Admin Products API] GET Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -221,8 +148,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized: Owner access required' }, { status: 403 });
     }
 
-    const products = await getStoredProducts();
-
     if (action === 'save_product') {
       if (!product || !product.title) {
         return NextResponse.json({ error: 'Missing product title or payload' }, { status: 400 });
@@ -232,98 +157,115 @@ export async function POST(request: NextRequest) {
       const isNew = !product.id;
       const productId = isNew ? `prod_${Date.now()}_${crypto.randomBytes(3).toString('hex')}` : product.id;
 
-      // Clean stock pool lines if in manual resupply mode
+      // Clean stock pool lines
       let cleanStockPool: string[] = [];
       if (Array.isArray(product.stockPool)) {
         cleanStockPool = product.stockPool.map((s: string) => s.trim()).filter(Boolean);
       } else if (typeof product.stockPool === 'string') {
-        cleanStockPool = (product.stockPool as string)
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean);
+        cleanStockPool = (product.stockPool as string).split('\n').map((s) => s.trim()).filter(Boolean);
       }
 
-      // Clean tier options if in automated license mode
-      let cleanTierOptions: ProductTierOption[] = [];
-      if (Array.isArray(product.tierOptions) && product.tierOptions.length > 0) {
-        cleanTierOptions = product.tierOptions.map((t: any, idx: number) => {
-          const key = (t.tierKey || 'daily').toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'lifetime';
-          const defaultName =
-            key === 'daily' ? '1 Day' : key === 'weekly' ? '7 Days' : key === 'monthly' ? '30 Days' : 'Lifetime';
-          return {
-            id: t.id || `tier_${key}_${idx}`,
-            tierKey: key,
-            name: (t.name || defaultName).trim(),
-            priceUSD: Number(t.priceUSD) || 0,
-            pricePHP: Number(t.pricePHP) || 0,
-            originalPriceUSD: t.originalPriceUSD ? Number(t.originalPriceUSD) : undefined,
-            originalPricePHP: t.originalPricePHP ? Number(t.originalPricePHP) : undefined,
-            dailyLimit: t.dailyLimit ? Number(t.dailyLimit) : 15
-          };
-        });
-      }
+      // Clean tiers with standard PHP and discount percentage
+      const incomingTiers = Array.isArray(product.tiers) ? product.tiers : (Array.isArray(product.tierOptions) ? product.tierOptions : []);
+      const cleanTiers: ProductTier[] = incomingTiers.map((t: any, idx: number) => {
+        const key = (t.tier_key || t.tierKey || 'daily').toLowerCase() as 'daily' | 'weekly' | 'monthly' | 'lifetime';
+        const defaultName = key === 'daily' ? '1 Day' : key === 'weekly' ? '7 Days' : key === 'monthly' ? '30 Days' : 'Lifetime';
+        return {
+          id: t.id || `tier_${key}_${idx}`,
+          tier_key: key,
+          name: (t.name || defaultName).trim(),
+          price_php: Math.max(0, parseFloat(t.price_php ?? t.pricePHP) || 0),
+          discount_percent: Math.min(100, Math.max(0, parseFloat(t.discount_percent ?? t.discountPercent) || 0)),
+          daily_limit: t.daily_limit !== undefined ? parseInt(t.daily_limit, 10) : (t.dailyLimit !== undefined ? parseInt(t.dailyLimit, 10) : 15)
+        };
+      });
 
-      const defaultPriceUSD = cleanTierOptions.length > 0 ? cleanTierOptions[0].priceUSD : (Number(product.priceUSD) || 0);
-      const defaultPricePHP = cleanTierOptions.length > 0 ? cleanTierOptions[0].pricePHP : (Number(product.pricePHP) || 0);
-
-      const formattedProduct: DigitalProduct = {
+      const dbRow = {
         id: productId,
         title: product.title.trim(),
         category: product.category?.trim() || 'General',
-        priceUSD: Number(product.priceUSD) || defaultPriceUSD,
-        pricePHP: Number(product.pricePHP) || defaultPricePHP,
-        originalPriceUSD: product.originalPriceUSD ? Number(product.originalPriceUSD) : cleanTierOptions[0]?.originalPriceUSD,
-        originalPricePHP: product.originalPricePHP ? Number(product.originalPricePHP) : cleanTierOptions[0]?.originalPricePHP,
         description: product.description?.trim() || '',
+        details: product.details?.trim() || '',
         features: Array.isArray(product.features) ? product.features.map((f: string) => f.trim()).filter(Boolean) : [],
-        imageUrl: product.imageUrl?.trim() || '',
-        deliveryMode: product.deliveryMode === 'stock_pool' ? 'stock_pool' : 'automated_license',
-        licenseTier: product.licenseTier || 'daily',
-        dailyLimit: product.dailyLimit ? Number(product.dailyLimit) : 15,
-        serviceScope: product.serviceScope || 'all',
-        packageId: product.packageId || undefined,
-        stockPool: cleanStockPool,
         badge: product.badge?.trim() || '',
-        deliveryType: product.deliveryType?.trim() || (product.deliveryMode === 'stock_pool' ? 'Instant Credential Dispatch' : 'Instant Cryptographic Key'),
-        tierOptions: cleanTierOptions,
-        isActive: product.isActive !== undefined ? Boolean(product.isActive) : true,
+        image_url: product.imageUrl?.trim() || product.image_url?.trim() || '',
+        delivery_mode: product.deliveryMode === 'stock_pool' ? 'stock_pool' : 'automated_license',
+        delivery_type: product.deliveryType?.trim() || (product.deliveryMode === 'stock_pool' ? 'Instant Credential Dispatch' : 'Instant Cryptographic Key'),
+        service_scope: product.serviceScope || 'all',
+        tiers: cleanTiers,
+        stock_pool: cleanStockPool,
+        is_active: product.isActive !== undefined ? Boolean(product.isActive) : true,
         highlight: Boolean(product.highlight),
-        createdAt: isNew ? now : (product.createdAt || now),
-        updatedAt: now
+        sort_order: product.sortOrder !== undefined ? Number(product.sortOrder) : 0,
+        updated_at: now
       };
 
-      let updatedList: DigitalProduct[];
-      const existingIdx = products.findIndex((p) => p.id === productId);
-      if (existingIdx >= 0) {
-        updatedList = [...products];
-        updatedList[existingIdx] = formattedProduct;
+      // 1. Try Upsert into `products` table
+      const { error: upsertErr } = await supabaseAdmin
+        .from('products')
+        .upsert({ ...dbRow, created_at: isNew ? now : (product.createdAt || now) });
+
+      if (upsertErr) {
+        console.warn('[Admin Products API] Upsert into products table skipped/failed, keeping config in sync:', upsertErr.message);
+      }
+
+      // 2. Also keep `config.storefront_products` synced as bulletproof fallback
+      const { data: configRow } = await supabaseAdmin
+        .from('config')
+        .select('value')
+        .eq('key', 'storefront_products')
+        .maybeSingle();
+
+      let currentConfig: any[] = [];
+      if (configRow?.value) {
+        try { currentConfig = JSON.parse(configRow.value); } catch { currentConfig = []; }
+      }
+
+      const existingConfigIdx = currentConfig.findIndex((p: any) => p.id === productId);
+      if (existingConfigIdx >= 0) {
+        currentConfig[existingConfigIdx] = dbRow;
       } else {
-        updatedList = [formattedProduct, ...products];
+        currentConfig.push(dbRow);
       }
 
-      const saved = await saveProducts(updatedList);
-      if (!saved) {
-        return NextResponse.json({ error: 'Failed to write product changes to database' }, { status: 500 });
-      }
+      await supabaseAdmin.from('config').upsert({
+        key: 'storefront_products',
+        value: JSON.stringify(currentConfig),
+        updated_at: now
+      });
 
-      return NextResponse.json({ success: true, product: formattedProduct });
+      return NextResponse.json({ success: true, product: dbRow });
     }
 
     if (action === 'toggle_status') {
       const { productId } = body;
-      const target = products.find((p) => p.id === productId);
-      if (!target) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      // Toggle in products table
+      const { data: prod } = await supabaseAdmin.from('products').select('is_active').eq('id', productId).maybeSingle();
+      if (prod) {
+        await supabaseAdmin.from('products').update({ is_active: !prod.is_active, updated_at: new Date().toISOString() }).eq('id', productId);
+      }
 
-      target.isActive = !target.isActive;
-      target.updatedAt = new Date().toISOString();
+      // Toggle in config table
+      const { data: configRow } = await supabaseAdmin.from('config').select('value').eq('key', 'storefront_products').maybeSingle();
+      if (configRow?.value) {
+        try {
+          const list = JSON.parse(configRow.value);
+          const item = list.find((p: any) => p.id === productId);
+          if (item) {
+            item.is_active = !item.is_active;
+            item.isActive = item.is_active;
+            item.updated_at = new Date().toISOString();
+            await supabaseAdmin.from('config').upsert({ key: 'storefront_products', value: JSON.stringify(list), updated_at: new Date().toISOString() });
+          }
+        } catch {}
+      }
 
-      await saveProducts(products);
-      return NextResponse.json({ success: true, product: target });
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
-    console.error('[Products API] POST Error:', error);
+    console.error('[Admin Products API] POST Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -347,14 +289,21 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing product ID' }, { status: 400 });
     }
 
-    const products = await getStoredProducts();
-    const updated = products.filter((p) => p.id !== productId);
+    // Delete from products table
+    await supabaseAdmin.from('products').delete().eq('id', productId);
 
-    await saveProducts(updated);
+    // Delete from config table
+    const { data: configRow } = await supabaseAdmin.from('config').select('value').eq('key', 'storefront_products').maybeSingle();
+    if (configRow?.value) {
+      try {
+        const list = JSON.parse(configRow.value).filter((p: any) => p.id !== productId);
+        await supabaseAdmin.from('config').upsert({ key: 'storefront_products', value: JSON.stringify(list), updated_at: new Date().toISOString() });
+      } catch {}
+    }
+
     return NextResponse.json({ success: true, message: 'Product deleted' });
   } catch (error: any) {
-    console.error('[Products API] DELETE Error:', error);
+    console.error('[Admin Products API] DELETE Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-

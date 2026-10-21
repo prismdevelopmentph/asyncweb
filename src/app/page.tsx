@@ -37,6 +37,8 @@ export interface ProductTierOption {
   pricePHP: number;
   originalPriceUSD?: number;
   originalPricePHP?: number;
+  discountPercent?: number;
+  hasDiscount?: boolean;
   dailyLimit?: number;
 }
 
@@ -184,7 +186,7 @@ export default function HomePage() {
   const [selectedTiers, setSelectedTiers] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetch('/api/products')
+    fetch('/api/products?t=' + Date.now(), { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data && Array.isArray(data.products) && data.products.length > 0) {

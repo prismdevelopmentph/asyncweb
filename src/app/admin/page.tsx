@@ -171,12 +171,13 @@ export default function AdminPage() {
     tierKey: 'daily' | 'weekly' | 'monthly' | 'lifetime';
     name: string;
     pricePHP: string;
-    priceUSD: string;
-    originalPricePHP: string;
-    originalPriceUSD: string;
+    discountPercent: string;
     dailyLimit: string;
   }
   const [prodTierOptions, setProdTierOptions] = useState<AdminTierOption[]>([]);
+  const [liveFxRate, setLiveFxRate] = useState<number>(58.5);
+  const [prodDiscountPercent, setProdDiscountPercent] = useState<string>('0');
+  const [prodDetails, setProdDetails] = useState<string>('');
   const [prodTitle, setProdTitle] = useState('');
   const [prodCategory, setProdCategory] = useState('Generator Licenses');
   const [prodPriceUSD, setProdPriceUSD] = useState('');
@@ -305,6 +306,9 @@ export default function AdminPage() {
         if (Array.isArray(data.products)) {
           setProductsList(data.products);
         }
+        if (data.liveRate) {
+          setLiveFxRate(data.liveRate);
+        }
       }
     } catch (err) {
       console.error('[Admin] Error fetching products:', err);
@@ -334,36 +338,40 @@ export default function AdminPage() {
       setProdIsActive(product.isActive !== undefined ? Boolean(product.isActive) : true);
       setProdHighlight(Boolean(product.highlight));
 
-      if (Array.isArray(product.tierOptions) && product.tierOptions.length > 0) {
+      setProdDetails(product.details || '');
+      setProdDiscountPercent(product.discountPercent !== undefined ? String(product.discountPercent) : '0');
+
+      const rawTiers = Array.isArray(product.tiers) ? product.tiers : (Array.isArray(product.tierOptions) ? product.tierOptions : []);
+      if (rawTiers.length > 0) {
         setProdTierOptions(
-          product.tierOptions.map((t: any, idx: number) => ({
+          rawTiers.map((t: any, idx: number) => ({
             id: t.id || `tier_${Date.now()}_${idx}`,
-            tierKey: (t.tierKey || 'daily') as any,
+            tierKey: (t.tier_key || t.tierKey || 'daily') as any,
             name: t.name || (t.tierKey === 'daily' ? '1 Day' : t.tierKey === 'weekly' ? '7 Days' : t.tierKey === 'monthly' ? '30 Days' : 'Lifetime'),
-            pricePHP: t.pricePHP !== undefined ? String(t.pricePHP) : '',
-            priceUSD: t.priceUSD !== undefined ? String(t.priceUSD) : '',
-            originalPricePHP: t.originalPricePHP !== undefined ? String(t.originalPricePHP) : '',
-            originalPriceUSD: t.originalPriceUSD !== undefined ? String(t.originalPriceUSD) : '',
-            dailyLimit: t.dailyLimit !== undefined ? String(t.dailyLimit) : '15'
+            pricePHP: String(t.price_php ?? t.pricePHP ?? '50'),
+            discountPercent: String(t.discount_percent ?? t.discountPercent ?? '0'),
+            dailyLimit: String(t.daily_limit ?? t.dailyLimit ?? '15')
           }))
         );
       } else {
         setProdTierOptions([
-          { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: product.pricePHP ? String(product.pricePHP) : '50.00', priceUSD: product.priceUSD ? String(product.priceUSD) : '1.00', originalPricePHP: product.originalPricePHP ? String(product.originalPricePHP) : '100.00', originalPriceUSD: product.originalPriceUSD ? String(product.originalPriceUSD) : '2.00', dailyLimit: String(product.dailyLimit || 15) },
-          { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', priceUSD: '5.00', originalPricePHP: '350.00', originalPriceUSD: '7.00', dailyLimit: String(product.dailyLimit || 15) },
-          { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', priceUSD: '15.00', originalPricePHP: '1000.00', originalPriceUSD: '20.00', dailyLimit: String(product.dailyLimit || 15) },
-          { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', priceUSD: '30.00', originalPricePHP: '2000.00', originalPriceUSD: '40.00', dailyLimit: '25' }
+          { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: '50.00', discountPercent: '0', dailyLimit: '15' },
+          { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', discountPercent: '0', dailyLimit: '15' },
+          { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', discountPercent: '0', dailyLimit: '15' },
+          { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', discountPercent: '0', dailyLimit: '25' }
         ]);
       }
     } else {
       setEditingProduct(null);
       setProdTitle('');
       setProdCategory('Generator Licenses');
-      setProdPriceUSD('1.00');
+      setProdPriceUSD('');
       setProdPricePHP('50.00');
       setProdOrigUSD('');
       setProdOrigPHP('');
+      setProdDiscountPercent('0');
       setProdDescription('');
+      setProdDetails('');
       setProdFeatures('Instant cryptographic key\nDaily automated reset\n100% Replacement warranty');
       setProdImageUrl('');
       setProdDeliveryMode('automated_license');
@@ -375,10 +383,10 @@ export default function AdminPage() {
       setProdIsActive(true);
       setProdHighlight(false);
       setProdTierOptions([
-        { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: '50.00', priceUSD: '1.00', originalPricePHP: '100.00', originalPriceUSD: '2.00', dailyLimit: '15' },
-        { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', priceUSD: '5.00', originalPricePHP: '350.00', originalPriceUSD: '7.00', dailyLimit: '15' },
-        { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', priceUSD: '15.00', originalPricePHP: '1000.00', originalPriceUSD: '20.00', dailyLimit: '15' },
-        { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', priceUSD: '30.00', originalPricePHP: '2000.00', originalPriceUSD: '40.00', dailyLimit: '25' }
+        { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: '50.00', discountPercent: '0', dailyLimit: '15' },
+        { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', discountPercent: '0', dailyLimit: '15' },
+        { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', discountPercent: '0', dailyLimit: '15' },
+        { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', discountPercent: '0', dailyLimit: '25' }
       ]);
     }
     setShowProductModal(true);
@@ -423,38 +431,34 @@ export default function AdminPage() {
 
     try {
       setSavingProduct(true);
-      const cleanTierOptions = prodTierOptions.map((t) => ({
-        id: t.id,
-        tierKey: t.tierKey,
-        name: t.name.trim() || (t.tierKey === 'daily' ? '1 Day' : t.tierKey === 'weekly' ? '7 Days' : t.tierKey === 'monthly' ? '30 Days' : 'Lifetime'),
-        pricePHP: parseFloat(t.pricePHP) || 0,
-        priceUSD: parseFloat(t.priceUSD) || 0,
-        originalPricePHP: t.originalPricePHP ? parseFloat(t.originalPricePHP) : undefined,
-        originalPriceUSD: t.originalPriceUSD ? parseFloat(t.originalPriceUSD) : undefined,
-        dailyLimit: parseInt(t.dailyLimit, 10) || 15
-      }));
-
-      const isAutomated = prodDeliveryMode === 'automated_license';
-      const baseUSD = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].priceUSD : (parseFloat(prodPriceUSD) || 0);
-      const basePHP = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].pricePHP : (parseFloat(prodPricePHP) || 0);
-      const baseOrigUSD = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].originalPriceUSD : (prodOrigUSD ? parseFloat(prodOrigUSD) : undefined);
-      const baseOrigPHP = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].originalPricePHP : (prodOrigPHP ? parseFloat(prodOrigPHP) : undefined);
+      const cleanTierOptions = prodTierOptions.map((t) => {
+        const key = t.tierKey;
+        const defaultName = key === 'daily' ? '1 Day' : key === 'weekly' ? '7 Days' : key === 'monthly' ? '30 Days' : 'Lifetime';
+        return {
+          id: t.id,
+          tier_key: key,
+          name: t.name.trim() || defaultName,
+          price_php: parseFloat(t.pricePHP) || 0,
+          discount_percent: Math.min(100, Math.max(0, parseFloat(t.discountPercent) || 0)),
+          daily_limit: parseInt(t.dailyLimit, 10) || 15
+        };
+      });
 
       const payload = {
         id: editingProduct?.id,
         title: prodTitle.trim(),
         category: prodCategory.trim() || 'General',
-        priceUSD: baseUSD,
-        pricePHP: basePHP,
-        originalPriceUSD: baseOrigUSD,
-        originalPricePHP: baseOrigPHP,
+        price_php: parseFloat(prodPricePHP) || (cleanTierOptions[0]?.price_php || 0),
+        discount_percent: parseFloat(prodDiscountPercent) || 0,
         description: prodDescription.trim(),
+        details: prodDetails.trim(),
         features: prodFeatures.split('\n').map((s) => s.trim()).filter(Boolean),
         imageUrl: prodImageUrl.trim(),
         deliveryMode: prodDeliveryMode,
         licenseTier: prodLicenseTier,
         dailyLimit: parseInt(prodDailyLimit, 10) || 15,
         serviceScope: prodServiceScope,
+        tiers: cleanTierOptions,
         tierOptions: cleanTierOptions,
         stockPool: prodStockPool.split('\n').map((s) => s.trim()).filter(Boolean),
         badge: prodBadge.trim(),
@@ -3030,14 +3034,19 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Row 2: Dual Pricing (PHP & USD) */}
+              {/* Row 2: Standard PHP Pricing & Discount % with Live USD Conversion */}
               <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 space-y-3">
-                <div className="text-xs font-mono text-purple-400 font-semibold uppercase">
-                  Dual Currency Pricing
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-mono text-purple-400 font-semibold uppercase">
+                    Standard Base Price & Discount % (PHP Base)
+                  </div>
+                  <div className="text-[11px] font-mono text-emerald-400">
+                    Live FX: 1 USD ≈ ₱{Number(liveFxRate).toFixed(2)}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
                   <div>
-                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">PHP Price (₱) *</label>
+                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">Base Price (PHP ₱) *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -3050,40 +3059,23 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">PHP Strike (₱)</label>
+                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">Discount % (0 = No Sale)</label>
                     <input
                       type="number"
-                      step="0.01"
-                      placeholder="100.00"
-                      value={prodOrigPHP}
-                      onChange={(e) => setProdOrigPHP(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400 focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">USD Price ($) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      placeholder="1.00"
-                      value={prodPriceUSD}
-                      onChange={(e) => setProdPriceUSD(e.target.value)}
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={prodDiscountPercent}
+                      onChange={(e) => setProdDiscountPercent(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
                     />
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">USD Strike ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="2.00"
-                      value={prodOrigUSD}
-                      onChange={(e) => setProdOrigUSD(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400 focus:outline-none focus:border-purple-500"
-                    />
+                  <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase">Live Converted USD</div>
+                    <div className="text-sm font-mono font-bold text-purple-300">
+                      ≈ ${((parseFloat(prodPricePHP) || 0) * (1 - (parseFloat(prodDiscountPercent) || 0) / 100) / (liveFxRate || 58.5)).toFixed(2)} USD
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3228,9 +3220,7 @@ export default function AdminPage() {
                                 tierKey: 'monthly',
                                 name: 'Custom Tier',
                                 pricePHP: '500.00',
-                                priceUSD: '10.00',
-                                originalPricePHP: '',
-                                originalPriceUSD: '',
+                                discountPercent: '0',
                                 dailyLimit: '15'
                               }
                             ]);
@@ -3332,17 +3322,17 @@ export default function AdminPage() {
                               </div>
 
                               <div>
-                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Price USD ($) *</label>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Discount %</label>
                                 <input
                                   type="number"
-                                  step="0.01"
-                                  required
-                                  placeholder="1.00"
-                                  value={opt.priceUSD}
+                                  min="0"
+                                  max="100"
+                                  placeholder="0"
+                                  value={opt.discountPercent}
                                   onChange={(e) => {
                                     const val = e.target.value;
                                     setProdTierOptions((prev) =>
-                                      prev.map((item, i) => (i === idx ? { ...item, priceUSD: val } : item))
+                                      prev.map((item, i) => (i === idx ? { ...item, discountPercent: val } : item))
                                     );
                                   }}
                                   className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-white focus:outline-none focus:border-purple-500"
@@ -3350,41 +3340,7 @@ export default function AdminPage() {
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-900">
-                              <div>
-                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Strike PHP (₱)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="100.00"
-                                  value={opt.originalPricePHP}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setProdTierOptions((prev) =>
-                                      prev.map((item, i) => (i === idx ? { ...item, originalPricePHP: val } : item))
-                                    );
-                                  }}
-                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400 focus:outline-none focus:border-purple-500"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Strike USD ($)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="2.00"
-                                  value={opt.originalPriceUSD}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setProdTierOptions((prev) =>
-                                      prev.map((item, i) => (i === idx ? { ...item, originalPriceUSD: val } : item))
-                                    );
-                                  }}
-                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400 focus:outline-none focus:border-purple-500"
-                                />
-                              </div>
-
+                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-zinc-900 items-center">
                               <div>
                                 <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Daily Limit (gens/day)</label>
                                 <input
@@ -3399,6 +3355,22 @@ export default function AdminPage() {
                                   }}
                                   className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-purple-300 focus:outline-none focus:border-purple-500"
                                 />
+                              </div>
+
+                              <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80 text-[10px] font-mono">
+                                {(() => {
+                                  const p = parseFloat(opt.pricePHP) || 0;
+                                  const d = Math.min(100, Math.max(0, parseFloat(opt.discountPercent) || 0));
+                                  const finalP = d > 0 ? Math.round(p * (1 - d / 100)) : p;
+                                  const approxU = (finalP / (liveFxRate || 58.5)).toFixed(2);
+                                  return (
+                                    <div className="flex items-center justify-between">
+                                      <span>Sale: <strong className="text-white">₱{finalP.toLocaleString()}</strong></span>
+                                      <span>≈ <strong className="text-purple-300">${approxU} USD</strong></span>
+                                      {d > 0 && <span className="text-emerald-400 font-bold">-{d}%</span>}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
