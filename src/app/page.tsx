@@ -29,7 +29,19 @@ import {
 
 type Currency = 'PHP' | 'USD';
 
+export interface ProductTierOption {
+  id: string;
+  tierKey: string;
+  name: string;
+  priceUSD: number;
+  pricePHP: number;
+  originalPriceUSD?: number;
+  originalPricePHP?: number;
+  dailyLimit?: number;
+}
+
 interface LicenseTier {
+  tierOptions?: ProductTierOption[];
   id: string;
   title: string;
   category: 'single' | 'bundle';
@@ -84,7 +96,13 @@ const LICENSES: LicenseTier[] = [
     deliveryTime: 'Instant Delivery',
     icon: Key,
     gradient: 'from-purple-900/40 via-zinc-900/60 to-black',
-    highlight: false
+    highlight: false,
+    tierOptions: [
+      { id: 'opt_single_daily', tierKey: 'daily', name: '1 Day', priceUSD: 1.0, pricePHP: 50.0, originalPriceUSD: 2.0, originalPricePHP: 100.0, dailyLimit: 15 },
+      { id: 'opt_single_weekly', tierKey: 'weekly', name: '7 Days', priceUSD: 5.0, pricePHP: 250.0, originalPriceUSD: 7.0, originalPricePHP: 350.0, dailyLimit: 15 },
+      { id: 'opt_single_monthly', tierKey: 'monthly', name: '30 Days', priceUSD: 15.0, pricePHP: 750.0, originalPriceUSD: 20.0, originalPricePHP: 1000.0, dailyLimit: 15 },
+      { id: 'opt_single_lifetime', tierKey: 'lifetime', name: 'Lifetime', priceUSD: 30.0, pricePHP: 1500.0, originalPriceUSD: 40.0, originalPricePHP: 2000.0, dailyLimit: 25 }
+    ]
   },
   {
     id: 'gen-fivem-bundle',
@@ -107,7 +125,13 @@ const LICENSES: LicenseTier[] = [
     deliveryTime: 'Instant Delivery',
     icon: Server,
     gradient: 'from-indigo-900/40 via-purple-950/40 to-black',
-    highlight: false
+    highlight: false,
+    tierOptions: [
+      { id: 'opt_fivem_daily', tierKey: 'daily', name: '1 Day', priceUSD: 1.5, pricePHP: 75.0, originalPriceUSD: 3.0, originalPricePHP: 150.0, dailyLimit: 15 },
+      { id: 'opt_fivem_weekly', tierKey: 'weekly', name: '7 Days', priceUSD: 7.0, pricePHP: 350.0, originalPriceUSD: 10.0, originalPricePHP: 500.0, dailyLimit: 15 },
+      { id: 'opt_fivem_monthly', tierKey: 'monthly', name: '30 Days', priceUSD: 20.0, pricePHP: 1000.0, originalPriceUSD: 25.0, originalPricePHP: 1250.0, dailyLimit: 15 },
+      { id: 'opt_fivem_lifetime', tierKey: 'lifetime', name: 'Lifetime', priceUSD: 40.0, pricePHP: 2000.0, originalPriceUSD: 55.0, originalPricePHP: 2750.0, dailyLimit: 30 }
+    ]
   },
   {
     id: 'gen-all-access',
@@ -130,7 +154,13 @@ const LICENSES: LicenseTier[] = [
     deliveryTime: 'Instant Delivery',
     icon: Sparkles,
     gradient: 'from-purple-600/20 via-zinc-900/80 to-black',
-    highlight: true
+    highlight: true,
+    tierOptions: [
+      { id: 'opt_all_daily', tierKey: 'daily', name: '1 Day', priceUSD: 2.0, pricePHP: 100.0, originalPriceUSD: 4.0, originalPricePHP: 200.0, dailyLimit: 20 },
+      { id: 'opt_all_weekly', tierKey: 'weekly', name: '7 Days', priceUSD: 10.0, pricePHP: 500.0, originalPriceUSD: 14.0, originalPricePHP: 700.0, dailyLimit: 20 },
+      { id: 'opt_all_monthly', tierKey: 'monthly', name: '30 Days', priceUSD: 25.0, pricePHP: 1250.0, originalPriceUSD: 35.0, originalPricePHP: 1750.0, dailyLimit: 25 },
+      { id: 'opt_all_lifetime', tierKey: 'lifetime', name: 'Lifetime', priceUSD: 50.0, pricePHP: 2500.0, originalPriceUSD: 70.0, originalPricePHP: 3500.0, dailyLimit: 50 }
+    ]
   }
 ];
 
@@ -151,6 +181,7 @@ export default function HomePage() {
 
   // Dynamic Storefront Digital Products State
   const [products, setProducts] = useState<any[]>(LICENSES);
+  const [selectedTiers, setSelectedTiers] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch('/api/products')
@@ -179,7 +210,8 @@ export default function HomePage() {
             imageUrl: p.imageUrl || '',
             deliveryMode: p.deliveryMode || 'automated_license',
             stockCount: p.stockCount,
-            isOutOfStock: p.isOutOfStock
+            isOutOfStock: p.isOutOfStock,
+            tierOptions: Array.isArray(p.tierOptions) ? p.tierOptions : []
           }));
           setProducts(mapped);
         }
@@ -456,6 +488,14 @@ export default function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredLicenses.map((license) => {
                 const Icon = license.icon;
+                const activeTierKey = selectedTiers[license.id] || license.tierOptions?.[0]?.tierKey || 'daily';
+                const activeTier = license.tierOptions?.find((t: any) => t.tierKey === activeTierKey) || license.tierOptions?.[0];
+
+                const currentPriceUSD = activeTier ? Number(activeTier.priceUSD) : license.priceUSD;
+                const currentPricePHP = activeTier ? Number(activeTier.pricePHP) : license.pricePHP;
+                const currentOrigUSD = activeTier?.originalPriceUSD !== undefined ? Number(activeTier.originalPriceUSD) : license.originalPriceUSD;
+                const currentOrigPHP = activeTier?.originalPricePHP !== undefined ? Number(activeTier.originalPricePHP) : license.originalPricePHP;
+
                 return (
                   <article
                     key={license.id}
@@ -532,9 +572,44 @@ export default function HomePage() {
                         </h3>
 
                         {/* Description */}
-                        <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2 mb-4">
+                        <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2 mb-3">
                           {license.description}
                         </p>
+
+                        {/* Interactive Duration Tier Switcher */}
+                        {license.tierOptions && license.tierOptions.length > 0 && (
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between text-[10px] font-mono text-zinc-400 mb-1.5 px-0.5">
+                              <span>SELECT DURATION:</span>
+                              <span className="text-purple-400 font-semibold">
+                                {activeTier?.dailyLimit ? `${activeTier.dailyLimit} gens/day` : activeTier?.name}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-zinc-900/90 border border-zinc-800">
+                              {license.tierOptions.map((opt: any) => {
+                                const isSelected = (activeTier?.tierKey || activeTierKey) === opt.tierKey;
+                                return (
+                                  <button
+                                    key={opt.tierKey}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setSelectedTiers((prev) => ({ ...prev, [license.id]: opt.tierKey }));
+                                    }}
+                                    className={`py-1.5 px-1 rounded-lg text-center text-[11px] font-mono font-medium transition-all cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-purple-600 text-white font-bold shadow-sm shadow-purple-950 border border-purple-400/40'
+                                        : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'
+                                    }`}
+                                  >
+                                    {opt.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Feature Preview Bullets */}
                         <div className="space-y-1.5 mb-5 pb-5 border-b border-zinc-800/80">

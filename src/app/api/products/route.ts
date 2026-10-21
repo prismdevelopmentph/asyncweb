@@ -42,6 +42,7 @@ export async function GET() {
           licenseTier: p.licenseTier || '1day',
           badge: p.badge || '',
           deliveryType: p.deliveryType || (isStockPool ? 'Instant Credential Dispatch' : 'Instant Cryptographic Key'),
+          tierOptions: Array.isArray(p.tierOptions) ? p.tierOptions : [],
           highlight: Boolean(p.highlight),
           stockCount: currentStock, // -1 means infinite automated generation
           isOutOfStock: isStockPool && currentStock <= 0
@@ -54,3 +55,4 @@ export async function GET() {
     return NextResponse.json({ products: [] });
   }
 }
+

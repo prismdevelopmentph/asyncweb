@@ -150,3 +150,4 @@ fileContent = fileContent.replace(targetCardHeader, replacementCardHeader);
 
 fs.writeFileSync(filePath, fileContent, 'utf8');
 console.log('Successfully updated storefront page.tsx with dynamic products & image support!');
+

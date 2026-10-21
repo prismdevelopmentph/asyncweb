@@ -166,6 +166,17 @@ export default function AdminPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Product Form Fields
+  interface AdminTierOption {
+    id: string;
+    tierKey: 'daily' | 'weekly' | 'monthly' | 'lifetime';
+    name: string;
+    pricePHP: string;
+    priceUSD: string;
+    originalPricePHP: string;
+    originalPriceUSD: string;
+    dailyLimit: string;
+  }
+  const [prodTierOptions, setProdTierOptions] = useState<AdminTierOption[]>([]);
   const [prodTitle, setProdTitle] = useState('');
   const [prodCategory, setProdCategory] = useState('Generator Licenses');
   const [prodPriceUSD, setProdPriceUSD] = useState('');
@@ -322,6 +333,28 @@ export default function AdminPage() {
       setProdBadge(product.badge || '');
       setProdIsActive(product.isActive !== undefined ? Boolean(product.isActive) : true);
       setProdHighlight(Boolean(product.highlight));
+
+      if (Array.isArray(product.tierOptions) && product.tierOptions.length > 0) {
+        setProdTierOptions(
+          product.tierOptions.map((t: any, idx: number) => ({
+            id: t.id || `tier_${Date.now()}_${idx}`,
+            tierKey: (t.tierKey || 'daily') as any,
+            name: t.name || (t.tierKey === 'daily' ? '1 Day' : t.tierKey === 'weekly' ? '7 Days' : t.tierKey === 'monthly' ? '30 Days' : 'Lifetime'),
+            pricePHP: t.pricePHP !== undefined ? String(t.pricePHP) : '',
+            priceUSD: t.priceUSD !== undefined ? String(t.priceUSD) : '',
+            originalPricePHP: t.originalPricePHP !== undefined ? String(t.originalPricePHP) : '',
+            originalPriceUSD: t.originalPriceUSD !== undefined ? String(t.originalPriceUSD) : '',
+            dailyLimit: t.dailyLimit !== undefined ? String(t.dailyLimit) : '15'
+          }))
+        );
+      } else {
+        setProdTierOptions([
+          { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: product.pricePHP ? String(product.pricePHP) : '50.00', priceUSD: product.priceUSD ? String(product.priceUSD) : '1.00', originalPricePHP: product.originalPricePHP ? String(product.originalPricePHP) : '100.00', originalPriceUSD: product.originalPriceUSD ? String(product.originalPriceUSD) : '2.00', dailyLimit: String(product.dailyLimit || 15) },
+          { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', priceUSD: '5.00', originalPricePHP: '350.00', originalPriceUSD: '7.00', dailyLimit: String(product.dailyLimit || 15) },
+          { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', priceUSD: '15.00', originalPricePHP: '1000.00', originalPriceUSD: '20.00', dailyLimit: String(product.dailyLimit || 15) },
+          { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', priceUSD: '30.00', originalPricePHP: '2000.00', originalPriceUSD: '40.00', dailyLimit: '25' }
+        ]);
+      }
     } else {
       setEditingProduct(null);
       setProdTitle('');
@@ -341,6 +374,12 @@ export default function AdminPage() {
       setProdBadge('');
       setProdIsActive(true);
       setProdHighlight(false);
+      setProdTierOptions([
+        { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: '50.00', priceUSD: '1.00', originalPricePHP: '100.00', originalPriceUSD: '2.00', dailyLimit: '15' },
+        { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', priceUSD: '5.00', originalPricePHP: '350.00', originalPriceUSD: '7.00', dailyLimit: '15' },
+        { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', priceUSD: '15.00', originalPricePHP: '1000.00', originalPriceUSD: '20.00', dailyLimit: '15' },
+        { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', priceUSD: '30.00', originalPricePHP: '2000.00', originalPriceUSD: '40.00', dailyLimit: '25' }
+      ]);
     }
     setShowProductModal(true);
   };
@@ -384,14 +423,31 @@ export default function AdminPage() {
 
     try {
       setSavingProduct(true);
+      const cleanTierOptions = prodTierOptions.map((t) => ({
+        id: t.id,
+        tierKey: t.tierKey,
+        name: t.name.trim() || (t.tierKey === 'daily' ? '1 Day' : t.tierKey === 'weekly' ? '7 Days' : t.tierKey === 'monthly' ? '30 Days' : 'Lifetime'),
+        pricePHP: parseFloat(t.pricePHP) || 0,
+        priceUSD: parseFloat(t.priceUSD) || 0,
+        originalPricePHP: t.originalPricePHP ? parseFloat(t.originalPricePHP) : undefined,
+        originalPriceUSD: t.originalPriceUSD ? parseFloat(t.originalPriceUSD) : undefined,
+        dailyLimit: parseInt(t.dailyLimit, 10) || 15
+      }));
+
+      const isAutomated = prodDeliveryMode === 'automated_license';
+      const baseUSD = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].priceUSD : (parseFloat(prodPriceUSD) || 0);
+      const basePHP = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].pricePHP : (parseFloat(prodPricePHP) || 0);
+      const baseOrigUSD = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].originalPriceUSD : (prodOrigUSD ? parseFloat(prodOrigUSD) : undefined);
+      const baseOrigPHP = isAutomated && cleanTierOptions.length > 0 ? cleanTierOptions[0].originalPricePHP : (prodOrigPHP ? parseFloat(prodOrigPHP) : undefined);
+
       const payload = {
         id: editingProduct?.id,
         title: prodTitle.trim(),
         category: prodCategory.trim() || 'General',
-        priceUSD: parseFloat(prodPriceUSD) || 0,
-        pricePHP: parseFloat(prodPricePHP) || 0,
-        originalPriceUSD: prodOrigUSD ? parseFloat(prodOrigUSD) : undefined,
-        originalPricePHP: prodOrigPHP ? parseFloat(prodOrigPHP) : undefined,
+        priceUSD: baseUSD,
+        pricePHP: basePHP,
+        originalPriceUSD: baseOrigUSD,
+        originalPricePHP: baseOrigPHP,
         description: prodDescription.trim(),
         features: prodFeatures.split('\n').map((s) => s.trim()).filter(Boolean),
         imageUrl: prodImageUrl.trim(),
@@ -399,6 +455,7 @@ export default function AdminPage() {
         licenseTier: prodLicenseTier,
         dailyLimit: parseInt(prodDailyLimit, 10) || 15,
         serviceScope: prodServiceScope,
+        tierOptions: cleanTierOptions,
         stockPool: prodStockPool.split('\n').map((s) => s.trim()).filter(Boolean),
         badge: prodBadge.trim(),
         isActive: prodIsActive,
@@ -2191,6 +2248,20 @@ export default function AdminPage() {
                             </div>
                           </div>
 
+                          {/* Multi-Tier Preview Pills in Admin */}
+                          {Array.isArray(product.tierOptions) && product.tierOptions.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pb-3">
+                              {product.tierOptions.map((t: any, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-300"
+                                >
+                                  <span className="text-purple-400 font-semibold">{t.name}:</span> ₱{Number(t.pricePHP).toLocaleString()} (${Number(t.priceUSD).toFixed(2)})
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
                           {/* Action Buttons */}
                           <div className="pt-3 border-t border-zinc-900 flex items-center justify-between gap-2">
                             <button
@@ -3121,43 +3192,218 @@ export default function AdminPage() {
 
                 {/* Conditional Fields based on Delivery Mode */}
                 {prodDeliveryMode === 'automated_license' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="space-y-4 pt-2">
+                    {/* Service Scope selector */}
                     <div>
-                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">License Tier</label>
-                      <select
-                        value={prodLicenseTier}
-                        onChange={(e) => setProdLicenseTier(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-                      >
-                        <option value="1day">1 Day Access</option>
-                        <option value="7day">7 Days Access</option>
-                        <option value="30day">30 Days Access</option>
-                        <option value="lifetime">Lifetime</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">Daily Limit</label>
-                      <input
-                        type="number"
-                        value={prodDailyLimit}
-                        onChange={(e) => setProdDailyLimit(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-                        placeholder="15"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">Scope</label>
+                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">Target Service Scope</label>
                       <select
                         value={prodServiceScope}
                         onChange={(e) => setProdServiceScope(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                        className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
                       >
-                        <option value="all">All Services (All-Access)</option>
+                        <option value="all">All Services (All-Access Pass)</option>
                         <option value="fivem">FiveM Bundle (Rockstar + Steam + Discord)</option>
-                        <option value="single">Single Service</option>
+                        <option value="single">Single Service (Dedicated Target Service)</option>
                       </select>
+                    </div>
+
+                    {/* Tier Options & Pricing Matrix */}
+                    <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-mono text-purple-400 font-bold uppercase tracking-wider">
+                            Multi-Tier Duration & Pricing Options
+                          </div>
+                          <div className="text-[11px] text-zinc-500">
+                            Configure duration variants synced with the customer storefront
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProdTierOptions((prev) => [
+                              ...prev,
+                              {
+                                id: 'tier_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+                                tierKey: 'monthly',
+                                name: 'Custom Tier',
+                                pricePHP: '500.00',
+                                priceUSD: '10.00',
+                                originalPricePHP: '',
+                                originalPriceUSD: '',
+                                dailyLimit: '15'
+                              }
+                            ]);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-[11px] font-mono font-semibold text-purple-300 transition-all flex items-center gap-1"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          <span>Add Option</span>
+                        </button>
+                      </div>
+
+                      {/* Tier Matrix List */}
+                      <div className="space-y-2.5">
+                        {prodTierOptions.map((opt, idx) => (
+                          <div
+                            key={opt.id || idx}
+                            className="p-3 rounded-xl bg-zinc-950 border border-zinc-800/80 space-y-2"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 font-semibold">
+                                Tier #{idx + 1}
+                              </span>
+                              {prodTierOptions.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setProdTierOptions((prev) => prev.filter((_, i) => i !== idx));
+                                  }}
+                                  className="text-[10px] font-mono text-rose-400 hover:text-rose-300 flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Remove</span>
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                              <div>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Duration Key</label>
+                                <select
+                                  value={opt.tierKey}
+                                  onChange={(e) => {
+                                    const val = e.target.value as any;
+                                    setProdTierOptions((prev) =>
+                                      prev.map((item, i) =>
+                                        i === idx
+                                          ? {
+                                              ...item,
+                                              tierKey: val,
+                                              name: item.name === '1 Day' || item.name === '7 Days' || item.name === '30 Days' || item.name === 'Lifetime'
+                                                ? (val === 'daily' ? '1 Day' : val === 'weekly' ? '7 Days' : val === 'monthly' ? '30 Days' : 'Lifetime')
+                                                : item.name
+                                            }
+                                          : item
+                                      )
+                                    );
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-white focus:outline-none focus:border-purple-500"
+                                >
+                                  <option value="daily">daily (1 Day)</option>
+                                  <option value="weekly">weekly (7 Days)</option>
+                                  <option value="monthly">monthly (30 Days)</option>
+                                  <option value="lifetime">lifetime (Lifetime)</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Display Label</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. 1 Day, 7 Days"
+                                  value={opt.name}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProdTierOptions((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, name: val } : item))
+                                    );
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-white focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Price PHP (₱) *</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  required
+                                  placeholder="50.00"
+                                  value={opt.pricePHP}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProdTierOptions((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, pricePHP: val } : item))
+                                    );
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-white focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Price USD ($) *</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  required
+                                  placeholder="1.00"
+                                  value={opt.priceUSD}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProdTierOptions((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, priceUSD: val } : item))
+                                    );
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-white focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-900">
+                              <div>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Strike PHP (₱)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="100.00"
+                                  value={opt.originalPricePHP}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProdTierOptions((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, originalPricePHP: val } : item))
+                                    );
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400 focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Strike USD ($)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="2.00"
+                                  value={opt.originalPriceUSD}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProdTierOptions((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, originalPriceUSD: val } : item))
+                                    );
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-zinc-400 focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-mono text-zinc-500 block mb-0.5">Daily Limit (gens/day)</label>
+                                <input
+                                  type="number"
+                                  placeholder="15"
+                                  value={opt.dailyLimit}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setProdTierOptions((prev) =>
+                                      prev.map((item, i) => (i === idx ? { ...item, dailyLimit: val } : item))
+                                    );
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-purple-300 focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ) : (
