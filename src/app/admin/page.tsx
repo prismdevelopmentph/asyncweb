@@ -837,21 +837,21 @@ export default function AdminPage() {
               {/* Left Column: Operations Showcase */}
               <div className="lg:col-span-7 flex flex-col justify-center">
                 {/* Status Pill */}
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-mono font-medium mb-5 w-fit">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  ASYNC CORE OPERATIONS // RESTRICTED ACCESS
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-mono mb-5 w-fit">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="tracking-wider uppercase">ASYNC CORE OPERATIONS // RESTRICTED ACCESS</span>
                 </div>
 
                 {/* Main Headline */}
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-[1.15]">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 text-white font-sans leading-[1.15]">
                   System Operations & <br className="hidden sm:inline" />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-purple-300 to-white">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-200 to-zinc-400">
                     Control Infrastructure.
                   </span>
                 </h1>
 
                 {/* Subtitle */}
-                <p className="mt-4 text-sm sm:text-base text-zinc-400 max-w-xl leading-relaxed">
+                <p className="max-w-xl text-zinc-400 text-sm sm:text-base mb-2 leading-relaxed font-normal">
                   Centralized administrative console for real-time security enforcement, generator license provisioning, stock tracking, and user audit telemetry.
                 </p>
 
@@ -908,23 +908,23 @@ export default function AdminPage() {
                 {/* Return Link to Storefront */}
                 <a
                   href="https://asyncdevph.xyz"
-                  className="mt-6 flex items-center justify-between gap-4 p-4 rounded-xl bg-gradient-to-r from-purple-950/30 to-zinc-900/60 border border-purple-500/30 hover:border-purple-400/60 transition-all group shadow-lg"
+                  className="mt-6 flex items-center justify-between gap-4 p-5 rounded-3xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900/50 transition-all duration-200 group shadow-lg shadow-purple-950/10 cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform shrink-0">
-                      <Sparkles className="w-4 h-4" />
+                    <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400 group-hover:border-purple-500/40 transition-colors shrink-0">
+                      <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-xs sm:text-sm font-semibold text-white group-hover:text-purple-200 transition-colors flex items-center gap-1.5">
+                      <div className="text-xs sm:text-sm font-semibold text-white group-hover:text-purple-300 transition-colors flex items-center gap-1.5">
                         <span>Looking for customer storefront? Visit asyncdevph.xyz</span>
-                        <span className="text-purple-400">&rarr;</span>
+                        <span className="text-purple-400 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
                         Return to public product marketplace and digital goods
                       </div>
                     </div>
                   </div>
-                  <ArrowUpRight className="w-4 h-4 text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                  <ArrowUpRight className="w-4 h-4 text-zinc-500 group-hover:text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" />
                 </a>
 
                 {/* Left Showcase Footer */}
@@ -936,15 +936,15 @@ export default function AdminPage() {
               {/* Right Column: Sleek Owner Auth Gateway */}
               <div className="lg:col-span-5">
                 <div className="relative">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-amber-500/20 via-purple-600/20 to-indigo-600/20 rounded-3xl blur-xl opacity-60" />
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600/15 via-zinc-900/10 to-transparent rounded-3xl blur-2xl opacity-75" />
 
-                  <div className="relative bg-zinc-950/90 border border-zinc-800 rounded-2xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
+                  <div className="relative bg-zinc-950/90 border border-zinc-800 hover:border-zinc-700/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl shadow-purple-950/10 transition-colors">
                     <div className="flex items-center justify-between mb-6">
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400">
-                        <Crown className="w-5 h-5 text-amber-400" />
+                      <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400">
+                        <Crown className="w-5 h-5 text-purple-400" />
                       </div>
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] font-mono">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         Owner Gateway
                       </div>
                     </div>
