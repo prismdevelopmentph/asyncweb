@@ -149,6 +149,44 @@ export default function HomePage() {
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loadingReviews, setLoadingReviews] = useState<boolean>(true);
 
+  // Dynamic Storefront Digital Products State
+  const [products, setProducts] = useState<any[]>(LICENSES);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.products) && data.products.length > 0) {
+          const mapped = data.products.map((p: any) => ({
+            id: p.id,
+            title: p.title,
+            category: p.category?.toLowerCase().includes('bundle') ? 'bundle' : 'single',
+            categoryLabel: p.category || 'General',
+            badge: p.badge || (p.highlight ? 'RECOMMENDED' : undefined),
+            priceUSD: Number(p.priceUSD) || 0,
+            pricePHP: Number(p.pricePHP) || 0,
+            originalPriceUSD: p.originalPriceUSD ? Number(p.originalPriceUSD) : undefined,
+            originalPricePHP: p.originalPricePHP ? Number(p.originalPricePHP) : undefined,
+            description: p.description || '',
+            features: Array.isArray(p.features) ? p.features : [],
+            deliveryType: p.deliveryType || 'Instant Cryptographic Key',
+            deliveryTime: 'Instant Delivery',
+            icon: p.category?.toLowerCase().includes('bundle') ? Sparkles : Key,
+            gradient: p.highlight
+              ? 'from-purple-600/20 via-zinc-900/80 to-black'
+              : 'from-purple-900/40 via-zinc-900/60 to-black',
+            highlight: Boolean(p.highlight),
+            imageUrl: p.imageUrl || '',
+            deliveryMode: p.deliveryMode || 'automated_license',
+            stockCount: p.stockCount,
+            isOutOfStock: p.isOutOfStock
+          }));
+          setProducts(mapped);
+        }
+      })
+      .catch((err) => console.error('[Storefront] Error loading products:', err));
+  }, []);
+
   useEffect(() => {
     fetch('/api/reviews')
       .then((res) => res.json())
@@ -163,7 +201,7 @@ export default function HomePage() {
 
   // Filter licenses by category and search query
   const filteredLicenses = useMemo(() => {
-    return LICENSES.filter((item) => {
+    return products.filter((item) => {
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
       const matchesSearch =
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -433,8 +471,20 @@ export default function HomePage() {
 
                     {/* Card Media Header (16:9 aspect) */}
                     <div className={`relative w-full aspect-[16/9] bg-gradient-to-br ${license.gradient} p-5 flex flex-col justify-between border-b border-zinc-800/80 overflow-hidden`}>
-                      {/* Ambient Grid Accent */}
-                      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent opacity-40 pointer-events-none" />
+                      {license.imageUrl ? (
+                        <>
+                          <Image
+                            src={license.imageUrl}
+                            alt={license.title}
+                            fill
+                            unoptimized
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent pointer-events-none" />
+                        </>
+                      ) : (
+                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent opacity-40 pointer-events-none" />
+                      )}
 
                       {/* Top Badges */}
                       <div className="flex items-center justify-between relative z-10">
@@ -443,22 +493,28 @@ export default function HomePage() {
                         </span>
 
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-zinc-950/80 border border-zinc-800 text-[10px] font-mono text-zinc-300 backdrop-blur-md">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span>Instant</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${license.isOutOfStock ? 'bg-rose-500' : 'bg-emerald-400 animate-pulse'}`} />
+                          <span>{license.isOutOfStock ? 'Sold Out' : 'Instant'}</span>
                         </div>
                       </div>
 
-                      {/* Center Art Icon */}
-                      <div className="relative z-10 flex items-center justify-center py-2">
-                        <div className="w-12 h-12 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 flex items-center justify-center text-purple-400 group-hover:scale-110 group-hover:border-purple-500/40 transition-all duration-200 shadow-lg">
-                          <Icon className="w-6 h-6" />
+                      {/* Center Art Icon (Shown if no custom image) */}
+                      {!license.imageUrl && (
+                        <div className="relative z-10 flex items-center justify-center py-2">
+                          <div className="w-12 h-12 rounded-2xl bg-zinc-900/80 border border-zinc-800/80 flex items-center justify-center text-purple-400 group-hover:scale-110 group-hover:border-purple-500/40 transition-all duration-200 shadow-lg">
+                            <Icon className="w-6 h-6" />
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Bottom Media Bar */}
-                      <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                      <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-zinc-300 backdrop-blur-xs">
                         <span>{license.deliveryType}</span>
-                        <span className="text-zinc-500">{license.deliveryTime}</span>
+                        <span className="text-zinc-400">
+                          {license.deliveryMode === 'stock_pool'
+                            ? (license.isOutOfStock ? 'Out of stock' : `${license.stockCount} in stock`)
+                            : license.deliveryTime}
+                        </span>
                       </div>
                     </div>
 
@@ -482,7 +538,7 @@ export default function HomePage() {
 
                         {/* Feature Preview Bullets */}
                         <div className="space-y-1.5 mb-5 pb-5 border-b border-zinc-800/80">
-                          {license.features.slice(0, 2).map((feat, idx) => (
+                          {license.features.slice(0, 2).map((feat: string, idx: number) => (
                             <div key={idx} className="flex items-start gap-2 text-xs text-zinc-300">
                               <Check className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
                               <span className="text-zinc-400 line-clamp-1">{feat}</span>
