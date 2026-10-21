@@ -83,10 +83,8 @@ const LICENSES: LicenseTier[] = [
     category: 'single',
     categoryLabel: 'Single Access Tier',
     badge: 'SINGLE ACCESS',
-    priceUSD: 20,
-    pricePHP: 1150,
-    originalPriceUSD: 25,
-    originalPricePHP: 1450,
+    priceUSD: 1.0,
+    pricePHP: 50.0,
     description: 'Dedicated access to 1 account generation service of your choice (Rockstar, Steam, Discord, CyberGhost VPN, or Netflix).',
     features: [
       'Choice of 1 dedicated generation service (Rockstar, Steam, Discord, etc.)',
@@ -112,10 +110,8 @@ const LICENSES: LicenseTier[] = [
     category: 'bundle',
     categoryLabel: 'Bundle Package',
     badge: 'FIVEM BUNDLE',
-    priceUSD: 45,
-    pricePHP: 2550,
-    originalPriceUSD: 55,
-    originalPricePHP: 3100,
+    priceUSD: 1.5,
+    pricePHP: 75.0,
     description: 'The definitive complete package for FiveM players and server developers: Rockstar, Steam, Discord, and CyberGhost VPN all unlocked.',
     features: [
       'Rockstar + Steam + Discord + CyberGhost VPN included',
@@ -141,10 +137,8 @@ const LICENSES: LicenseTier[] = [
     category: 'bundle',
     categoryLabel: 'Full Access Pass',
     badge: 'MOST POPULAR',
-    priceUSD: 75,
-    pricePHP: 4250,
-    originalPriceUSD: 95,
-    originalPricePHP: 5400,
+    priceUSD: 2.0,
+    pricePHP: 100.0,
     description: 'Complete unrestricted pass to ALL current and future Account Generator services (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant).',
     features: [
       'Every generator service fully unlocked (Rockstar, Steam, Discord, VPN, Netflix, Valorant)',
@@ -243,7 +237,7 @@ export default function HomePage() {
         item.categoryLabel.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [products, selectedCategory, searchQuery]);
 
   const formatPrice = (usd: number, php: number) => {
     if (currency === 'PHP') {
@@ -629,22 +623,31 @@ export default function HomePage() {
                         <div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-xl font-mono font-bold text-white">
-                              {formatPrice(license.priceUSD, license.pricePHP)}
+                              {formatPrice(currentPriceUSD, currentPricePHP)}
                             </span>
-                            {license.originalPriceUSD && (
-                              <span className="text-xs text-zinc-600 line-through font-mono">
-                                {formatPrice(license.originalPriceUSD, license.originalPricePHP || 0)}
-                              </span>
+                            {Boolean(activeTier?.hasDiscount && currentOrigPHP) && (
+                              <>
+                                <span className="text-xs text-zinc-500 line-through font-mono">
+                                  {formatPrice(currentOrigUSD || 0, currentOrigPHP || 0)}
+                                </span>
+                                {activeTier?.discountPercent && (
+                                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                                    -{activeTier.discountPercent}%
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                           <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
-                            Direct Pricing
+                            {activeTier ? `${activeTier.name} Access` : 'Direct Pricing'}
                           </div>
                         </div>
 
-                        {/* Link to Generator Portal */}
+                        {/* Link to Generator Portal with Product & Tier forward */}
                         <a
-                          href="https://gen.asyncdevph.xyz"
+                          href={`https://gen.asyncdevph.xyz?product=${encodeURIComponent(license.id)}&tier=${encodeURIComponent(activeTier?.tierKey || 'daily')}`}
+                          target="_blank"
+                          rel="noreferrer"
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/40 text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer group/btn"
                         >
                           <span>Inspect License</span>
