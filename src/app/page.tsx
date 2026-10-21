@@ -61,7 +61,7 @@ const LICENSES: LicenseTier[] = [
       'Full account retrieval history log (50-item persistent cache)'
     ],
     deliveryType: 'Instant Automated License Key',
-    deliveryTime: '< 2 seconds',
+    deliveryTime: 'Instant Delivery',
     icon: Key,
     gradient: 'from-purple-900/40 via-zinc-900/60 to-black',
     highlight: false
@@ -84,7 +84,7 @@ const LICENSES: LicenseTier[] = [
       'Hardware-locked security token with cloud sync'
     ],
     deliveryType: 'Instant Automated License Key',
-    deliveryTime: '< 2 seconds',
+    deliveryTime: 'Instant Delivery',
     icon: Server,
     gradient: 'from-indigo-900/40 via-purple-950/40 to-black',
     highlight: false
@@ -107,7 +107,7 @@ const LICENSES: LicenseTier[] = [
       'Discord role sync & automated cloud history backup'
     ],
     deliveryType: 'Instant Automated License Key',
-    deliveryTime: '< 2 seconds',
+    deliveryTime: 'Instant Delivery',
     icon: Sparkles,
     gradient: 'from-purple-600/20 via-zinc-900/80 to-black',
     highlight: true
@@ -484,7 +484,7 @@ export default function HomePage() {
               <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
                 03
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">Sub-2s Automated Dispatch</h3>
+              <h3 className="text-sm font-bold text-white mb-1.5">Instant Automated Dispatch</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
                 Server processes the order immediately and returns your cryptographic license key token.
               </p>
