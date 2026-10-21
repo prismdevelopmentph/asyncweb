@@ -38,6 +38,7 @@ export default function Navbar() {
     if (typeof document === 'undefined') return;
     const isProd = window.location.hostname.toLowerCase().includes('asyncdevph.xyz');
     const domainAttr = isProd ? '; Domain=.asyncdevph.xyz' : '';
+    const secureAttr = window.location.protocol === 'https:' ? '; Secure' : '';
     if (userObj) {
       const discordId =
         userObj.user_metadata?.provider_id ||
@@ -47,31 +48,64 @@ export default function Navbar() {
         userObj.id ||
         null;
       if (discordId) {
-        document.cookie = `async_security_uid=${discordId}; Path=/; Max-Age=31536000; SameSite=Lax${domainAttr}`;
+        document.cookie = `async_security_uid=${discordId}; Path=/; Max-Age=31536000; SameSite=Lax${domainAttr}${secureAttr}`;
       }
     } else {
-      document.cookie = `async_security_uid=; Path=/; Max-Age=0; SameSite=Lax${domainAttr}`;
+      document.cookie = `async_security_uid=; Path=/; Max-Age=0; SameSite=Lax${domainAttr}${secureAttr}`;
     }
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const getInitialUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      syncSecurityCookie(user);
-      setLoading(false);
+      // 1. Immediately check session from shared cross-subdomain storage
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted && session?.user) {
+          setUser(session.user);
+          syncSecurityCookie(session.user);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.warn('[Navbar] getSession lookup:', e);
+      }
+
+      // 2. Validate with getUser()
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (mounted) {
+          if (user) {
+            setUser(user);
+            syncSecurityCookie(user);
+          } else {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.user) {
+              setUser(null);
+              syncSecurityCookie(null);
+            }
+          }
+          setLoading(false);
+        }
+      } catch {
+        if (mounted) setLoading(false);
+      }
     };
 
     getInitialUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       syncSecurityCookie(currentUser);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleDiscordLogin = () => {
