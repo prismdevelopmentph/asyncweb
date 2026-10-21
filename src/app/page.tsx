@@ -542,10 +542,10 @@ export default function HomePage() {
               <span>SINGLE SIGN-ON INFRASTRUCTURE</span>
             </div>
             <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
-              Unified Cross-Subdomain Ecosystem
+              Seamless Account Synchronization
             </h3>
             <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-              One Discord authentication session seamlessly persists between the apex Storefront (asyncdevph.xyz), the Standalone Generator (gen.asyncdevph.xyz), and the Administrator Console (admin.asyncdevph.xyz).
+              One Discord authentication session seamlessly connects your storefront access and generator portal. Instant license activation with zero redundant sign-ins.
             </p>
           </div>
 
