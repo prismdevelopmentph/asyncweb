@@ -52,6 +52,7 @@ interface ReviewItem {
   id: string;
   userId: string;
   author: string;
+  username?: string;
   avatar: string;
   rating: number;
   service: string;
@@ -597,7 +598,7 @@ export default function HomePage() {
 
                   {/* Author Info */}
                   <div className="pt-4 border-t border-zinc-900 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="relative w-8 h-8 rounded-full overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0">
                         <Image
                           src={rev.avatar}
@@ -607,13 +608,18 @@ export default function HomePage() {
                           className="object-cover"
                         />
                       </div>
-                      <div>
-                        <div className="text-xs font-bold text-white font-mono">{rev.author}</div>
-                        <div className="text-[10px] text-zinc-500 font-mono">{rev.service}</div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white font-mono flex items-center gap-1.5 truncate">
+                          <span className="truncate">{rev.author}</span>
+                          {rev.username && rev.username.toLowerCase() !== rev.author.toLowerCase() && (
+                            <span className="text-[10px] text-zinc-500 font-normal shrink-0">@{rev.username}</span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-zinc-500 font-mono truncate">{rev.service}</div>
                       </div>
                     </div>
 
-                    <span className="text-[10px] text-zinc-600 font-mono">{rev.date}</span>
+                    <span className="text-[10px] text-zinc-600 font-mono shrink-0 ml-2">{rev.date}</span>
                   </div>
                 </div>
               ))}
