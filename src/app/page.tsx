@@ -175,41 +175,9 @@ export default function HomePage() {
           </h1>
 
           {/* Subtitle */}
-          <p className="max-w-2xl mx-auto text-zinc-400 text-sm sm:text-base mb-8 leading-relaxed font-normal">
+          <p className="max-w-2xl mx-auto text-zinc-400 text-sm sm:text-base mb-2 leading-relaxed font-normal">
             Automated digital delivery and multi-service account generation infrastructure with real-time inventory for Rockstar, Steam, Discord, VPN, Netflix, and Valorant.
           </p>
-
-          {/* Flagship Account Generator Gateway Card */}
-          <div className="w-full max-w-2xl mx-auto text-left">
-            <a
-              href="https://gen.asyncdevph.xyz"
-              className="group relative p-6 rounded-3xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900/40 transition-all duration-200 flex flex-col justify-between shadow-xl shadow-purple-950/10 block cursor-pointer"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400 group-hover:border-purple-500/40 transition-colors">
-                    <Key className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold">
-                    STANDALONE ENGINE
-                  </span>
-                </div>
-
-                <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                  Launch Standalone Account Generator
-                  <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-purple-400 group-hover:translate-x-1 transition-all" />
-                </h2>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Dedicated portal for real-time stock claiming: Rockstar, Steam, Discord, CyberGhost VPN, Netflix, and Valorant with quota telemetry.
-                </p>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs font-mono text-zinc-300 group-hover:text-purple-300 transition-colors">
-                <span className="font-semibold uppercase tracking-wider text-[11px]">Open gen.asyncdevph.xyz</span>
-                <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
-              </div>
-            </a>
-          </div>
         </section>
 
         {/* ── CORE METRICS & TELEMETRY STRIP ── */}
