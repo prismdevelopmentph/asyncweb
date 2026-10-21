@@ -95,7 +95,7 @@ export default function Navbar() {
       ]
     : [
         { name: 'Store', href: '/#catalog', icon: Sparkles, external: false },
-        { name: 'Features', href: '/#features', icon: Shield, external: false },
+        { name: 'Verify License', href: '/#verify', icon: Shield, external: false },
         { name: 'How It Works', href: '/#how-it-works', icon: Zap, external: false },
       ];
 

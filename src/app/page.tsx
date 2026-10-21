@@ -20,9 +20,11 @@ import {
   ExternalLink,
   Lock,
   Clock,
-  MessageSquare,
   CheckCircle2,
-  Users
+  Users,
+  ShieldCheck,
+  AlertTriangle,
+  Fingerprint
 } from 'lucide-react';
 
 type Currency = 'PHP' | 'USD';
@@ -125,50 +127,16 @@ const CATEGORIES = [
   { id: 'bundle', label: 'Bundles & Packages', count: LICENSES.filter(p => p.category === 'bundle').length },
 ];
 
-// ── KEY PLATFORM FEATURES ──
-const FEATURES = [
-  {
-    icon: RefreshCw,
-    title: 'Real-Time Stock Telemetry',
-    description: 'Live automated stock counters across Rockstar, Steam, Discord, CyberGhost VPN, Netflix, and Valorant. Zero phantom stock numbers or artificial wait times.',
-    tag: 'LIVE INVENTORY'
-  },
-  {
-    icon: Zap,
-    title: 'Instant Cryptographic Dispatch',
-    description: 'Our backend processes and dispatches your cryptographic license key token immediately upon payment confirmation. No manual delays.',
-    tag: 'AUTOMATED DISPATCH'
-  },
-  {
-    icon: Shield,
-    title: 'Hand-Audited Clean Inventory',
-    description: 'Every account pool is thoroughly vetted with clean VAC standing, pristine first-mail credentials, and zero blacklist flags.',
-    tag: 'CLEAN STANDING'
-  },
-  {
-    icon: Lock,
-    title: 'Hardware-Locked Security Token',
-    description: 'Your license key securely binds to your unique Discord identity and client machine footprint, preventing credential leaks and key hijacking.',
-    tag: 'SSO PROTECTION'
-  },
-  {
-    icon: Clock,
-    title: 'Automated 24h Quota Refresh',
-    description: 'Daily generation limits reset automatically at 00:00 UTC every 24 hours. Enjoy predictable daily usage without having to request manual replenishments.',
-    tag: 'DAILY QUOTA'
-  },
-  {
-    icon: MessageSquare,
-    title: '24/7 Discord Ticket Coverage',
-    description: 'Direct assistance via our official Discord community. Responsive support with a strict warranty replacement guarantee on non-working accounts.',
-    tag: 'WARRANTY SHIELD'
-  }
-];
-
 export default function HomePage() {
   const [currency, setCurrency] = useState<Currency>('PHP');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Real License Verification state
+  const [verifyKey, setVerifyKey] = useState<string>('');
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
+  const [verifyResult, setVerifyResult] = useState<any>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   // Filter licenses by category and search query
   const filteredLicenses = useMemo(() => {
@@ -187,6 +155,31 @@ export default function HomePage() {
       return `₱${php.toLocaleString('en-PH')}`;
     }
     return `$${usd.toFixed(2)}`;
+  };
+
+  const handleVerifyLicense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyKey.trim()) return;
+    setIsVerifying(true);
+    setVerifyResult(null);
+    setVerifyError(null);
+
+    try {
+      const res = await fetch('/api/license/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: verifyKey.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Verification query failed.');
+      }
+      setVerifyResult(data);
+    } catch (err: any) {
+      setVerifyError(err.message || 'Failed to verify license.');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (
@@ -505,54 +498,185 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* ── 4. PLATFORM CAPABILITIES & FEATURES ── */}
-        <section id="features" className="w-full space-y-10 scroll-mt-24 pt-4">
+        {/* ── 4. LIVE DATABASE-BACKED LICENSE VERIFICATION & REPUTATION ENGINE ── */}
+        <section id="verify" className="w-full space-y-8 scroll-mt-24 pt-4">
+          
+          {/* Header */}
           <div className="text-center max-w-2xl mx-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-purple-300 text-[11px] font-mono mb-3">
-              <Shield className="w-3.5 h-3.5 text-purple-400" />
-              <span>PLATFORM ADVANTAGES</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+              <span>AUTHENTICITY AUDIT // REPUTATION VERIFICATION</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3">
-              Engineered for High Reliability
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
+              Verify License Authenticity
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-              Built from the ground up to solve the frustrations of public resellers. Real-time stock automation, zero phantom limits, and cryptographic delivery.
+              Real reputation is verifiable. Enter any issued ASYNC license key below to check its validity, active daily quota, tier, and cryptographic authenticity directly against our database in real-time.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {FEATURES.map((feat, idx) => {
-              const Icon = feat.icon;
-              return (
-                <div
-                  key={idx}
-                  className="p-6 rounded-3xl bg-zinc-950/70 border border-zinc-800/80 hover:border-purple-500/40 transition-all duration-200 flex flex-col justify-between group"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-purple-400 group-hover:border-purple-500/30 group-hover:scale-105 transition-all">
-                        <Icon className="w-5 h-5" />
+          {/* Interactive Verification Console Card */}
+          <div className="max-w-3xl mx-auto p-6 sm:p-8 rounded-3xl bg-zinc-950/90 border border-zinc-800 shadow-xl shadow-purple-950/10">
+            {/* Input Form */}
+            <form onSubmit={handleVerifyLicense} className="flex flex-col sm:flex-row gap-2.5 mb-6">
+              <div className="relative flex-1">
+                <Key className="w-4 h-4 text-zinc-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={verifyKey}
+                  onChange={(e) => {
+                    setVerifyKey(e.target.value);
+                    if (verifyResult || verifyError) {
+                      setVerifyResult(null);
+                      setVerifyError(null);
+                    }
+                  }}
+                  placeholder="Enter license key (e.g. ASYNC-XXXX-XXXX)..."
+                  className="w-full pl-11 pr-4 py-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 focus:border-purple-500/60 focus:outline-none text-xs sm:text-sm text-zinc-200 placeholder-zinc-500 font-mono transition-colors"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isVerifying || !verifyKey.trim()}
+                className="px-6 py-3 rounded-2xl bg-white hover:bg-zinc-200 disabled:opacity-50 text-black font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed shadow-sm"
+              >
+                {isVerifying ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-black" />
+                    <span>Auditing...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 text-black" />
+                    <span>Verify License</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Error Display */}
+            {verifyError && (
+              <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-800/60 text-xs text-rose-300 flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span>{verifyError}</span>
+              </div>
+            )}
+
+            {/* Verification Result Display */}
+            {verifyResult && (
+              verifyResult.found ? (
+                /* Valid License Output Card */
+                <div className="p-5 sm:p-6 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-emerald-500/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                        <ShieldCheck className="w-5 h-5" />
                       </div>
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold px-2 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/60">
-                        {feat.tag}
-                      </span>
+                      <div>
+                        <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                          <span>VERIFIED AUTHENTIC ASYNC LICENSE</span>
+                        </div>
+                        <div className="text-[11px] font-mono text-emerald-400">
+                          {verifyResult.valid ? '● Active & Cryptographically Signed' : '○ Suspended / Inactive'}
+                        </div>
+                      </div>
                     </div>
 
-                    <h3 className="text-base font-bold text-white mb-2 group-hover:text-purple-200 transition-colors">
-                      {feat.title}
-                    </h3>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      {feat.description}
-                    </p>
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold">
+                      DATABASE CONFIRMED
+                    </span>
                   </div>
 
-                  <div className="mt-5 pt-4 border-t border-zinc-900 flex items-center gap-1.5 text-[11px] font-mono text-zinc-500 group-hover:text-purple-400 transition-colors">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Verified Active Architecture</span>
+                  {/* Metadata Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase">Tier</div>
+                      <div className="text-xs font-bold text-white mt-0.5 truncate">{verifyResult.tier}</div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase">Daily Limit</div>
+                      <div className="text-xs font-bold text-white mt-0.5">{verifyResult.dailyLimit}</div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase">Access Expiry</div>
+                      <div className="text-xs font-bold text-white mt-0.5 truncate">{verifyResult.expiresAt}</div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase">Activation</div>
+                      <div className="text-xs font-bold text-white mt-0.5 truncate">{verifyResult.maskedOwner}</div>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+              ) : (
+                /* Unrecognized / Counterfeit Alert Card */
+                <div className="p-5 sm:p-6 rounded-2xl bg-rose-950/30 border border-rose-500/40 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold text-white">UNRECOGNIZED / INVALID LICENSE TOKEN</div>
+                      <div className="text-[11px] font-mono text-rose-400">Zero database records matched this key</div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-zinc-300 leading-relaxed pt-1">
+                    {verifyResult.message || 'This license key was not found in the official ASYNC database. Warning: Beware of unauthorized third-party resellers or fraudulent sellers. Genuine licenses are issued exclusively through asyncdevph.xyz.'}
+                  </p>
+                </div>
+              )
+            )}
+
+            {/* Awaiting Verification (Initial Blank State) */}
+            {!verifyResult && !verifyError && (
+              <div className="p-5 rounded-2xl bg-zinc-900/40 border border-zinc-800/60 text-center flex flex-col items-center justify-center">
+                <Fingerprint className="w-6 h-6 text-zinc-600 mb-2" />
+                <div className="text-xs text-zinc-400 font-mono">
+                  Awaiting License Input — Enter any active or newly purchased ASYNC key above to perform an instantaneous database audit.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3 Real Verification Pillars */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-5xl mx-auto">
+            <div className="p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80">
+              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 mb-3">
+                <RefreshCw className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-white mb-1">
+                Live Database Resolution
+              </h3>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                Evaluated in real-time against our active Supabase license registry. No simulated mockups or client-side bypasses.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80">
+              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 mb-3">
+                <Lock className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-white mb-1">
+                Hardware-Locked Integrity
+              </h3>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                Genuine licenses bind cryptographically to client machine tokens and Discord IDs, preventing key theft and reselling.
+              </p>
+            </div>
+
+            <div className="p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80">
+              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 mb-3">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-bold font-mono uppercase tracking-wider text-white mb-1">
+                Zero Counterfeits Tolerated
+              </h3>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                Every valid license token is tamper-proof and publicly verifiable. Unofficial keys are flagged immediately.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -614,7 +738,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── 7. PLATFORM SECURITY & DISCORD COMMUNITY ── */}
+        {/* ── 6. PLATFORM SECURITY & DISCORD COMMUNITY ── */}
         <section className="p-6 sm:p-8 rounded-3xl bg-zinc-950/90 border border-zinc-800 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[11px] font-mono mb-3">
@@ -625,7 +749,7 @@ export default function HomePage() {
               Join Our Verified Customer Community
             </h3>
             <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-              Connect directly with our support team, get instant restock notifications, and exchange feedback with over 1,200 active members in our official Discord server.
+              Connect directly with our support team, get instant restock notifications, and exchange feedback with active members in our official Discord server.
             </p>
           </div>
 
