@@ -225,6 +225,13 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
       .catch((err) => console.warn('[Storefront] Background sync skipped:', err));
   }, []);
 
+  // Dynamic categories with real product counts
+  const categories = useMemo(() => [
+    { id: 'all', label: 'All Licenses', count: products.length },
+    { id: 'single', label: 'Single Access', count: products.filter((p) => p.category === 'single').length },
+    { id: 'bundle', label: 'Bundles & Packages', count: products.filter((p) => p.category === 'bundle').length },
+  ], [products]);
+
   // Filter licenses by category and search query
   const filteredLicenses = useMemo(() => {
     return products.filter((item) => {
@@ -422,7 +429,7 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             {/* Category Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 sm:pb-0 scrollbar-none">
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
@@ -481,7 +488,7 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredLicenses.map((license) => {
-                const Icon = license.icon;
+                const Icon = license.category === 'bundle' ? Sparkles : Key;
                 const activeTierKey = selectedTiers[license.id] || license.tierOptions?.[0]?.tierKey || 'daily';
                 const activeTier = license.tierOptions?.find((t: any) => t.tierKey === activeTierKey) || license.tierOptions?.[0];
 
