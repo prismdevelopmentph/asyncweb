@@ -579,7 +579,7 @@ export default function HomePage() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
-                  <span>LIVE REPUTATION STREAM &bull; HOVER TO PAUSE</span>
+                  <span>LIVE REPUTATION STREAM</span>
                 </div>
                 <div className="hidden sm:block text-[11px] text-zinc-600">
                   {reviews.length} Verified Entries Looping
@@ -587,7 +587,7 @@ export default function HomePage() {
               </div>
 
               {/* Marquee Wrapper with side fade gradients */}
-              <div className="relative w-full overflow-hidden marquee-pause py-2">
+              <div className="relative w-full overflow-hidden py-2">
                 {/* Left & Right ambient fade masks */}
                 <div className="pointer-events-none absolute inset-y-0 left-0 w-12 sm:w-32 bg-gradient-to-r from-black via-black/80 to-transparent z-10" />
                 <div className="pointer-events-none absolute inset-y-0 right-0 w-12 sm:w-32 bg-gradient-to-l from-black via-black/80 to-transparent z-10" />
