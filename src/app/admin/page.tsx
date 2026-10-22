@@ -2333,7 +2333,7 @@ export default function AdminPage() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[760px] overflow-y-auto pr-1">
                 {productsList
                   .filter((p) => {
                     if (!searchQuery) return true;
