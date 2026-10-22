@@ -42,11 +42,14 @@ interface OrderData {
   paypalNote?: string | null;
   gcashNumber?: string | null;
   gcashName?: string | null;
+  gcashQrUrl?: string | null;
   mayaNumber?: string | null;
   mayaName?: string | null;
+  mayaQrUrl?: string | null;
   qrImageUrl?: string | null;
   refCode?: string | null;
   customerRef?: string | null;
+  hasSubmittedRef?: boolean;
   createdAt: string;
   paidAt?: string | null;
   deliveredAt?: string | null;
@@ -182,7 +185,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   }
 
   const isDelivered = order.status === 'delivered';
-  const isPaid = order.status === 'paid' || isDelivered;
+  const isPaymentSubmitted = Boolean(order.paidAt || order.hasSubmittedRef || order.customerRef || refSuccess);
+  const isPaid = order.status === 'paid' || isPaymentSubmitted || isDelivered;
   const isPending = order.status === 'pending';
 
   return (
@@ -206,6 +210,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 font-sans">
                 {isDelivered
                   ? 'Your License Key is Delivered'
+                  : isPaymentSubmitted
+                  ? 'Payment Submitted // Pending Staff Approval'
                   : order.provider === 'balance'
                   ? 'Processing Order'
                   : `Complete your ${order.providerLabel} payment`}
@@ -213,6 +219,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
                 {isDelivered
                   ? 'Your payment is confirmed. Your cryptographic license key is ready to use below.'
+                  : isPaymentSubmitted
+                  ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your license key will unlock here automatically.'
                   : 'Follow the steps below. Once we confirm your payment, your items unlock here automatically.'}
               </p>
             </div>
@@ -235,9 +243,14 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               }`}>
                 {isPaid ? '✓' : '2'}
               </span>
-              <span className={`text-xs font-mono font-medium ${isPaid ? 'text-white' : 'text-zinc-500'}`}>
-                Paid
-              </span>
+              <div className="flex flex-col">
+                <span className={`text-xs font-mono font-medium ${isPaid ? 'text-white' : 'text-zinc-500'}`}>
+                  Paid
+                </span>
+                {isPaymentSubmitted && !isDelivered && (
+                  <span className="text-[9px] font-mono text-amber-400">Verifying</span>
+                )}
+              </div>
             </div>
 
             {/* Step 3: Delivered */}
@@ -272,7 +285,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 </div>
 
                 <div>
-                  <div className="text-xs font-mono text-zinc-400 mb-2">YOUR CRYPTOGRAPHIC LICENSE KEY:</div>
+                  <div className="text-xs font-mono text-emerald-400 font-bold mb-2 uppercase tracking-wider">
+                    YOUR LICENSE KEY IS NOW ACTIVATED
+                  </div>
                   <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900 border border-emerald-500/30 font-mono text-sm sm:text-base font-bold text-emerald-300 select-all">
                     <span>{order.licenseKey}</span>
                     <button
@@ -305,8 +320,30 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               </div>
             )}
 
+            {/* PENDING SUBMISSION NOTIFICATION CARD */}
+            {isPaymentSubmitted && !isDelivered && (
+              <div className="p-6 rounded-3xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-bold">
+                    <Clock className="w-4 h-4 animate-pulse" />
+                    <span>PAYMENT SUBMITTED // PENDING STAFF VERIFICATION</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-200">
+                    Step 2 / 3
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-300 leading-relaxed font-sans">
+                  We have received your payment reference (<strong className="font-mono text-white">{order.customerRef || referenceInput}</strong>). A staff member is currently confirming the transaction in the ledger. Your license will automatically unlock here once verified.
+                </p>
+                <div className="text-[11px] font-mono text-zinc-400 flex items-center gap-2 pt-1 border-t border-amber-500/20">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                  <span>Auto-sync active every 3 seconds — no need to refresh this page.</span>
+                </div>
+              </div>
+            )}
+
             {/* PENDING STATE: PAYPAL F&F CARD */}
-            {isPending && order.provider === 'paypal' && (
+            {isPending && order.provider === 'paypal' && !isPaymentSubmitted && (
               <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-purple-500/30 space-y-6">
                 <div className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider">
                   PAYPAL PAYMENT
@@ -369,7 +406,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 {/* Optional TxID input */}
                 <form onSubmit={handleSubmitReference} className="pt-2">
                   <div className="text-[11px] font-mono text-zinc-500 mb-1.5">
-                    ALREADY SENT? ENTER YOUR PAYPAL TRANSACTION ID (OPTIONAL):
+                    ALREADY SENT? ENTER YOUR PAYPAL TRANSACTION ID:
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -382,9 +419,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     <button
                       type="submit"
                       disabled={submittingRef || !referenceInput.trim()}
-                      className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-xs font-mono text-zinc-200 transition-colors"
+                      className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-semibold text-white transition-all cursor-pointer"
                     >
-                      {refSuccess ? 'Saved ✓' : submittingRef ? 'Saving...' : 'Submit'}
+                      {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
                     </button>
                   </div>
                 </form>
@@ -406,39 +443,93 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   </span>
                 </div>
 
-                {/* Mobile Numbers */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-1">
-                    <span className="text-[10px] font-mono text-zinc-500">GCASH MOBILE:</span>
-                    <div className="flex items-center justify-between font-mono text-xs font-semibold text-white">
-                      <span>{order.gcashNumber} ({order.gcashName})</span>
-                      <button
-                        onClick={() => handleCopy(order.gcashNumber!, 'gcash')}
-                        className="p-1 rounded bg-zinc-800 text-zinc-300"
-                      >
-                        {copiedField === 'gcash' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
+                {/* Dual QR Code Display (GCash & Maya) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* GCash Card */}
+                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      <span className="text-xs font-mono font-bold text-white uppercase">GCash Transfer</span>
+                    </div>
+
+                    {order.gcashQrUrl ? (
+                      <div className="relative w-44 h-44 rounded-xl overflow-hidden border border-zinc-700 bg-white p-1 shadow-md">
+                        <Image
+                          src={order.gcashQrUrl}
+                          alt="GCash QR Code"
+                          fill
+                          unoptimized
+                          className="object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-44 h-44 rounded-xl border border-dashed border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center p-3 text-zinc-500 text-[11px] font-mono">
+                        <QrCode className="w-8 h-8 mb-1.5 text-blue-400 opacity-80" />
+                        <span>Send via Mobile #</span>
+                      </div>
+                    )}
+
+                    <div className="w-full text-left space-y-1 font-mono text-xs pt-1">
+                      <div className="text-[10px] text-zinc-500 uppercase">Account Name:</div>
+                      <div className="text-white font-semibold truncate">{order.gcashName || 'ASYNC DEV'}</div>
+                      <div className="text-[10px] text-zinc-500 uppercase pt-1">Mobile Number:</div>
+                      <div className="flex items-center justify-between text-zinc-200">
+                        <span>{order.gcashNumber}</span>
+                        <button
+                          onClick={() => handleCopy(order.gcashNumber!, 'gcash')}
+                          className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                        >
+                          {copiedField === 'gcash' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 space-y-1">
-                    <span className="text-[10px] font-mono text-zinc-500">MAYA MOBILE:</span>
-                    <div className="flex items-center justify-between font-mono text-xs font-semibold text-white">
-                      <span>{order.mayaNumber} ({order.mayaName})</span>
-                      <button
-                        onClick={() => handleCopy(order.mayaNumber!, 'maya')}
-                        className="p-1 rounded bg-zinc-800 text-zinc-300"
-                      >
-                        {copiedField === 'maya' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
+                  {/* Maya Card */}
+                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-xs font-mono font-bold text-white uppercase">Maya Transfer</span>
+                    </div>
+
+                    {order.mayaQrUrl ? (
+                      <div className="relative w-44 h-44 rounded-xl overflow-hidden border border-zinc-700 bg-white p-1 shadow-md">
+                        <Image
+                          src={order.mayaQrUrl}
+                          alt="Maya QR Code"
+                          fill
+                          unoptimized
+                          className="object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-44 h-44 rounded-xl border border-dashed border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center p-3 text-zinc-500 text-[11px] font-mono">
+                        <QrCode className="w-8 h-8 mb-1.5 text-emerald-400 opacity-80" />
+                        <span>Send via Mobile #</span>
+                      </div>
+                    )}
+
+                    <div className="w-full text-left space-y-1 font-mono text-xs pt-1">
+                      <div className="text-[10px] text-zinc-500 uppercase">Account Name:</div>
+                      <div className="text-white font-semibold truncate">{order.mayaName || 'ASYNC DEV'}</div>
+                      <div className="text-[10px] text-zinc-500 uppercase pt-1">Mobile Number:</div>
+                      <div className="flex items-center justify-between text-zinc-200">
+                        <span>{order.mayaNumber}</span>
+                        <button
+                          onClick={() => handleCopy(order.mayaNumber!, 'maya')}
+                          className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                        >
+                          {copiedField === 'maya' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Instructions & Reference Submission */}
-                <form onSubmit={handleSubmitReference} className="space-y-3 pt-2 border-t border-zinc-800/80">
+                <form onSubmit={handleSubmitReference} className="space-y-3 pt-3 border-t border-zinc-800/80">
                   <div className="text-xs text-zinc-400">
-                    After completing the transfer, enter your <strong>13-digit GCash/Maya Reference Number</strong> below for immediate admin validation:
+                    After completing the transfer, enter your <strong>Reference Number</strong> below and click <strong>Submit Payment</strong>:
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -452,9 +543,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     <button
                       type="submit"
                       disabled={submittingRef || !referenceInput.trim()}
-                      className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-semibold text-white transition-all cursor-pointer"
+                      className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40"
                     >
-                      {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Verify Ref #'}
+                      {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
                     </button>
                   </div>
                 </form>

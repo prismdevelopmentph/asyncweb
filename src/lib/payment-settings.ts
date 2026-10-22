@@ -4,18 +4,20 @@ export interface PaymentSettings {
   paypalEmail: string;
   gcashNumber: string;
   gcashName: string;
+  gcashQrUrl: string;
   mayaNumber: string;
   mayaName: string;
-  qrImageUrl: string;
+  mayaQrUrl: string;
 }
 
 export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   paypalEmail: 'payment@asyncdevph.xyz',
   gcashNumber: '09612345678',
   gcashName: 'ASYNC DEV',
+  gcashQrUrl: '',
   mayaNumber: '09612345678',
   mayaName: 'ASYNC DEV',
-  qrImageUrl: '/images/qr-ph.png'
+  mayaQrUrl: ''
 };
 
 export async function getPaymentSettings(): Promise<PaymentSettings> {
@@ -27,9 +29,10 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
         'payment_paypal_email',
         'payment_gcash_number',
         'payment_gcash_name',
+        'payment_gcash_qr_url',
         'payment_maya_number',
         'payment_maya_name',
-        'payment_qr_image_url'
+        'payment_maya_qr_url'
       ]);
 
     const settings: PaymentSettings = { ...DEFAULT_PAYMENT_SETTINGS };
@@ -40,9 +43,10 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
         if (row.key === 'payment_paypal_email') settings.paypalEmail = row.value.trim();
         if (row.key === 'payment_gcash_number') settings.gcashNumber = row.value.trim();
         if (row.key === 'payment_gcash_name') settings.gcashName = row.value.trim();
+        if (row.key === 'payment_gcash_qr_url') settings.gcashQrUrl = row.value.trim();
         if (row.key === 'payment_maya_number') settings.mayaNumber = row.value.trim();
         if (row.key === 'payment_maya_name') settings.mayaName = row.value.trim();
-        if (row.key === 'payment_qr_image_url') settings.qrImageUrl = row.value.trim();
+        if (row.key === 'payment_maya_qr_url') settings.mayaQrUrl = row.value.trim();
       }
     }
 
@@ -52,4 +56,3 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     return DEFAULT_PAYMENT_SETTINGS;
   }
 }
-

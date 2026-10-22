@@ -169,9 +169,10 @@ export async function POST(req: NextRequest) {
             payment_details: {
               gcash_number: settings.gcashNumber,
               gcash_name: settings.gcashName,
+              gcash_qr_url: settings.gcashQrUrl,
               maya_number: settings.mayaNumber,
               maya_name: settings.mayaName,
-              qr_image_url: settings.qrImageUrl,
+              maya_qr_url: settings.mayaQrUrl,
               ref_code: refTag
             },
             status: 'pending'
@@ -235,9 +236,10 @@ export async function POST(req: NextRequest) {
             payment_details: {
               gcash_number: settings.gcashNumber,
               gcash_name: settings.gcashName,
+              gcash_qr_url: settings.gcashQrUrl,
               maya_number: settings.mayaNumber,
               maya_name: settings.mayaName,
-              qr_image_url: settings.qrImageUrl,
+              maya_qr_url: settings.mayaQrUrl,
               ref_code: refTag,
               target_credit_php: topupPhp
             },

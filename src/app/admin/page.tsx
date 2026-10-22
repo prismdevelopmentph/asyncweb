@@ -49,7 +49,8 @@ import {
   LogIn,
   ArrowUpRight,
   Zap,
-  CreditCard
+  CreditCard,
+  QrCode
 } from 'lucide-react';
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -149,6 +150,20 @@ export default function AdminPage() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered'>('all');
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+
+  // Payment Gateway Settings Configurator
+  const [showPaymentConfig, setShowPaymentConfig] = useState(false);
+  const [payConfigPaypalEmail, setPayConfigPaypalEmail] = useState('');
+  const [payConfigGcashName, setPayConfigGcashName] = useState('');
+  const [payConfigGcashNumber, setPayConfigGcashNumber] = useState('');
+  const [payConfigGcashQrUrl, setPayConfigGcashQrUrl] = useState('');
+  const [payConfigMayaName, setPayConfigMayaName] = useState('');
+  const [payConfigMayaNumber, setPayConfigMayaNumber] = useState('');
+  const [payConfigMayaQrUrl, setPayConfigMayaQrUrl] = useState('');
+  const [uploadingGcashQr, setUploadingGcashQr] = useState(false);
+  const [uploadingMayaQr, setUploadingMayaQr] = useState(false);
+  const [savingPayConfig, setSavingPayConfig] = useState(false);
+  const [payConfigSavedSuccess, setPayConfigSavedSuccess] = useState(false);
   const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'unbans'>('claims');
   const [chatChannel, setChatChannel] = useState<'support' | 'general'>('support');
   const [chatTickets, setChatTickets] = useState<any[]>([]);
@@ -389,6 +404,86 @@ export default function AdminPage() {
       alert(e?.message || 'Error cancelling order');
     } finally {
       setProcessingOrderId(null);
+    }
+  };
+
+  const fetchPaymentSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/payment-settings');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.settings) {
+          setPayConfigPaypalEmail(data.settings.paypalEmail || '');
+          setPayConfigGcashName(data.settings.gcashName || '');
+          setPayConfigGcashNumber(data.settings.gcashNumber || '');
+          setPayConfigGcashQrUrl(data.settings.gcashQrUrl || '');
+          setPayConfigMayaName(data.settings.mayaName || '');
+          setPayConfigMayaNumber(data.settings.mayaNumber || '');
+          setPayConfigMayaQrUrl(data.settings.mayaQrUrl || '');
+        }
+      }
+    } catch (e) {
+      console.warn('[Admin] fetchPaymentSettings:', e);
+    }
+  };
+
+  const handleUploadQr = async (file: File, type: 'gcash' | 'maya') => {
+    const isGcash = type === 'gcash';
+    if (isGcash) setUploadingGcashQr(true);
+    else setUploadingMayaQr(true);
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('type', type);
+
+      const res = await fetch('/api/admin/payment-settings', {
+        method: 'POST',
+        body: fd
+      });
+      const data = await res.json();
+      if (data.ok && data.url) {
+        if (isGcash) setPayConfigGcashQrUrl(data.url);
+        else setPayConfigMayaQrUrl(data.url);
+      } else {
+        alert(data.error || 'Failed to upload QR');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Error uploading QR');
+    } finally {
+      if (isGcash) setUploadingGcashQr(false);
+      else setUploadingMayaQr(false);
+    }
+  };
+
+  const handleSavePaymentSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingPayConfig(true);
+    try {
+      const res = await fetch('/api/admin/payment-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paypalEmail: payConfigPaypalEmail,
+          gcashName: payConfigGcashName,
+          gcashNumber: payConfigGcashNumber,
+          gcashQrUrl: payConfigGcashQrUrl,
+          mayaName: payConfigMayaName,
+          mayaNumber: payConfigMayaNumber,
+          mayaQrUrl: payConfigMayaQrUrl
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setPayConfigSavedSuccess(true);
+        setTimeout(() => setPayConfigSavedSuccess(false), 3000);
+      } else {
+        alert(data.error || 'Failed to save settings');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Error saving settings');
+    } finally {
+      setSavingPayConfig(false);
     }
   };
 
@@ -1616,6 +1711,7 @@ export default function AdminPage() {
               onClick={() => {
                 setActiveTab('orders');
                 fetchOrders();
+                fetchPaymentSettings();
               }}
               className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'orders'
@@ -2488,15 +2584,247 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <button
-                onClick={() => fetchOrders()}
-                disabled={ordersLoading}
-                className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${ordersLoading ? 'animate-spin' : ''}`} />
-                <span>Refresh Orders</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowPaymentConfig(!showPaymentConfig)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
+                    showPaymentConfig
+                      ? 'bg-purple-600/20 text-purple-300 border-purple-500/40'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/60'
+                  }`}
+                >
+                  <QrCode className="w-3.5 h-3.5 text-purple-400" />
+                  <span>{showPaymentConfig ? 'Hide Gateway Config' : 'Configure QR & Gateways'}</span>
+                </button>
+
+                <button
+                  onClick={() => fetchOrders()}
+                  disabled={ordersLoading}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${ordersLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Orders</span>
+                </button>
+              </div>
             </div>
+
+            {/* Payment & QR Gateway Configurator */}
+            {showPaymentConfig && (
+              <form
+                onSubmit={handleSavePaymentSettings}
+                className="p-5 sm:p-6 rounded-3xl bg-zinc-900/90 border border-purple-500/30 backdrop-blur-xl space-y-6 shadow-2xl relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        <QrCode className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-base font-bold text-white tracking-wide">
+                        Payment Gateways & QR Configurator
+                      </h3>
+                    </div>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      Configure recipient details and upload dual QR payment photos for GCash and Maya. Changes reflect live on checkout.
+                    </p>
+                  </div>
+
+                  {payConfigSavedSuccess && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-mono">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Settings Saved!</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* GCash Gateway */}
+                  <div className="p-4 rounded-2xl bg-zinc-950/70 border border-blue-500/20 space-y-4">
+                    <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">GCash QR Payment</h4>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        Manual Approval
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-mono text-zinc-400 mb-1 block">Account Name</label>
+                        <input
+                          type="text"
+                          value={payConfigGcashName}
+                          onChange={(e) => setPayConfigGcashName(e.target.value)}
+                          placeholder="e.g. MAIK R."
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700/60 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-mono text-zinc-400 mb-1 block">Mobile Number</label>
+                        <input
+                          type="text"
+                          value={payConfigGcashNumber}
+                          onChange={(e) => setPayConfigGcashNumber(e.target.value)}
+                          placeholder="e.g. 0917 XXX XXXX"
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700/60 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-mono text-zinc-400 mb-1 block">GCash QR Photo</label>
+                        <div className="flex items-center gap-3">
+                          <label className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-200 border border-zinc-700 flex items-center gap-2 cursor-pointer transition-colors">
+                            <Upload className="w-3.5 h-3.5 text-blue-400" />
+                            <span>{uploadingGcashQr ? 'Uploading...' : 'Upload GCash QR'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={uploadingGcashQr}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadQr(file, 'gcash');
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          {payConfigGcashQrUrl && (
+                            <span className="text-[10px] font-mono text-emerald-400 truncate max-w-[200px]">
+                              Uploaded OK
+                            </span>
+                          )}
+                        </div>
+
+                        {payConfigGcashQrUrl && (
+                          <div className="mt-3 p-2 rounded-xl bg-zinc-900 border border-zinc-800 inline-block">
+                            <img
+                              src={payConfigGcashQrUrl}
+                              alt="GCash QR Preview"
+                              className="w-32 h-32 object-contain rounded-lg bg-white p-1"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Maya Gateway */}
+                  <div className="p-4 rounded-2xl bg-zinc-950/70 border border-emerald-500/20 space-y-4">
+                    <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">Maya QR Payment</h4>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        Manual Approval
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-[11px] font-mono text-zinc-400 mb-1 block">Account Name</label>
+                        <input
+                          type="text"
+                          value={payConfigMayaName}
+                          onChange={(e) => setPayConfigMayaName(e.target.value)}
+                          placeholder="e.g. MAIK R."
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700/60 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-mono text-zinc-400 mb-1 block">Mobile Number</label>
+                        <input
+                          type="text"
+                          value={payConfigMayaNumber}
+                          onChange={(e) => setPayConfigMayaNumber(e.target.value)}
+                          placeholder="e.g. 0918 XXX XXXX"
+                          className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700/60 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-mono text-zinc-400 mb-1 block">Maya QR Photo</label>
+                        <div className="flex items-center gap-3">
+                          <label className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-200 border border-zinc-700 flex items-center gap-2 cursor-pointer transition-colors">
+                            <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>{uploadingMayaQr ? 'Uploading...' : 'Upload Maya QR'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={uploadingMayaQr}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadQr(file, 'maya');
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          {payConfigMayaQrUrl && (
+                            <span className="text-[10px] font-mono text-emerald-400 truncate max-w-[200px]">
+                              Uploaded OK
+                            </span>
+                          )}
+                        </div>
+
+                        {payConfigMayaQrUrl && (
+                          <div className="mt-3 p-2 rounded-xl bg-zinc-900 border border-zinc-800 inline-block">
+                            <img
+                              src={payConfigMayaQrUrl}
+                              alt="Maya QR Preview"
+                              className="w-32 h-32 object-contain rounded-lg bg-white p-1"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PayPal Gateway */}
+                <div className="p-4 rounded-2xl bg-zinc-950/70 border border-amber-500/20">
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                      <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">PayPal (Friends & Family)</h4>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      Manual Approval
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-zinc-400 mb-1 block">Receiver PayPal Email</label>
+                    <input
+                      type="email"
+                      value={payConfigPaypalEmail}
+                      onChange={(e) => setPayConfigPaypalEmail(e.target.value)}
+                      placeholder="e.g. payment@domain.com"
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700/60 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingPayConfig}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-mono text-xs font-semibold flex items-center gap-2 shadow-lg shadow-purple-900/30 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {savingPayConfig ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    <span>{savingPayConfig ? 'Saving Settings...' : 'Save Payment Gateways'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Orders List */}
             {ordersLoading && ordersList.length === 0 ? (

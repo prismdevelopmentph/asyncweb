@@ -32,7 +32,10 @@ export async function POST(
 
     await supabaseAdmin
       .from('orders')
-      .update({ payment_details: updatedDetails })
+      .update({
+        payment_details: updatedDetails,
+        paid_at: new Date().toISOString()
+      })
       .eq('id', id);
 
     return NextResponse.json({ ok: true, message: 'Reference number saved successfully' });
