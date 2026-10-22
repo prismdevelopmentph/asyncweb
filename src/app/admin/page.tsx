@@ -1581,235 +1581,313 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── 4 VITAL METRIC CARDS ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          <div className="bg-zinc-900/60 rounded-3xl p-6 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase font-mono tracking-wider text-zinc-400">Security Lockouts</span>
-              <div className="w-9 h-9 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-                <ShieldAlert className="w-4 h-4" />
+        {/* ── 2-COLUMN LAYOUT: LEFT SIDEBAR NAVIGATION + RIGHT CONTENT WORKSPACE ── */}
+        <div className="flex flex-col lg:flex-row items-start gap-8">
+          {/* ── LEFT SIDEBAR NAVIGATION ── */}
+          <aside className="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-28 space-y-4">
+            <div className="p-3 rounded-3xl bg-zinc-900/90 border border-zinc-800/80 backdrop-blur-xl shadow-xl space-y-1.5">
+              <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">
+                Admin Console
               </div>
-            </div>
-            <div>
-              <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
-                {activeBannedLockoutsCount}
-              </div>
-              <p className="text-xs text-zinc-500 mt-1 font-mono">
-                {securityLockouts.length} total logged events
-              </p>
-            </div>
-          </div>
 
-          <div className="bg-zinc-900/60 rounded-3xl p-6 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase font-mono tracking-wider text-zinc-400">Generator Services</span>
-              <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                <Layers className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
-                {services.length}
-              </div>
-              <p className="text-xs text-zinc-500 mt-1 font-mono">
-                Active generation modules
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/60 rounded-3xl p-6 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase font-mono tracking-wider text-zinc-400">Issued Licenses</span>
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                <Key className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
-                {generatorLicenses.length}
-              </div>
-              <p className="text-xs text-zinc-500 mt-1 font-mono">
-                Active generator keys
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900/60 rounded-3xl p-6 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase font-mono tracking-wider text-zinc-400">Packages & Bundles</span>
-              <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                <Package className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="text-3xl font-extrabold text-white font-mono tracking-tight">
-                {packages.length}
-              </div>
-              <p className="text-xs text-zinc-500 mt-1 font-mono">
-                Configured service bundles
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ── NAVIGATION RIBBON & GLOBAL SEARCH ── */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mb-8">
-          {/* Spacious Tab Switcher */}
-          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-zinc-900/90 border border-zinc-800/90 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shadow-sm">
-            <button
-              onClick={() => setActiveTab('security')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'security'
-                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
-              <span>Security & Bans</span>
-              <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                {activeBannedLockoutsCount}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('generator');
-                fetchAdminData(true);
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'generator'
-                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <Key className="w-4 h-4 text-amber-400" />
-              <span>Generator & Stock</span>
-              <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                {generatorLicenses.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('products');
-                fetchProducts();
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'products'
-                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <Package className="w-4 h-4 text-emerald-400" />
-              <span>Digital Products</span>
-              <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                {productsList.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('orders');
-                fetchOrders();
-                fetchPaymentSettings();
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'orders'
-                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <CreditCard className="w-4 h-4 text-purple-400" />
-              <span>Orders & Payments</span>
-              {ordersList.filter((o) => o.status === 'pending').length > 0 && (
-                <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30 animate-pulse">
-                  {ordersList.filter((o) => o.status === 'pending').length}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('audit')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'audit'
-                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <Activity className="w-4 h-4 text-blue-400" />
-              <span>Audit Trail</span>
-              <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                {claimLogs.length + downloadLogs.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'chat'
-                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
-              }`}
-            >
-              <MessageSquare className="w-4 h-4 text-purple-400" />
-              <span>Live Support</span>
-            </button>
-          </div>
-
-          {/* Search & Tab-Specific Quick Actions */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 sm:w-72">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search User ID, IP, Key..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 font-mono transition-colors"
-              />
-            </div>
-
-            {activeTab === 'security' && (
+              {/* Navigation Items */}
               <button
-                onClick={() => setShowManualBanModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-semibold text-xs flex items-center gap-2 transition-all shrink-0"
+                onClick={() => setActiveTab('security')}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'security'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
               >
-                <Ban className="w-4 h-4" />
-                <span>Ban IP</span>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'security' ? 'bg-rose-500/20 text-rose-300' : 'bg-zinc-800/60 text-rose-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
+                  <span>Security & Bans</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'security'
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                }`}>
+                  {activeBannedLockoutsCount}
+                </span>
               </button>
-            )}
 
-            {activeTab === 'generator' && (
-              <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => {
+                  setActiveTab('generator');
+                  fetchAdminData(true);
+                }}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'generator'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'generator' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-800/60 text-amber-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <span>Generator & Stock</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'generator'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                }`}>
+                  {generatorLicenses.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('products');
+                  fetchProducts();
+                }}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'products'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'products' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800/60 text-emerald-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <span>Digital Products</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'products'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                }`}>
+                  {productsList.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('orders');
+                  fetchOrders();
+                  fetchPaymentSettings();
+                }}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'orders'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'orders' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <span>Orders & Payments</span>
+                </div>
+                {ordersList.filter((o) => o.status === 'pending').length > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30 animate-pulse">
+                    {ordersList.filter((o) => o.status === 'pending').length}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                    {ordersList.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('audit')}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'audit'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'audit' ? 'bg-blue-500/20 text-blue-300' : 'bg-zinc-800/60 text-blue-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <span>Audit Trail</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'audit'
+                    ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                }`}>
+                  {claimLogs.length + downloadLogs.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'chat'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'chat' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <span>Live Support</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Quick System Badge in Sidebar */}
+            <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/60 text-xs font-mono space-y-2">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span>Infrastructure</span>
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Online
+                </span>
+              </div>
+              <div className="text-[11px] text-zinc-500 truncate">
+                Supabase & Edge Runtime
+              </div>
+            </div>
+          </aside>
+
+          {/* ── MAIN CONTENT WORKSPACE ── */}
+          <div className="flex-1 min-w-0 w-full space-y-6">
+            {/* Top Search & Contextual Quick Actions */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800 shadow-sm">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search User ID, IP, Key, Service..."
+                  className="w-full pl-10 pr-4 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 font-mono transition-colors"
+                />
+              </div>
+
+              {activeTab === 'security' && (
                 <button
-                  onClick={() => setShowCreateBundleModal(true)}
-                  className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-semibold text-xs flex items-center gap-2 transition-all shadow-sm shrink-0"
+                  onClick={() => setShowManualBanModal(true)}
+                  className="px-4 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all shrink-0 cursor-pointer"
                 >
-                  <Package className="w-4 h-4 text-purple-400" />
-                  <span>Create a Bundle</span>
+                  <Ban className="w-4 h-4" />
+                  <span>Ban IP</span>
                 </button>
+              )}
 
+              {activeTab === 'generator' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowCreateBundleModal(true)}
+                    className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 text-zinc-200 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-sm shrink-0 cursor-pointer"
+                  >
+                    <Package className="w-4 h-4 text-purple-400" />
+                    <span>Create Bundle</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowGenLicenseModal(true)}
+                    className="px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-1.5 transition-all shadow-md shrink-0 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Generate Key</span>
+                  </button>
+                </div>
+              )}
+
+              {activeTab === 'products' && (
                 <button
-                  onClick={() => setShowGenLicenseModal(true)}
-                  className="px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-2 transition-all shadow-md shrink-0"
+                  onClick={() => handleOpenProductModal()}
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-md shrink-0 cursor-pointer"
                 >
                   <PlusCircle className="w-4 h-4" />
-                  <span>Generate Key</span>
+                  <span>Add Product</span>
                 </button>
-              </div>
-            )}
+              )}
+            </div>
 
-            {activeTab === 'products' && (
-              <button
-                onClick={() => handleOpenProductModal()}
-                className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center gap-2 transition-all shadow-md shrink-0"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Add Product</span>
-              </button>
-            )}
-          </div>
-        </div>
+            {/* 4 Vital Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="bg-zinc-900/60 rounded-2xl p-5 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] uppercase font-mono tracking-wider text-zinc-400">Security Lockouts</span>
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-extrabold text-white font-mono tracking-tight">
+                    {activeBannedLockoutsCount}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-0.5 font-mono">
+                    {securityLockouts.length} total logged events
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/60 rounded-2xl p-5 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] uppercase font-mono tracking-wider text-zinc-400">Generator Services</span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-extrabold text-white font-mono tracking-tight">
+                    {services.length}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-0.5 font-mono">
+                    Active generation modules
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/60 rounded-2xl p-5 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] uppercase font-mono tracking-wider text-zinc-400">Issued Licenses</span>
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <Key className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-extrabold text-white font-mono tracking-tight">
+                    {generatorLicenses.length}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-0.5 font-mono">
+                    Active generator keys
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-900/60 rounded-2xl p-5 border border-zinc-800/80 hover:border-zinc-700 transition-all shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] uppercase font-mono tracking-wider text-zinc-400">Packages & Bundles</span>
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                    <Package className="w-4 h-4" />
+                  </div>
+                </div>
+                <div>
+                  <div className="text-2xl font-extrabold text-white font-mono tracking-tight">
+                    {packages.length}
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-0.5 font-mono">
+                    Configured service bundles
+                  </p>
+                </div>
+              </div>
+            </div>
 
         {/* ── TAB 1: SECURITY & LOCKOUTS ── */}
         {activeTab === 'security' && (
@@ -3228,6 +3306,9 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+          </div>
+        </div>
 
       </main>
 
