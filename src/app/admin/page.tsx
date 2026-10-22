@@ -48,7 +48,8 @@ import {
   AlertTriangle,
   LogIn,
   ArrowUpRight,
-  Zap
+  Zap,
+  CreditCard
 } from 'lucide-react';
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -143,7 +144,11 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'products' | 'audit' | 'chat'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'products' | 'orders' | 'audit' | 'chat'>('security');
+  const [ordersList, setOrdersList] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered'>('all');
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
   const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'unbans'>('claims');
   const [chatChannel, setChatChannel] = useState<'support' | 'general'>('support');
   const [chatTickets, setChatTickets] = useState<any[]>([]);
@@ -322,6 +327,68 @@ export default function AdminPage() {
       console.error('[Admin] Error fetching products:', err);
     } finally {
       setProductsLoading(false);
+    }
+  };
+
+  // Orders & Transactions Handlers
+  const fetchOrders = async () => {
+    try {
+      setOrdersLoading(true);
+      const res = await fetch('/api/admin/orders');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.orders)) {
+          setOrdersList(data.orders);
+        }
+      }
+    } catch (err) {
+      console.error('[Admin] Error fetching orders:', err);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string) => {
+    setProcessingOrderId(orderId);
+    try {
+      const res = await fetch('/api/admin/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve_order', orderId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        fetchOrders();
+        fetchAdminData(true);
+      } else {
+        alert(data.error || 'Failed to approve order');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Error approving order');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm('Are you sure you want to cancel this order?')) return;
+    setProcessingOrderId(orderId);
+    try {
+      const res = await fetch('/api/admin/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel_order', orderId })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        fetchOrders();
+      } else {
+        alert(data.error || 'Failed to cancel order');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Error cancelling order');
+    } finally {
+      setProcessingOrderId(null);
     }
   };
 
@@ -1546,6 +1613,26 @@ export default function AdminPage() {
             </button>
 
             <button
+              onClick={() => {
+                setActiveTab('orders');
+                fetchOrders();
+              }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'orders'
+                  ? 'bg-zinc-800 text-white shadow-sm border border-zinc-700/60'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+              }`}
+            >
+              <CreditCard className="w-4 h-4 text-purple-400" />
+              <span>Orders & Payments</span>
+              {ordersList.filter((o) => o.status === 'pending').length > 0 && (
+                <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30 animate-pulse">
+                  {ordersList.filter((o) => o.status === 'pending').length}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setActiveTab('audit')}
               className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'audit'
@@ -2317,7 +2404,260 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── TAB 4: AUDIT TRAIL ── */}
+        {/* ── TAB 4: ORDERS & TRANSACTIONS ── */}
+        {activeTab === 'orders' && (
+          <div className="space-y-6">
+            {/* Header Strip & Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-mono text-zinc-400">Total Orders</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">{ordersList.length}</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-mono text-zinc-400">Pending Approvals</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-amber-400 mt-0.5">
+                    {ordersList.filter((o) => o.status === 'pending').length}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <Clock className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-mono text-zinc-400">Delivered Licenses</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-400 mt-0.5">
+                    {ordersList.filter((o) => o.status === 'delivered').length}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-mono text-zinc-400">Balance Top-Ups</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-blue-400 mt-0.5">
+                    {ordersList.filter((o) => o.order_type === 'balance_topup').length}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <Zap className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-Filters and Refresh */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                <button
+                  onClick={() => setOrderFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
+                    orderFilter === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  All ({ordersList.length})
+                </button>
+                <button
+                  onClick={() => setOrderFilter('pending')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all flex items-center gap-1.5 ${
+                    orderFilter === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <span>Pending</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-200 text-[10px]">
+                    {ordersList.filter((o) => o.status === 'pending').length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setOrderFilter('delivered')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
+                    orderFilter === 'delivered' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Delivered ({ordersList.filter((o) => o.status === 'delivered').length})
+                </button>
+              </div>
+
+              <button
+                onClick={() => fetchOrders()}
+                disabled={ordersLoading}
+                className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${ordersLoading ? 'animate-spin' : ''}`} />
+                <span>Refresh Orders</span>
+              </button>
+            </div>
+
+            {/* Orders List */}
+            {ordersLoading && ordersList.length === 0 ? (
+              <div className="p-12 text-center text-xs font-mono text-zinc-500 animate-pulse bg-zinc-950 border border-zinc-800 rounded-3xl">
+                Loading orders from database...
+              </div>
+            ) : ordersList.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-zinc-950/50 border border-zinc-800/80">
+                <CreditCard className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                <h4 className="text-sm font-semibold text-white mb-1">No Orders Recorded</h4>
+                <p className="text-xs text-zinc-400">Store purchases and balance top-ups will appear here in real-time.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {ordersList
+                  .filter((ord) => {
+                    if (orderFilter === 'pending') return ord.status === 'pending';
+                    if (orderFilter === 'delivered') return ord.status === 'delivered';
+                    return true;
+                  })
+                  .map((ord) => {
+                    const isOrdPending = ord.status === 'pending';
+                    const isOrdDelivered = ord.status === 'delivered';
+                    const memo = ord.payment_details?.paypal_note;
+                    const customerRef = ord.payment_details?.customer_reference;
+                    const tierName = ord.tier_key ? `${ord.tier_key.toUpperCase()}` : '';
+
+                    return (
+                      <div
+                        key={ord.id}
+                        className={`p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${
+                          isOrdPending ? 'border-amber-500/40 bg-amber-950/5' : 'border-zinc-800/80'
+                        }`}
+                      >
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          {/* Row 1: Badges */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold border ${
+                              isOrdDelivered
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                : isOrdPending
+                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
+                                : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                            }`}>
+                              {ord.status}
+                            </span>
+
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300">
+                              {ord.provider_label || ord.provider}
+                            </span>
+
+                            <span className="text-[11px] font-mono text-zinc-500">
+                              {new Date(ord.created_at).toLocaleString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+
+                          {/* Row 2: Title & Details */}
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span className="text-sm font-bold text-white">
+                              {ord.order_type === 'balance_topup'
+                                ? 'Web Balance Top-Up'
+                                : ord.products?.title || 'ASYNC Product License'}
+                            </span>
+                            {tierName && (
+                              <span className="text-xs font-mono text-purple-400 font-semibold">
+                                ({tierName})
+                              </span>
+                            )}
+                            <span className="text-xs font-mono font-bold text-white ml-2">
+                              {ord.currency === 'PHP' ? '₱' : '$'}{Number(ord.amount).toFixed(2)} {ord.currency}
+                            </span>
+                          </div>
+
+                          {/* Row 3: Customer & Verification Data */}
+                          <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-zinc-400">
+                            <div>
+                              Buyer: <span className="text-zinc-200">{ord.email}</span>
+                              {ord.discord_id && <span className="text-zinc-500"> ({ord.discord_id})</span>}
+                            </div>
+
+                            {memo && (
+                              <div className="p-1 px-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300">
+                                Assigned Memo: <strong className="text-amber-300 select-all">&quot;{memo}&quot;</strong>
+                              </div>
+                            )}
+
+                            {customerRef && (
+                              <div className="p-1 px-2 rounded-lg bg-zinc-900 border border-purple-500/30 text-purple-300">
+                                Submitted Ref #: <strong className="text-white select-all">{customerRef}</strong>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Row 4: License Key if delivered */}
+                          {isOrdDelivered && ord.license_key && (
+                            <div className="pt-1 flex items-center gap-2">
+                              <span className="text-[11px] font-mono text-zinc-500">Issued Key:</span>
+                              <code className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/30 select-all">
+                                {ord.license_key}
+                              </code>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(ord.license_key);
+                                  setCopiedKey(ord.license_key);
+                                  setTimeout(() => setCopiedKey(null), 2000);
+                                }}
+                                className="text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
+                              >
+                                {copiedKey === ord.license_key ? 'Copied!' : 'Copy'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+                          {isOrdPending && (
+                            <>
+                              <button
+                                onClick={() => handleApproveOrder(ord.id)}
+                                disabled={processingOrderId === ord.id}
+                                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{processingOrderId === ord.id ? 'Issuing Key...' : ord.order_type === 'balance_topup' ? 'Approve Top-Up' : 'Approve & Issue Key'}</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleCancelOrder(ord.id)}
+                                disabled={processingOrderId === ord.id}
+                                className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-rose-950/30 hover:border-rose-500/40 border border-zinc-800 text-zinc-400 hover:text-rose-400 font-mono text-xs transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+
+                          <a
+                            href={`/order/${ord.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                            title="View Customer Tracking Page"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB 5: AUDIT TRAIL ── */}
         {activeTab === 'audit' && (
           <div className="space-y-6">
             <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-zinc-900 border border-zinc-800 w-fit">

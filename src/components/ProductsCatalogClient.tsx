@@ -19,6 +19,8 @@ import {
   Package
 } from 'lucide-react';
 import { CatalogProduct } from '@/lib/catalog';
+import CheckoutModal from '@/components/CheckoutModal';
+import { supabase } from '@/lib/supabase';
 
 type Currency = 'PHP' | 'USD';
 
@@ -40,6 +42,14 @@ export default function ProductsCatalogClient({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedTiers, setSelectedTiers] = useState<Record<string, string>>({});
+  const [checkoutTarget, setCheckoutTarget] = useState<{ product: any; tier: any } | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session?.user) setCurrentUser(data.session.user);
+    });
+  }, []);
 
   // Sync category from URL query param if present
   useEffect(() => {
@@ -376,16 +386,15 @@ export default function ProductsCatalogClient({
                         </div>
                       </div>
 
-                      {/* Link to Generator Portal with Product & Tier forward */}
-                      <a
-                        href={`https://gen.asyncdevph.xyz?product=${encodeURIComponent(license.id)}&tier=${encodeURIComponent(activeTier?.tierKey || 'daily')}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500/40 text-xs font-semibold text-zinc-200 hover:text-white transition-all cursor-pointer group/btn"
+                      {/* Purchase Action Trigger */}
+                      <button
+                        type="button"
+                        onClick={() => setCheckoutTarget({ product: license, tier: activeTier })}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold font-mono transition-all cursor-pointer shadow-md shadow-purple-950/40 group/btn"
                       >
-                        <span>Inspect License</span>
-                        <ArrowRight className="w-3.5 h-3.5 text-purple-400 group-hover/btn:translate-x-0.5 transition-transform" />
-                      </a>
+                        <span>Purchase</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                      </button>
                     </div>
                   </div>
                 </article>
@@ -395,6 +404,17 @@ export default function ProductsCatalogClient({
         )}
 
       </main>
+
+      {/* Checkout Modal */}
+      {checkoutTarget && (
+        <CheckoutModal
+          isOpen={Boolean(checkoutTarget)}
+          onClose={() => setCheckoutTarget(null)}
+          product={checkoutTarget.product}
+          tier={checkoutTarget.tier}
+          currentUser={currentUser}
+        />
+      )}
 
       <Footer />
     </div>
