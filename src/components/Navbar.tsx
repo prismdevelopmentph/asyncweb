@@ -130,7 +130,6 @@ export default function Navbar() {
     : [
         { name: 'Home', href: '/', icon: Sparkles, external: false },
         { name: 'Products', href: '/products', icon: Layers, external: false },
-        { name: 'Categories', href: '/categories', icon: Package, external: false },
         { name: 'Reputation', href: '/#reputation', icon: Star, external: false },
         { name: 'How It Works', href: '/#how-it-works', icon: Zap, external: false },
       ];

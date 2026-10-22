@@ -168,3 +168,4 @@ export async function getStoreCatalog(): Promise<{
 
   return { products, liveRate, categories };
 }
+

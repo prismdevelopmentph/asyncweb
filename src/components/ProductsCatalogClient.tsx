@@ -106,13 +106,9 @@ export default function ProductsCatalogClient({
               </>
             )}
           </div>
-          <Link
-            href="/categories"
-            className="hidden sm:inline-flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
-          >
-            <Package className="w-3.5 h-3.5" />
-            <span>View Categories Hub →</span>
-          </Link>
+          <span className="text-zinc-500 font-mono text-[11px]">
+            {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'} available
+          </span>
         </div>
 
         {/* Section Header Controls: Title + Currency Switcher */}
@@ -404,3 +400,4 @@ export default function ProductsCatalogClient({
     </div>
   );
 }
+

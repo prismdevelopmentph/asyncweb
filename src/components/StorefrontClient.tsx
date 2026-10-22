@@ -706,17 +706,11 @@ export default function StorefrontClient({
                   Looking for All Products & Categories?
                 </h3>
                 <p className="text-xs text-zinc-400 max-w-xl leading-relaxed">
-                  Browse our complete catalog of single-service licenses, packages, tools, and digital goods with full category filtering.
+                  Browse our complete catalog of single-service licenses, packages, tools, and digital goods with interactive category filtering.
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 shrink-0">
-                <Link
-                  href="/categories"
-                  className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-xs font-mono font-medium text-zinc-300 hover:text-white transition-all"
-                >
-                  View Categories
-                </Link>
+              <div className="flex items-center gap-3 shrink-0">
                 <Link
                   href="/products"
                   className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs font-mono flex items-center gap-2 shadow-lg shadow-purple-950/40 transition-all group"
