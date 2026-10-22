@@ -52,3 +52,4 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     return DEFAULT_PAYMENT_SETTINGS;
   }
 }
+

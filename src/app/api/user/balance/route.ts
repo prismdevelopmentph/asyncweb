@@ -25,3 +25,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, balancePHP: 0, balanceUSD: 0 });
   }
 }
+

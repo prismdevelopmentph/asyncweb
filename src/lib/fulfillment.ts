@@ -74,26 +74,86 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
     // 4. Resolve Target Service Scope
     let serviceIds: string[] = [];
     let packageId: string | null = null;
-    const targetScope = (product?.target_scope || product?.targetScope || 'all').trim();
+    const rawScope = (
+      product?.service_scope ||
+      product?.serviceScope ||
+      product?.target_scope ||
+      product?.targetScope ||
+      'all'
+    ).trim();
 
-    if (targetScope.startsWith('service:')) {
-      const svcId = targetScope.replace('service:', '').trim();
-      serviceIds = [svcId];
-    } else if (targetScope.startsWith('package:')) {
-      packageId = targetScope.replace('package:', '').trim();
-      const { data: psData } = await supabaseAdmin
-        .from('package_services')
-        .select('service_id')
-        .eq('package_id', packageId);
-      serviceIds = (psData || []).map((r: any) => r.service_id);
-    } else if (targetScope.toLowerCase() !== 'all') {
-      // Direct lookup by name fallback
+    const isUUID = (str: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+    if (rawScope.toLowerCase().startsWith('service:')) {
+      const clean = rawScope.replace(/service:/i, '').trim();
+      if (isUUID(clean)) {
+        serviceIds = [clean];
+      } else {
+        const { data: svc } = await supabaseAdmin
+          .from('services')
+          .select('id')
+          .ilike('name', clean)
+          .maybeSingle();
+        if (svc) serviceIds = [svc.id];
+      }
+    } else if (rawScope.toLowerCase().startsWith('package:')) {
+      const clean = rawScope.replace(/package:/i, '').trim();
+      if (isUUID(clean)) {
+        packageId = clean;
+      } else {
+        const { data: pkg } = await supabaseAdmin
+          .from('packages')
+          .select('id')
+          .ilike('name', clean)
+          .maybeSingle();
+        if (pkg) packageId = pkg.id;
+      }
+
+      if (packageId) {
+        const { data: psData } = await supabaseAdmin
+          .from('package_services')
+          .select('service_id')
+          .eq('package_id', packageId);
+        serviceIds = (psData || []).map((r: any) => r.service_id);
+      }
+    } else if (rawScope.toLowerCase() === 'fivem') {
+      const { data: pkg } = await supabaseAdmin
+        .from('packages')
+        .select('id')
+        .ilike('name', '%fivem%')
+        .maybeSingle();
+      if (pkg) {
+        packageId = pkg.id;
+        const { data: psData } = await supabaseAdmin
+          .from('package_services')
+          .select('service_id')
+          .eq('package_id', packageId);
+        serviceIds = (psData || []).map((r: any) => r.service_id);
+      }
+    } else if (rawScope.toLowerCase() !== 'all' && rawScope.toLowerCase() !== 'single') {
       const { data: svc } = await supabaseAdmin
         .from('services')
         .select('id')
-        .ilike('name', targetScope)
+        .ilike('name', rawScope)
         .maybeSingle();
-      if (svc) serviceIds = [svc.id];
+      if (svc) {
+        serviceIds = [svc.id];
+      } else {
+        const { data: pkg } = await supabaseAdmin
+          .from('packages')
+          .select('id')
+          .ilike('name', rawScope)
+          .maybeSingle();
+        if (pkg) {
+          packageId = pkg.id;
+          const { data: psData } = await supabaseAdmin
+            .from('package_services')
+            .select('service_id')
+            .eq('package_id', packageId);
+          serviceIds = (psData || []).map((r: any) => r.service_id);
+        }
+      }
     }
 
     // 5. Generate unique license key
@@ -205,3 +265,4 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
     return { success: false, error: err?.message || 'Fulfillment error' };
   }
 }
+
