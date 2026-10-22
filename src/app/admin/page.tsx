@@ -190,7 +190,9 @@ export default function AdminPage() {
   const [prodDeliveryMode, setProdDeliveryMode] = useState<'automated_license' | 'stock_pool'>('automated_license');
   const [prodLicenseTier, setProdLicenseTier] = useState<'1day' | '7day' | '30day' | 'lifetime'>('1day');
   const [prodDailyLimit, setProdDailyLimit] = useState('15');
-  const [prodServiceScope, setProdServiceScope] = useState<'all' | 'fivem' | 'single'>('all');
+  const [prodServiceScope, setProdServiceScope] = useState<string>('all');
+  const [availableServices, setAvailableServices] = useState<any[]>([]);
+  const [availablePackages, setAvailablePackages] = useState<any[]>([]);
   const [prodStockPool, setProdStockPool] = useState('');
   const [prodBadge, setProdBadge] = useState('');
   const [prodIsActive, setProdIsActive] = useState(true);
@@ -308,6 +310,12 @@ export default function AdminPage() {
         }
         if (data.liveRate) {
           setLiveFxRate(data.liveRate);
+        }
+        if (Array.isArray(data.services)) {
+          setAvailableServices(data.services);
+        }
+        if (Array.isArray(data.packages)) {
+          setAvailablePackages(data.packages);
         }
       }
     } catch (err) {
@@ -3187,16 +3195,41 @@ export default function AdminPage() {
                   <div className="space-y-4 pt-2">
                     {/* Service Scope selector */}
                     <div>
-                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">Target Service Scope</label>
+                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">
+                        Target Service Scope (Option C: Discrete Product Binding)
+                      </label>
                       <select
                         value={prodServiceScope}
-                        onChange={(e) => setProdServiceScope(e.target.value as any)}
+                        onChange={(e) => setProdServiceScope(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
                       >
-                        <option value="all">All Services (All-Access Pass)</option>
-                        <option value="fivem">FiveM Bundle (Rockstar + Steam + Discord)</option>
-                        <option value="single">Single Service (Dedicated Target Service)</option>
+                        <optgroup label="General Access Scope">
+                          <option value="all">All Services (All-Access Unlimited Pass)</option>
+                        </optgroup>
+
+                        <optgroup label="Bundled Packages">
+                          <option value="fivem">FiveM Bundle (Rockstar + Steam + Discord)</option>
+                          {availablePackages
+                            .filter((pkg: any) => pkg.name.toLowerCase() !== 'fivem bundle')
+                            .map((pkg: any) => (
+                              <option key={pkg.id} value={`package:${pkg.name}`}>
+                                Package: {pkg.name}
+                              </option>
+                            ))}
+                        </optgroup>
+
+                        <optgroup label="Dedicated Discrete Services (Single Target Binding)">
+                          {availableServices.map((svc: any) => (
+                            <option key={svc.id} value={`service:${svc.name}`}>
+                              Dedicated: {svc.name} Account Generator
+                            </option>
+                          ))}
+                          <option value="single">Single Service (Generic / Unlocked)</option>
+                        </optgroup>
                       </select>
+                      <div className="text-[10px] font-mono text-zinc-500 mt-1">
+                        Keys generated for this product will link directly to this service or package in <code>license_services</code>.
+                      </div>
                     </div>
 
                     {/* Tier Options & Pricing Matrix */}

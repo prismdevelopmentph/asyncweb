@@ -586,7 +586,7 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
                                 {activeTier?.dailyLimit ? `${activeTier.dailyLimit} gens/day` : activeTier?.name}
                               </span>
                             </div>
-                            <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-zinc-900/90 border border-zinc-800">
+                            <div className="flex flex-wrap gap-1 p-1 rounded-xl bg-zinc-900/90 border border-zinc-800">
                               {license.tierOptions.map((opt: any) => {
                                 const isSelected = (activeTier?.tierKey || activeTierKey) === opt.tierKey;
                                 return (
@@ -598,7 +598,7 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
                                       e.stopPropagation();
                                       setSelectedTiers((prev) => ({ ...prev, [license.id]: opt.tierKey }));
                                     }}
-                                    className={`py-1.5 px-1 rounded-lg text-center text-[11px] font-mono font-medium transition-all cursor-pointer ${
+                                    className={`flex-1 min-w-[70px] py-1.5 px-2 rounded-lg text-center text-[11px] font-mono font-medium transition-all cursor-pointer ${
                                       isSelected
                                         ? 'bg-purple-600 text-white font-bold shadow-sm shadow-purple-950 border border-purple-400/40'
                                         : 'text-zinc-400 hover:text-white hover:bg-zinc-800/60'

@@ -118,8 +118,24 @@ export async function GET() {
       };
     });
 
+    // Fetch available services & packages for dynamic Target Service Scope binding
+    const { data: dbServices } = await supabaseAdmin
+      .from('services')
+      .select('id, name')
+      .order('name', { ascending: true });
+
+    const { data: dbPackages } = await supabaseAdmin
+      .from('packages')
+      .select('id, name')
+      .order('name', { ascending: true });
+
     return new NextResponse(
-      JSON.stringify({ products: enriched, liveRate }),
+      JSON.stringify({
+        products: enriched,
+        liveRate,
+        services: dbServices || [],
+        packages: dbPackages || []
+      }),
       {
         status: 200,
         headers: {
