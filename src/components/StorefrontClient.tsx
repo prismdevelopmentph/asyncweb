@@ -170,9 +170,15 @@ interface StorefrontClientProps {
   initialProducts: any[];
   liveRate: number;
   initialReviews: any[];
+  highlightOnly?: boolean;
 }
 
-export default function StorefrontClient({ initialProducts, liveRate, initialReviews }: StorefrontClientProps) {
+export default function StorefrontClient({
+  initialProducts,
+  liveRate,
+  initialReviews,
+  highlightOnly = true
+}: StorefrontClientProps) {
   const [currency, setCurrency] = useState<Currency>('PHP');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -225,24 +231,47 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
       .catch((err) => console.warn('[Storefront] Background sync skipped:', err));
   }, []);
 
+  // Filter pool based on highlightOnly flag
+  const targetPool = useMemo(() => {
+    if (highlightOnly) {
+      const highlighted = products.filter((p) => p.highlight);
+      return highlighted.length > 0 ? highlighted : products;
+    }
+    return products;
+  }, [products, highlightOnly]);
+
   // Dynamic categories with real product counts
-  const categories = useMemo(() => [
-    { id: 'all', label: 'All Licenses', count: products.length },
-    { id: 'single', label: 'Single Access', count: products.filter((p) => p.category === 'single').length },
-    { id: 'bundle', label: 'Bundles & Packages', count: products.filter((p) => p.category === 'bundle').length },
-  ], [products]);
+  const categories = useMemo(() => {
+    if (highlightOnly) {
+      const uniqueCats = Array.from(new Set(targetPool.map((p) => p.categoryLabel || p.category)));
+      return [
+        { id: 'all', label: 'All Highlighted', count: targetPool.length },
+        ...uniqueCats.map((catLabel) => ({
+          id: catLabel,
+          label: catLabel,
+          count: targetPool.filter((p) => (p.categoryLabel || p.category) === catLabel).length
+        }))
+      ];
+    }
+    return [
+      { id: 'all', label: 'All Licenses', count: products.length },
+      { id: 'single', label: 'Single Access', count: products.filter((p) => p.category === 'single').length },
+      { id: 'bundle', label: 'Bundles & Packages', count: products.filter((p) => p.category === 'bundle').length },
+    ];
+  }, [products, targetPool, highlightOnly]);
 
   // Filter licenses by category and search query
   const filteredLicenses = useMemo(() => {
-    return products.filter((item) => {
-      const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
+    return targetPool.filter((item) => {
+      const itemCat = item.categoryLabel || item.category;
+      const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory || itemCat === selectedCategory;
       const matchesSearch =
         item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.categoryLabel.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [targetPool, selectedCategory, searchQuery]);
 
   const formatPrice = (usd: number, php: number) => {
     if (currency === 'PHP') {
@@ -388,10 +417,10 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
             <div>
               <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-zinc-900 border border-zinc-800 text-purple-300 text-[10px] font-mono mb-1.5">
                 <Sparkles className="w-3 h-3 text-purple-400" />
-                <span>OFFICIAL LICENSES</span>
+                <span>{highlightOnly ? 'FLAGSHIP ACCESS // HIGHLIGHTED' : 'OFFICIAL LICENSES'}</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                Available Generator Licenses
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-sans">
+                {highlightOnly ? 'Featured & Highlighted Solutions' : 'Available Generator Licenses'}
               </h2>
             </div>
 
@@ -663,6 +692,39 @@ export default function StorefrontClient({ initialProducts, liveRate, initialRev
                   </article>
                 );
               })}
+            </div>
+          )}
+
+          {/* Gateway to Full Catalog & Categories */}
+          {highlightOnly && (
+            <div className="mt-8 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-purple-950/40 via-zinc-950 to-zinc-950 border border-purple-500/30 flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="space-y-1 text-center sm:text-left">
+                <div className="text-[11px] font-mono text-purple-400 uppercase tracking-wider">
+                  EXPANDED INVENTORY // UNRESTRICTED CATALOG
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold text-white font-sans">
+                  Looking for All Products & Categories?
+                </h3>
+                <p className="text-xs text-zinc-400 max-w-xl leading-relaxed">
+                  Browse our complete catalog of single-service licenses, packages, tools, and digital goods with full category filtering.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 shrink-0">
+                <Link
+                  href="/categories"
+                  className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-xs font-mono font-medium text-zinc-300 hover:text-white transition-all"
+                >
+                  View Categories
+                </Link>
+                <Link
+                  href="/products"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs font-mono flex items-center gap-2 shadow-lg shadow-purple-950/40 transition-all group"
+                >
+                  <span>Browse All Products</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
             </div>
           )}
         </section>
