@@ -429,10 +429,10 @@ export default function ProductDetailClient({
 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-300 text-[11px]">
-                    GCash / Maya QRPH
+                    QRPH Payment
                   </span>
                   <span className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-300 text-[11px]">
-                    Crypto (USDT / LTC)
+                    PayPal
                   </span>
                   <span className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-300 text-[11px]">
                     Store Balance
@@ -442,15 +442,15 @@ export default function ProductDetailClient({
                 <div className="space-y-2 pt-2 text-[11px] text-zinc-400">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Cryptographic SHA-256 license generation</span>
+                    <span>Safe payment</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    <span>Instant access on web portal & Discord bot</span>
+                    <span>Instant Access</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Headphones className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                    <span>24/7 Support via Community Discord</span>
+                    <span>24/7 Support</span>
                   </div>
                 </div>
               </div>
