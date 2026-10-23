@@ -550,7 +550,10 @@ export default function StorefrontClient({
                     )}
 
                     {/* Card Media Header (16:9 aspect) */}
-                    <div className={`relative w-full aspect-[16/9] bg-gradient-to-br ${license.gradient} p-5 flex flex-col justify-between border-b border-zinc-800/80 overflow-hidden`}>
+                    <Link
+                      href={`/products/${license.id}`}
+                      className={`relative w-full aspect-[16/9] bg-gradient-to-br ${license.gradient} p-5 flex flex-col justify-between border-b border-zinc-800/80 overflow-hidden block cursor-pointer`}
+                    >
                       {license.imageUrl ? (
                         <>
                           <Image
@@ -596,7 +599,7 @@ export default function StorefrontClient({
                             : license.deliveryTime}
                         </span>
                       </div>
-                    </div>
+                    </Link>
 
                     {/* Card Body */}
                     <div className="p-5 flex-1 flex flex-col justify-between">
@@ -607,9 +610,11 @@ export default function StorefrontClient({
                         </div>
 
                         {/* Title */}
-                        <h3 className="text-base font-bold text-white group-hover:text-purple-200 transition-colors leading-snug mb-2">
-                          {license.title}
-                        </h3>
+                        <Link href={`/products/${license.id}`} className="block">
+                          <h3 className="text-base font-bold text-white group-hover:text-purple-200 transition-colors leading-snug mb-2 hover:underline">
+                            {license.title}
+                          </h3>
+                        </Link>
 
                         {/* Description */}
                         <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2 mb-3">

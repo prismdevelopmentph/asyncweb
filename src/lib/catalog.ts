@@ -169,3 +169,24 @@ export async function getStoreCatalog(): Promise<{
   return { products, liveRate, categories };
 }
 
+export async function getStoreProduct(idOrSlug: string): Promise<{ product: CatalogProduct; liveRate: number; related: CatalogProduct[] } | null> {
+  const { products, liveRate } = await getStoreCatalog();
+  const normalized = decodeURIComponent(idOrSlug).toLowerCase().trim();
+  
+  const product = products.find((p) => {
+    return (
+      p.id.toLowerCase() === normalized ||
+      p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === normalized ||
+      slugifyCategory(p.title) === normalized
+    );
+  });
+
+  if (!product) return null;
+
+  const related = products
+    .filter((p) => p.id !== product.id && (p.categorySlug === product.categorySlug || p.highlight))
+    .slice(0, 3);
+
+  return { product, liveRate, related };
+}
+
