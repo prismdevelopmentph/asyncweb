@@ -2203,12 +2203,13 @@ export default function AdminPage() {
                           </td>
                         </tr>
                       ) : (
-                        groupedGenUserList.map((group: any) => {
+                        groupedGenUserList.map((group: any, groupIdx: number) => {
                           const pct = group.totalLimit > 0 ? Math.min(100, Math.round((group.totalUsed / group.totalLimit) * 100)) : 0;
                           const primaryLic = group.licenses[0];
+                          const isNearBottom = groupedGenUserList.length >= 4 && groupIdx >= groupedGenUserList.length - 2;
 
                           return (
-                            <tr key={group.userId} className="hover:bg-zinc-800/30 transition-colors">
+                            <tr key={group.userId} className="hover:bg-zinc-800/30 transition-colors hover:z-30 relative">
                               {/* 1. User Badge */}
                               <td className="py-4 px-6 whitespace-nowrap min-w-[200px]">
                                 <DiscordUserBadge
@@ -2228,7 +2229,7 @@ export default function AdminPage() {
                                     const isAll = scopeLabel === 'All Services';
 
                                     return (
-                                      <div key={lic.id} className="relative group/scope inline-block">
+                                      <div key={lic.id} className="relative group/scope inline-block hover:z-50">
                                         <div
                                           className={`text-xs px-2.5 py-1 rounded-full font-mono font-medium flex items-center gap-1.5 cursor-pointer transition-all border ${
                                             isPkg
@@ -2245,7 +2246,14 @@ export default function AdminPage() {
                                         </div>
 
                                         {/* Hover Tooltip Card */}
-                                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover/scope:flex flex-col z-50 w-72 p-3.5 rounded-2xl bg-zinc-950 border border-zinc-700 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in zoom-in-95 pointer-events-auto">
+                                        <div
+                                          className={`absolute left-0 hidden group-hover/scope:flex flex-col z-50 w-72 p-3.5 rounded-2xl bg-zinc-950 border border-zinc-700 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in zoom-in-95 pointer-events-auto ${
+                                            isNearBottom
+                                              ? 'bottom-full mb-2 after:absolute after:-bottom-3 after:left-0 after:w-full after:h-3 after:content-[\'\']'
+                                              : 'top-full mt-2 before:absolute before:-top-3 before:left-0 before:w-full before:h-3 before:content-[\'\']'
+                                          }`}
+                                        >
+
                                           <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
                                             <span className="text-[10px] text-zinc-500 uppercase font-semibold">License Key</span>
                                             <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 uppercase">
