@@ -18,3 +18,4 @@ CREATE INDEX IF NOT EXISTS idx_products_active_sort ON public.products (is_activ
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products (category);
 CREATE INDEX IF NOT EXISTS idx_products_delivery_mode ON public.products (delivery_mode);
 CREATE INDEX IF NOT EXISTS idx_products_service_scope ON public.products (service_scope);
+

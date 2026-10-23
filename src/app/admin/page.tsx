@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import DiscordLoginButton from '@/components/DiscordLoginButton';
+import ImageCropModal from '@/components/ImageCropModal';
 import { supabase } from '@/lib/supabase';
 import {
   ShieldAlert,
@@ -50,7 +51,8 @@ import {
   ArrowUpRight,
   Zap,
   CreditCard,
-  QrCode
+  QrCode,
+  Crop
 } from 'lucide-react';
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -164,6 +166,9 @@ export default function AdminPage() {
   const [uploadingMayaQr, setUploadingMayaQr] = useState(false);
   const [savingPayConfig, setSavingPayConfig] = useState(false);
   const [payConfigSavedSuccess, setPayConfigSavedSuccess] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [cropModalImgUrl, setCropModalImgUrl] = useState('');
+  const [cropModalType, setCropModalType] = useState<'gcash' | 'maya'>('gcash');
   const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'unbans'>('claims');
   const [chatChannel, setChatChannel] = useState<'support' | 'general'>('support');
   const [chatTickets, setChatTickets] = useState<any[]>([]);
@@ -455,6 +460,23 @@ export default function AdminPage() {
       if (isGcash) setUploadingGcashQr(false);
       else setUploadingMayaQr(false);
     }
+  };
+
+  const handleInitiateQrUpload = (file: File, type: 'gcash' | 'maya') => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setCropModalImgUrl(reader.result);
+        setCropModalType(type);
+        setCropModalOpen(true);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = (croppedFile: File) => {
+    setCropModalOpen(false);
+    handleUploadQr(croppedFile, cropModalType);
   };
 
   const handleSavePaymentSettings = async (e: React.FormEvent) => {
@@ -2688,7 +2710,7 @@ export default function AdminPage() {
 
                       <div>
                         <label className="text-[11px] font-mono text-zinc-400 mb-1 block">GCash QR Photo</label>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <label className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-200 border border-zinc-700 flex items-center gap-2 cursor-pointer transition-colors">
                             <Upload className="w-3.5 h-3.5 text-blue-400" />
                             <span>{uploadingGcashQr ? 'Uploading...' : 'Upload GCash QR'}</span>
@@ -2698,15 +2720,29 @@ export default function AdminPage() {
                               disabled={uploadingGcashQr}
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) handleUploadQr(file, 'gcash');
+                                if (file) {
+                                  handleInitiateQrUpload(file, 'gcash');
+                                  e.target.value = '';
+                                }
                               }}
                               className="hidden"
                             />
                           </label>
+
                           {payConfigGcashQrUrl && (
-                            <span className="text-[10px] font-mono text-emerald-400 truncate max-w-[200px]">
-                              Uploaded OK
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCropModalImgUrl(payConfigGcashQrUrl);
+                                setCropModalType('gcash');
+                                setCropModalOpen(true);
+                              }}
+                              className="px-2.5 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-mono border border-purple-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Re-frame / crop QR code square"
+                            >
+                              <Crop className="w-3.5 h-3.5 text-purple-400" />
+                              <span>Adjust Frame</span>
+                            </button>
                           )}
                         </div>
 
@@ -2760,7 +2796,7 @@ export default function AdminPage() {
 
                       <div>
                         <label className="text-[11px] font-mono text-zinc-400 mb-1 block">Maya QR Photo</label>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <label className="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-200 border border-zinc-700 flex items-center gap-2 cursor-pointer transition-colors">
                             <Upload className="w-3.5 h-3.5 text-emerald-400" />
                             <span>{uploadingMayaQr ? 'Uploading...' : 'Upload Maya QR'}</span>
@@ -2770,15 +2806,29 @@ export default function AdminPage() {
                               disabled={uploadingMayaQr}
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) handleUploadQr(file, 'maya');
+                                if (file) {
+                                  handleInitiateQrUpload(file, 'maya');
+                                  e.target.value = '';
+                                }
                               }}
                               className="hidden"
                             />
                           </label>
+
                           {payConfigMayaQrUrl && (
-                            <span className="text-[10px] font-mono text-emerald-400 truncate max-w-[200px]">
-                              Uploaded OK
-                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCropModalImgUrl(payConfigMayaQrUrl);
+                                setCropModalType('maya');
+                                setCropModalOpen(true);
+                              }}
+                              className="px-2.5 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs font-mono border border-purple-500/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Re-frame / crop QR code square"
+                            >
+                              <Crop className="w-3.5 h-3.5 text-purple-400" />
+                              <span>Adjust Frame</span>
+                            </button>
                           )}
                         </div>
 
@@ -4211,6 +4261,16 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ── MODAL 7: SQUARE QR IMAGE CROPPER ── */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageUrl={cropModalImgUrl}
+        title={cropModalType === 'gcash' ? 'Adjust GCash QR Frame' : 'Adjust Maya QR Frame'}
+        onClose={() => setCropModalOpen(false)}
+        onCropComplete={handleCropComplete}
+        outputSize={800}
+      />
 
       <Footer />
     </div>
