@@ -288,17 +288,22 @@ export async function GET(request: Request) {
               }
             }
 
+            const hasDedicatedIsolated = isolatedLimit > 0;
             const isolatedRemaining = Math.max(0, isolatedLimit - isolatedUsed);
+            const coversShared = processedLicenses.some(lic => lic.quotaMode === 'shared' && (lic.services.includes('All Services') || lic.services.some(s => s.toLowerCase() === svcLower)));
+
             // Total available for this service: isolated remaining + shared pool headroom (if covered)
-            const totalAvailable = isolatedLimit > 0
-              ? isolatedRemaining + (hasGlobalAllAccess ? sharedAvailable : 0)
-              : isUnlocked && sharedPoolLimit > 0
+            const totalAvailable = hasDedicatedIsolated
+              ? isolatedRemaining + (coversShared ? sharedAvailable : 0)
+              : coversShared
               ? sharedAvailable
               : 0;
 
             serviceQuotas[svcLower] = {
               serviceName: svc.name,
               isUnlocked,
+              hasDedicatedIsolated,
+              coversShared,
               isolatedLimit,
               isolatedUsed,
               isolatedRemaining,

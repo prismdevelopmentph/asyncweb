@@ -171,6 +171,9 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
     }
 
     // 6. Insert License into licenses table
+    const isDedicatedSingleService = serviceIds.length === 1 && !packageId;
+    const quotaMode = isDedicatedSingleService ? 'isolated' : 'shared';
+
     const { data: newLic, error: licErr } = await supabaseAdmin
       .from('licenses')
       .insert({
@@ -179,6 +182,7 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
         package_id: packageId,
         is_active: true,
         tier: tierKey,
+        quota_mode: quotaMode,
         daily_limit: dailyLimit,
         expires_at: expiresAt,
         redeemed_by: order.discord_id || null,
