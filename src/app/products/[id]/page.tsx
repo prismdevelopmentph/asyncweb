@@ -3,8 +3,7 @@ import { notFound } from 'next/navigation';
 import { getStoreProduct } from '@/lib/catalog';
 import ProductDetailClient from '@/components/ProductDetailClient';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -59,3 +58,4 @@ export default async function ProductDetailPage({ params }: PageProps) {
     />
   );
 }
+

@@ -156,7 +156,7 @@ export default function ProductDetailClient({
                     src={product.imageUrl}
                     alt={product.title}
                     fill
-                    unoptimized
+                    sizes="(max-width: 1024px) 100vw, 750px"
                     onError={() => setImgError(true)}
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                     priority
