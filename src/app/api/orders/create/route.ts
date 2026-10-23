@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const {
       productId,
       tierKey = 'daily',
-      provider = 'paypal', // 'balance', 'qrph', 'paypal'
+      provider = 'paymongo_qrph', // 'paymongo_qrph' | 'gcash' | 'maya' | 'paypal' | 'crypto' | 'balance' | 'qrph'
       email,
       discordId,
       orderType = 'product_purchase', // 'product_purchase' | 'balance_topup'
@@ -30,17 +30,15 @@ export async function POST(req: NextRequest) {
     // ── CASE A: PRODUCT PURCHASE ──
     if (orderType === 'product_purchase') {
       const isCartOrder = Array.isArray(cartItems) && cartItems.length > 0;
-      let finalPhp = 0;
-      let finalUsd = 0;
+      let basePhp = 0;
       let orderProductId = productId || null;
       let orderTierKey = tierKey || 'daily';
 
       if (isCartOrder) {
         for (const item of cartItems) {
-          finalPhp += Number(item.pricePHP || 0) * (Number(item.quantity) || 1);
+          basePhp += Number(item.pricePHP || 0) * (Number(item.quantity) || 1);
         }
-        finalPhp = Math.round(finalPhp);
-        finalUsd = Math.round(((finalPhp / liveRate) + Number.EPSILON) * 100) / 100;
+        basePhp = Math.round(basePhp);
         orderProductId = cartItems[0]?.productId || null;
         orderTierKey = cartItems[0]?.tierKey || 'daily';
       } else {
@@ -48,7 +46,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: false, error: 'Product ID required' }, { status: 400 });
         }
 
-        // 1. Fetch product configuration
+        // Fetch product configuration
         const { data: product, error: prodErr } = await supabaseAdmin
           .from('products')
           .select('*')
@@ -60,25 +58,24 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ ok: false, error: 'Product not found or inactive' }, { status: 404 });
         }
 
-        // 2. Resolve price for selected tier
         const rawTiers = Array.isArray(product.tiers) ? product.tiers : [];
         const matchedTier = rawTiers.find((t: any) => (t.tier_key || t.tierKey) === tierKey) || rawTiers[0];
 
-        const basePhp = Number(matchedTier?.price_php ?? matchedTier?.pricePHP ?? product.price_php ?? 0);
+        const rawBase = Number(matchedTier?.price_php ?? matchedTier?.pricePHP ?? product.price_php ?? 0);
         const discountPct = Number(matchedTier?.discount_percent ?? matchedTier?.discountPercent ?? product.discount_percent ?? 0);
-        finalPhp = discountPct > 0 ? Math.round(basePhp * (1 - discountPct / 100)) : basePhp;
-        finalUsd = Math.round(((finalPhp / liveRate) + Number.EPSILON) * 100) / 100;
+        basePhp = discountPct > 0 ? Math.round(rawBase * (1 - discountPct / 100)) : rawBase;
         orderProductId = productId;
         orderTierKey = tierKey;
       }
 
-      // ── SUB-ROUTE: WEB BALANCE (Instant) ──
+      const baseUsd = Math.round(((basePhp / liveRate) + Number.EPSILON) * 100) / 100;
+
+      // ── SUB-ROUTE: WEB BALANCE (Instant - 0% fee) ──
       if (provider === 'balance') {
         if (!discordId) {
           return NextResponse.json({ ok: false, error: 'You must be logged in with Discord to pay with Web Balance' }, { status: 401 });
         }
 
-        // Fetch user balance
         const { data: userBal } = await supabaseAdmin
           .from('user_balances')
           .select('balance_php')
@@ -86,21 +83,19 @@ export async function POST(req: NextRequest) {
           .maybeSingle();
 
         const currentBalance = Number(userBal?.balance_php || 0);
-        if (currentBalance < finalPhp) {
+        if (currentBalance < basePhp) {
           return NextResponse.json({
             ok: false,
-            error: `Insufficient balance. Required: ₱${finalPhp.toLocaleString('en-PH')}, Available: ₱${currentBalance.toLocaleString('en-PH')}`
+            error: `Insufficient balance. Required: ₱${basePhp.toLocaleString('en-PH')}, Available: ₱${currentBalance.toLocaleString('en-PH')}`
           }, { status: 400 });
         }
 
-        // Deduct balance
-        const newBalance = currentBalance - finalPhp;
+        const newBalance = currentBalance - basePhp;
         await supabaseAdmin
           .from('user_balances')
           .update({ balance_php: newBalance, updated_at: new Date().toISOString() })
           .eq('discord_id', discordId);
 
-        // Create order in completed state
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
@@ -109,12 +104,15 @@ export async function POST(req: NextRequest) {
             order_type: 'product_purchase',
             product_id: orderProductId,
             tier_key: orderTierKey,
-            amount: finalPhp,
+            amount: basePhp,
             currency: 'PHP',
             provider: 'balance',
             provider_label: 'Web Balance',
             payment_details: {
-              deducted_php: finalPhp,
+              base_amount: basePhp,
+              fee_percent: 0,
+              fee_amount: 0,
+              deducted_php: basePhp,
               remaining_balance: newBalance,
               ...(isCartOrder ? { cart_items: cartItems } : {})
             },
@@ -124,11 +122,8 @@ export async function POST(req: NextRequest) {
           .select()
           .single();
 
-        if (orderErr || !newOrder) {
-          throw orderErr || new Error('Failed to create order record');
-        }
+        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create order record');
 
-        // Fulfill & issue key immediately
         const fulfillment = await fulfillProductOrder(newOrder.id);
         return NextResponse.json({
           ok: true,
@@ -138,9 +133,12 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // ── SUB-ROUTE: PAYPAL FRIENDS & FAMILY ──
-      if (provider === 'paypal') {
-        const uniqueMemo = await getUniquePayPalMemo();
+      // ── SUB-ROUTE: PAYMONGO QRPH (with % fee) ──
+      if (provider === 'paymongo_qrph' || provider === 'qrph') {
+        const feePercent = settings.paymongoFeePercent || 0;
+        const feeAmount = Math.round((basePhp * (feePercent / 100)) * 100) / 100;
+        const finalChargedPhp = Math.round((basePhp + feeAmount) * 100) / 100;
+        const refTag = `QRPH-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
@@ -150,14 +148,24 @@ export async function POST(req: NextRequest) {
             order_type: 'product_purchase',
             product_id: orderProductId,
             tier_key: orderTierKey,
-            amount: finalUsd,
-            currency: 'USD',
-            provider: 'paypal',
-            provider_label: 'PayPal (Friends & Family)',
+            amount: finalChargedPhp,
+            currency: 'PHP',
+            provider: 'paymongo_qrph',
+            provider_label: 'PayMongo QRPH',
             payment_details: {
-              paypal_email: settings.paypalEmail,
-              paypal_note: uniqueMemo,
-              original_php: finalPhp,
+              base_amount: basePhp,
+              fee_percent: feePercent,
+              fee_amount: feeAmount,
+              qr_image_url: settings.paymongoQrUrl || settings.gcashQrUrl,
+              account_name: settings.paymongoName,
+              ref_code: refTag,
+              // Fallback fields for legacy screens
+              gcash_number: settings.gcashNumber,
+              gcash_name: settings.gcashName,
+              gcash_qr_url: settings.paymongoQrUrl || settings.gcashQrUrl,
+              maya_number: settings.mayaNumber,
+              maya_name: settings.mayaName,
+              maya_qr_url: settings.mayaQrUrl,
               ...(isCartOrder ? { cart_items: cartItems } : {})
             },
             status: 'awaiting_payment'
@@ -165,18 +173,16 @@ export async function POST(req: NextRequest) {
           .select()
           .single();
 
-        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create PayPal order');
-
-        return NextResponse.json({
-          ok: true,
-          orderId: newOrder.id,
-          status: 'awaiting_payment'
-        });
+        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create PayMongo QRPH order');
+        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
       }
 
-      // ── SUB-ROUTE: QRPH PAYMENT ──
-      if (provider === 'qrph') {
-        const refTag = `ASYNC-${Math.floor(1000 + Math.random() * 9000)}`;
+      // ── SUB-ROUTE: GCASH DIRECT ──
+      if (provider === 'gcash') {
+        const feePercent = settings.gcashFeePercent || 0;
+        const feeAmount = Math.round((basePhp * (feePercent / 100)) * 100) / 100;
+        const finalChargedPhp = Math.round((basePhp + feeAmount) * 100) / 100;
+        const refTag = `GCASH-${Math.floor(1000 + Math.random() * 9000)}`;
 
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
@@ -186,19 +192,17 @@ export async function POST(req: NextRequest) {
             order_type: 'product_purchase',
             product_id: orderProductId,
             tier_key: orderTierKey,
-            amount: finalPhp,
+            amount: finalChargedPhp,
             currency: 'PHP',
-            provider: 'qrph',
-            provider_label: 'QRPH Payment',
+            provider: 'gcash',
+            provider_label: 'GCash Transfer',
             payment_details: {
+              base_amount: basePhp,
+              fee_percent: feePercent,
+              fee_amount: feeAmount,
               gcash_number: settings.gcashNumber,
               gcash_name: settings.gcashName,
               gcash_qr_url: settings.gcashQrUrl,
-              gcash_enabled: settings.gcashEnabled,
-              maya_number: settings.mayaNumber,
-              maya_name: settings.mayaName,
-              maya_qr_url: settings.mayaQrUrl,
-              maya_enabled: settings.mayaEnabled,
               ref_code: refTag,
               ...(isCartOrder ? { cart_items: cartItems } : {})
             },
@@ -207,13 +211,121 @@ export async function POST(req: NextRequest) {
           .select()
           .single();
 
-        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create QR order');
+        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create GCash order');
+        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+      }
 
-        return NextResponse.json({
-          ok: true,
-          orderId: newOrder.id,
-          status: 'awaiting_payment'
-        });
+      // ── SUB-ROUTE: MAYA DIRECT ──
+      if (provider === 'maya') {
+        const feePercent = settings.mayaFeePercent || 0;
+        const feeAmount = Math.round((basePhp * (feePercent / 100)) * 100) / 100;
+        const finalChargedPhp = Math.round((basePhp + feeAmount) * 100) / 100;
+        const refTag = `MAYA-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const { data: newOrder, error: orderErr } = await supabaseAdmin
+          .from('orders')
+          .insert({
+            discord_id: discordId || null,
+            email: cleanEmail,
+            order_type: 'product_purchase',
+            product_id: orderProductId,
+            tier_key: orderTierKey,
+            amount: finalChargedPhp,
+            currency: 'PHP',
+            provider: 'maya',
+            provider_label: 'Maya Transfer',
+            payment_details: {
+              base_amount: basePhp,
+              fee_percent: feePercent,
+              fee_amount: feeAmount,
+              maya_number: settings.mayaNumber,
+              maya_name: settings.mayaName,
+              maya_qr_url: settings.mayaQrUrl,
+              ref_code: refTag,
+              ...(isCartOrder ? { cart_items: cartItems } : {})
+            },
+            status: 'awaiting_payment'
+          })
+          .select()
+          .single();
+
+        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create Maya order');
+        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+      }
+
+      // ── SUB-ROUTE: PAYPAL (Friends & Family) ──
+      if (provider === 'paypal') {
+        const uniqueMemo = await getUniquePayPalMemo();
+        const feePercent = settings.paypalFeePercent || 0;
+        const feeAmount = Math.round((baseUsd * (feePercent / 100)) * 100) / 100;
+        const finalChargedUsd = Math.round((baseUsd + feeAmount) * 100) / 100;
+
+        const { data: newOrder, error: orderErr } = await supabaseAdmin
+          .from('orders')
+          .insert({
+            discord_id: discordId || null,
+            email: cleanEmail,
+            order_type: 'product_purchase',
+            product_id: orderProductId,
+            tier_key: orderTierKey,
+            amount: finalChargedUsd,
+            currency: 'USD',
+            provider: 'paypal',
+            provider_label: 'PayPal (Friends & Family)',
+            payment_details: {
+              base_amount: baseUsd,
+              fee_percent: feePercent,
+              fee_amount: feeAmount,
+              paypal_email: settings.paypalEmail,
+              paypal_note: uniqueMemo,
+              original_php: basePhp,
+              ...(isCartOrder ? { cart_items: cartItems } : {})
+            },
+            status: 'awaiting_payment'
+          })
+          .select()
+          .single();
+
+        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create PayPal order');
+        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+      }
+
+      // ── SUB-ROUTE: CRYPTO (LTC / USDT) ──
+      if (provider === 'crypto') {
+        const feePercent = settings.cryptoFeePercent || 0;
+        const feeAmount = Math.round((baseUsd * (feePercent / 100)) * 100) / 100;
+        const finalChargedUsd = Math.round((baseUsd + feeAmount) * 100) / 100;
+        const refTag = `CRYPTO-${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const { data: newOrder, error: orderErr } = await supabaseAdmin
+          .from('orders')
+          .insert({
+            discord_id: discordId || null,
+            email: cleanEmail,
+            order_type: 'product_purchase',
+            product_id: orderProductId,
+            tier_key: orderTierKey,
+            amount: finalChargedUsd,
+            currency: 'USD',
+            provider: 'crypto',
+            provider_label: 'Crypto (LTC / USDT)',
+            payment_details: {
+              base_amount: baseUsd,
+              fee_percent: feePercent,
+              fee_amount: feeAmount,
+              ltc_address: settings.cryptoLtc,
+              usdt_address: settings.cryptoUsdt,
+              ref_code: refTag,
+              original_php: basePhp,
+              ...(isCartOrder ? { cart_items: cartItems } : {})
+            },
+            status: 'awaiting_payment'
+          })
+          .select()
+          .single();
+
+        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create Crypto order');
+        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
       }
     }
 
@@ -248,7 +360,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
       }
 
-      if (provider === 'qrph') {
+      if (provider === 'paymongo_qrph' || provider === 'qrph' || provider === 'gcash') {
         const refTag = `TOPUP-${Math.floor(1000 + Math.random() * 9000)}`;
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
@@ -258,9 +370,11 @@ export async function POST(req: NextRequest) {
             order_type: 'balance_topup',
             amount: topupPhp,
             currency: 'PHP',
-            provider: 'qrph',
+            provider: 'paymongo_qrph',
             provider_label: 'QRPH Payment',
             payment_details: {
+              qr_image_url: settings.paymongoQrUrl || settings.gcashQrUrl,
+              account_name: settings.paymongoName,
               gcash_number: settings.gcashNumber,
               gcash_name: settings.gcashName,
               gcash_qr_url: settings.gcashQrUrl,
@@ -288,4 +402,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: err?.message || 'Server error' }, { status: 500 });
   }
 }
-

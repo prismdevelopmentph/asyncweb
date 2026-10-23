@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import {
   X,
   CreditCard,
@@ -13,9 +12,10 @@ import {
   CheckCircle2,
   Lock,
   Wallet,
-  ShoppingBag
+  Coins
 } from 'lucide-react';
-import { useCart, CartItem } from '@/context/CartContext';
+import { useCart } from '@/context/CartContext';
+import { PaymentRail } from '@/components/CheckoutModal';
 
 interface CartCheckoutModalProps {
   isOpen: boolean;
@@ -31,14 +31,14 @@ export default function CartCheckoutModal({
   const router = useRouter();
   const { items, totalPHP, totalUSD, clearCart } = useCart();
 
-  const [selectedProvider, setSelectedProvider] = useState<'balance' | 'qrph' | 'paypal'>('paypal');
+  const [paymentSettings, setPaymentSettings] = useState<any>(null);
+  const [selectedProvider, setSelectedProvider] = useState<PaymentRail>('paymongo_qrph');
   const [emailInput, setEmailInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // User web balance
   const [balancePHP, setBalancePHP] = useState<number>(0);
-  const [loadingBalance, setLoadingBalance] = useState(false);
 
   const discordId =
     currentUser?.user_metadata?.provider_id ||
@@ -55,21 +55,55 @@ export default function CartCheckoutModal({
     }
   }, [defaultEmail]);
 
+  // Fetch payment settings
+  useEffect(() => {
+    fetch('/api/payment-settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && data.settings) {
+          setPaymentSettings(data.settings);
+          if (data.settings.paymongoEnabled) setSelectedProvider('paymongo_qrph');
+          else if (data.settings.gcashEnabled) setSelectedProvider('gcash');
+          else if (data.settings.mayaEnabled) setSelectedProvider('maya');
+          else if (data.settings.paypalEnabled) setSelectedProvider('paypal');
+          else if (data.settings.cryptoEnabled) setSelectedProvider('crypto');
+          else setSelectedProvider('balance');
+        }
+      })
+      .catch((e) => console.warn('[CartCheckoutModal] Error fetching settings:', e));
+  }, []);
+
   // Fetch live web balance
   useEffect(() => {
     if (discordId) {
-      setLoadingBalance(true);
       fetch(`/api/user/balance?discordId=${discordId}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.ok) setBalancePHP(Number(data.balancePHP || 0));
         })
-        .catch((e) => console.warn('[CartCheckout] Balance check warning:', e))
-        .finally(() => setLoadingBalance(false));
+        .catch((e) => console.warn('[CartCheckout] Balance check warning:', e));
     }
   }, [discordId]);
 
   if (!isOpen || items.length === 0) return null;
+
+  // Fee computation
+  const getFeePercent = (provider: PaymentRail): number => {
+    if (!paymentSettings) return 0;
+    if (provider === 'paymongo_qrph') return Number(paymentSettings.paymongoFeePercent || 0);
+    if (provider === 'gcash') return Number(paymentSettings.gcashFeePercent || 0);
+    if (provider === 'maya') return Number(paymentSettings.mayaFeePercent || 0);
+    if (provider === 'paypal') return Number(paymentSettings.paypalFeePercent || 0);
+    if (provider === 'crypto') return Number(paymentSettings.cryptoFeePercent || 0);
+    return 0;
+  };
+
+  const activeFeePercent = getFeePercent(selectedProvider);
+  const isUsdProvider = selectedProvider === 'paypal' || selectedProvider === 'crypto';
+
+  const baseTotal = isUsdProvider ? totalUSD : totalPHP;
+  const feeAmount = Math.round((baseTotal * (activeFeePercent / 100)) * 100) / 100;
+  const finalTotal = Math.round((baseTotal + feeAmount) * 100) / 100;
 
   const hasEnoughBalance = balancePHP >= totalPHP;
 
@@ -162,7 +196,7 @@ export default function CartCheckoutModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-lg rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-lg rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header Bar */}
@@ -195,7 +229,7 @@ export default function CartCheckoutModal({
               </span>
             </div>
 
-            <div className="max-h-40 overflow-y-auto space-y-2 pr-1 divide-y divide-zinc-800/50">
+            <div className="max-h-36 overflow-y-auto space-y-2 pr-1 divide-y divide-zinc-800/50">
               {items.map((item) => (
                 <div key={item.cartItemId} className="pt-2 first:pt-0 flex items-center justify-between gap-3 text-xs">
                   <div className="truncate flex-1">
@@ -218,74 +252,231 @@ export default function CartCheckoutModal({
               Select Payment Method
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {/* PayPal (Friends & Family) */}
-              <button
-                type="button"
-                onClick={() => setSelectedProvider('paypal')}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  selectedProvider === 'paypal'
-                    ? 'bg-purple-600/10 border-purple-500 shadow-md shadow-purple-950/40 text-white'
-                    : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 text-zinc-400'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <CreditCard className={`w-4 h-4 ${selectedProvider === 'paypal' ? 'text-purple-400' : 'text-zinc-500'}`} />
-                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                    USD
-                  </span>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white">PayPal</div>
-                  <div className="text-[10px] text-zinc-500">Friends & Family</div>
-                </div>
-              </button>
-
-              {/* QRPH / GCash / Maya */}
-              <button
-                type="button"
-                onClick={() => setSelectedProvider('qrph')}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  selectedProvider === 'qrph'
-                    ? 'bg-purple-600/10 border-purple-500 shadow-md shadow-purple-950/40 text-white'
-                    : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 text-zinc-400'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <QrCode className={`w-4 h-4 ${selectedProvider === 'qrph' ? 'text-purple-400' : 'text-zinc-500'}`} />
-                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                    PHP
-                  </span>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white">QRPH Payment</div>
-                  <div className="text-[10px] text-zinc-500">GCash / Maya</div>
-                </div>
-              </button>
-
-              {/* Store Web Balance */}
-              <button
-                type="button"
-                onClick={() => setSelectedProvider('balance')}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                  selectedProvider === 'balance'
-                    ? 'bg-purple-600/10 border-purple-500 shadow-md shadow-purple-950/40 text-white'
-                    : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 text-zinc-400'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <Wallet className={`w-4 h-4 ${selectedProvider === 'balance' ? 'text-purple-400' : 'text-zinc-500'}`} />
-                  <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                    INSTANT
-                  </span>
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white">Store Balance</div>
-                  <div className="text-[10px] text-zinc-500 truncate">
-                    {discordId ? `₱${balancePHP.toLocaleString('en-PH')}` : 'Requires Login'}
+            <div className="grid grid-cols-1 gap-2">
+              {/* PayMongo QRPH */}
+              {(!paymentSettings || paymentSettings.paymongoEnabled) && (
+                <div
+                  onClick={() => setSelectedProvider('paymongo_qrph')}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    selectedProvider === 'paymongo_qrph'
+                      ? 'bg-purple-950/20 border-purple-500 text-white shadow-sm'
+                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${selectedProvider === 'paymongo_qrph' ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                      <QrCode className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>PayMongo QRPH</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">
+                          INSTORE QRPH
+                        </span>
+                        {Number(paymentSettings?.paymongoFeePercent || 0) > 0 && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                            +{paymentSettings.paymongoFeePercent}% FEE
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-zinc-400">GCash, Maya, ShopeePay, Bank QR</div>
+                    </div>
+                  </div>
+                  <div className="text-xs font-mono font-bold text-white shrink-0">
+                    ₱{Math.round(totalPHP * (1 + (paymentSettings?.paymongoFeePercent || 0) / 100)).toLocaleString('en-PH')}
                   </div>
                 </div>
-              </button>
+              )}
+
+              {/* GCash Direct */}
+              {paymentSettings?.gcashEnabled && (
+                <div
+                  onClick={() => setSelectedProvider('gcash')}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    selectedProvider === 'gcash'
+                      ? 'bg-purple-950/20 border-purple-500 text-white shadow-sm'
+                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${selectedProvider === 'gcash' ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                      <QrCode className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>GCash Direct</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300">
+                          E-WALLET
+                        </span>
+                        {Number(paymentSettings?.gcashFeePercent || 0) > 0 && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                            +{paymentSettings.gcashFeePercent}% FEE
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-zinc-400">Direct GCash Mobile / QR</div>
+                    </div>
+                  </div>
+                  <div className="text-xs font-mono font-bold text-white shrink-0">
+                    ₱{Math.round(totalPHP * (1 + (paymentSettings?.gcashFeePercent || 0) / 100)).toLocaleString('en-PH')}
+                  </div>
+                </div>
+              )}
+
+              {/* Maya Direct */}
+              {paymentSettings?.mayaEnabled && (
+                <div
+                  onClick={() => setSelectedProvider('maya')}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    selectedProvider === 'maya'
+                      ? 'bg-purple-950/20 border-purple-500 text-white shadow-sm'
+                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${selectedProvider === 'maya' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                      <QrCode className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Maya Direct</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">
+                          E-WALLET
+                        </span>
+                        {Number(paymentSettings?.mayaFeePercent || 0) > 0 && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                            +{paymentSettings.mayaFeePercent}% FEE
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-zinc-400">Direct Maya Mobile / QR</div>
+                    </div>
+                  </div>
+                  <div className="text-xs font-mono font-bold text-white shrink-0">
+                    ₱{Math.round(totalPHP * (1 + (paymentSettings?.mayaFeePercent || 0) / 100)).toLocaleString('en-PH')}
+                  </div>
+                </div>
+              )}
+
+              {/* PayPal */}
+              {(!paymentSettings || paymentSettings.paypalEnabled) && (
+                <div
+                  onClick={() => setSelectedProvider('paypal')}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    selectedProvider === 'paypal'
+                      ? 'bg-purple-950/20 border-purple-500 text-white shadow-sm'
+                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${selectedProvider === 'paypal' ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>PayPal</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300">
+                          USD
+                        </span>
+                        {Number(paymentSettings?.paypalFeePercent || 0) > 0 && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                            +{paymentSettings.paypalFeePercent}% FEE
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-zinc-400">Friends &amp; Family dispatch</div>
+                    </div>
+                  </div>
+                  <div className="text-xs font-mono font-bold text-white shrink-0">
+                    ${(totalUSD * (1 + (paymentSettings?.paypalFeePercent || 0) / 100)).toFixed(2)} USD
+                  </div>
+                </div>
+              )}
+
+              {/* Crypto */}
+              {paymentSettings?.cryptoEnabled && (
+                <div
+                  onClick={() => setSelectedProvider('crypto')}
+                  className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                    selectedProvider === 'crypto'
+                      ? 'bg-purple-950/20 border-purple-500 text-white shadow-sm'
+                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${selectedProvider === 'crypto' ? 'bg-amber-500/20 text-amber-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                      <Coins className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>Crypto</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                          LTC / USDT
+                        </span>
+                        {Number(paymentSettings?.cryptoFeePercent || 0) > 0 && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">
+                            +{paymentSettings.cryptoFeePercent}% FEE
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-zinc-400">Direct blockchain transfer</div>
+                    </div>
+                  </div>
+                  <div className="text-xs font-mono font-bold text-white shrink-0">
+                    ${(totalUSD * (1 + (paymentSettings?.cryptoFeePercent || 0) / 100)).toFixed(2)} USD
+                  </div>
+                </div>
+              )}
+
+              {/* Web Balance */}
+              <div
+                onClick={() => setSelectedProvider('balance')}
+                className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                  selectedProvider === 'balance'
+                    ? 'bg-purple-950/20 border-purple-500 text-white shadow-sm'
+                    : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl ${selectedProvider === 'balance' ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span>Store Balance</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">
+                        INSTANT
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-zinc-400">
+                      {discordId ? `Available: ₱${balancePHP.toLocaleString('en-PH')} PHP` : 'Requires Discord Login'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs font-mono font-bold text-white shrink-0">
+                  ₱{totalPHP.toLocaleString('en-PH')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Surcharge & Total Breakdown */}
+          <div className="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-1.5 font-mono text-xs">
+            <div className="flex items-center justify-between text-zinc-400">
+              <span>Cart Subtotal</span>
+              <span>{isUsdProvider ? `$${baseTotal.toFixed(2)} USD` : `₱${baseTotal.toLocaleString('en-PH')} PHP`}</span>
+            </div>
+            {activeFeePercent > 0 && (
+              <div className="flex items-center justify-between text-zinc-400">
+                <span>Gateway Fee (+{activeFeePercent}%)</span>
+                <span className="text-amber-400">+{isUsdProvider ? `$${feeAmount.toFixed(2)} USD` : `₱${feeAmount.toFixed(2)} PHP`}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm font-bold text-white pt-1 border-t border-zinc-800/60">
+              <span>Total Due</span>
+              <span className="text-purple-400">
+                {isUsdProvider ? `$${finalTotal.toFixed(2)} USD` : `₱${finalTotal.toLocaleString('en-PH')} PHP`}
+              </span>
             </div>
           </div>
 
@@ -301,9 +492,6 @@ export default function CartCheckoutModal({
               placeholder="e.g. yourname@gmail.com"
               className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 transition-colors"
             />
-            <p className="text-[11px] text-zinc-500">
-              License keys and order receipt will be dispatched to this email.
-            </p>
           </div>
 
           {/* Error Message Box */}
@@ -335,16 +523,12 @@ export default function CartCheckoutModal({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3.5 px-5 rounded-2xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xl shadow-purple-950/60"
+              className="w-full py-4 px-5 rounded-2xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xl shadow-purple-950/60"
             >
               <span>
                 {submitting
                   ? 'Initiating Order Session...'
-                  : `Pay Now · ${
-                      selectedProvider === 'paypal'
-                        ? `$${totalUSD.toFixed(2)} USD`
-                        : `₱${totalPHP.toLocaleString('en-PH')} PHP`
-                    }`}
+                  : `Pay Now · ${isUsdProvider ? `$${finalTotal.toFixed(2)} USD` : `₱${finalTotal.toLocaleString('en-PH')} PHP`}`}
               </span>
               {!submitting && <ArrowRight className="w-4 h-4" />}
             </button>

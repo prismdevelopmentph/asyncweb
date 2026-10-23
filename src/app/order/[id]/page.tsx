@@ -31,12 +31,15 @@ interface OrderData {
   ok: boolean;
   id: string;
   status: 'awaiting_payment' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'rejected';
-  provider: 'balance' | 'qrph' | 'paypal';
+  provider: 'balance' | 'qrph' | 'paypal' | 'paymongo_qrph' | 'gcash' | 'maya' | 'crypto';
   providerLabel: string;
   email: string;
   amount: number;
   total: number;
   subtotal: number;
+  baseAmount?: number;
+  feeAmount?: number;
+  feePercent?: number;
   currency: string;
   paypalEmail?: string | null;
   paypalNote?: string | null;
@@ -48,6 +51,10 @@ interface OrderData {
   mayaName?: string | null;
   mayaQrUrl?: string | null;
   mayaEnabled?: boolean;
+  paymongoQrUrl?: string | null;
+  paymongoName?: string | null;
+  cryptoLtc?: string | null;
+  cryptoUsdt?: string | null;
   qrImageUrl?: string | null;
   refCode?: string | null;
   customerRef?: string | null;
@@ -502,24 +509,167 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               </div>
             )}
 
-            {/* PENDING STATE: QRPH PAYMENT CARD */}
-            {isPending && order.provider === 'qrph' && (() => {
-              const showGcash = order.gcashEnabled !== false;
-              const showMaya = order.mayaEnabled !== false;
+            {/* PENDING STATE: PAYMONGO QRPH PAYMENT CARD */}
+            {isPending && order.provider === 'paymongo_qrph' && (
+              <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-purple-500/30 space-y-6">
+                <div className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>PAYMONGO QRPH PAYMENT</span>
+                  <span className="text-[10px] text-zinc-500 font-normal">Instant QRPH Rail</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between">
+                  <span className="text-xs font-mono text-zinc-400">Send exactly</span>
+                  <span className="text-xl sm:text-2xl font-mono font-bold text-white">
+                    ₱{order.amount.toLocaleString('en-PH')} PHP
+                  </span>
+                </div>
+
+                <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-4 max-w-sm mx-auto w-full">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="text-xs font-mono font-bold text-white uppercase">Scan via Any Banking App / E-Wallet</span>
+                  </div>
+
+                  {order.paymongoQrUrl || order.qrImageUrl ? (
+                    <div className="relative w-52 h-52 rounded-xl overflow-hidden border border-zinc-700 bg-white p-2 shadow-md">
+                      <Image
+                        src={order.paymongoQrUrl || order.qrImageUrl!}
+                        alt="PayMongo QRPH Code"
+                        fill
+                        unoptimized
+                        className="object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-52 h-52 rounded-xl border border-dashed border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center p-3 text-zinc-500 text-[11px] font-mono">
+                      <QrCode className="w-8 h-8 mb-1.5 text-purple-400 opacity-80" />
+                      <span>QRPH Code Pending</span>
+                    </div>
+                  )}
+
+                  <div className="w-full text-left space-y-1 font-mono text-xs pt-1">
+                    <div className="text-[10px] text-zinc-500 uppercase">Merchant Name:</div>
+                    <div className="text-white font-semibold truncate">{order.paymongoName || 'ASYNC ENTERPRISES'}</div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmitReference} className="space-y-3 pt-3 border-t border-zinc-800/80">
+                  <div className="text-xs text-zinc-400">
+                    After scanning and completing payment, enter your <strong>Reference Number / Trace No.</strong> below:
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={referenceInput}
+                      onChange={(e) => setReferenceInput(e.target.value)}
+                      placeholder="e.g. 102948291048"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={submittingRef || !referenceInput.trim()}
+                      className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40"
+                    >
+                      {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* PENDING STATE: CRYPTO PAYMENT CARD (LTC / USDT) */}
+            {isPending && order.provider === 'crypto' && (
+              <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-purple-500/30 space-y-6">
+                <div className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                  <span>CRYPTO DIRECT PAYMENT</span>
+                  <span className="text-[10px] text-zinc-500 font-normal">LTC &bull; USDT</span>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between">
+                  <span className="text-xs font-mono text-zinc-400">Send exactly</span>
+                  <span className="text-xl sm:text-2xl font-mono font-bold text-white">
+                    ${order.amount.toFixed(2)} USD
+                  </span>
+                </div>
+
+                <div className="space-y-3 font-mono text-xs">
+                  {order.cryptoLtc && (
+                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-1.5">
+                      <div className="text-[10px] text-zinc-500 uppercase font-bold text-amber-400">Litecoin (LTC) Address</div>
+                      <div className="flex items-center justify-between text-zinc-200">
+                        <span className="truncate select-all">{order.cryptoLtc}</span>
+                        <button
+                          onClick={() => handleCopy(order.cryptoLtc!, 'crypto_ltc')}
+                          className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 ml-2 cursor-pointer shrink-0"
+                          title="Copy LTC Address"
+                        >
+                          {copiedField === 'crypto_ltc' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {order.cryptoUsdt && (
+                    <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 space-y-1.5">
+                      <div className="text-[10px] text-zinc-500 uppercase font-bold text-emerald-400">Tether (USDT) Address</div>
+                      <div className="flex items-center justify-between text-zinc-200">
+                        <span className="truncate select-all">{order.cryptoUsdt}</span>
+                        <button
+                          onClick={() => handleCopy(order.cryptoUsdt!, 'crypto_usdt')}
+                          className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 ml-2 cursor-pointer shrink-0"
+                          title="Copy USDT Address"
+                        >
+                          {copiedField === 'crypto_usdt' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <form onSubmit={handleSubmitReference} className="space-y-3 pt-3 border-t border-zinc-800/80">
+                  <div className="text-xs text-zinc-400">
+                    After broadcasting your transaction, enter your <strong>TxID / Blockchain Hash</strong> below:
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={referenceInput}
+                      onChange={(e) => setReferenceInput(e.target.value)}
+                      placeholder="e.g. b8f9a2c... (Transaction Hash)"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={submittingRef || !referenceInput.trim()}
+                      className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40"
+                    >
+                      {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* PENDING STATE: QRPH / GCASH / MAYA PAYMENT CARD */}
+            {isPending && (order.provider === 'qrph' || order.provider === 'gcash' || order.provider === 'maya') && (() => {
+              const showGcash = order.provider === 'gcash' || (order.provider === 'qrph' && order.gcashEnabled !== false);
+              const showMaya = order.provider === 'maya' || (order.provider === 'qrph' && order.mayaEnabled !== false);
               const singleCard = (showGcash && !showMaya) || (!showGcash && showMaya);
 
               return (
                 <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-purple-500/30 space-y-6">
                   <div className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
-                    <span>QRPH PAYMENT</span>
+                    <span>{order.provider === 'gcash' ? 'GCASH TRANSFER' : order.provider === 'maya' ? 'MAYA TRANSFER' : 'QRPH PAYMENT'}</span>
                     <span className="text-[10px] text-zinc-500 font-normal">
-                      {showGcash && showMaya
-                        ? 'GCash & Maya Accepted'
-                        : showGcash
+                      {order.provider === 'gcash'
                         ? 'GCash Accepted'
-                        : showMaya
+                        : order.provider === 'maya'
                         ? 'Maya Accepted'
-                        : 'Temporary Maintenance'}
+                        : showGcash && showMaya
+                        ? 'GCash & Maya Accepted'
+                        : 'Philippine E-Wallet'}
                     </span>
                   </div>
 
@@ -619,7 +769,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
 
                     {!showGcash && !showMaya && (
                       <div className="p-8 text-center text-zinc-400 font-mono text-xs col-span-2 rounded-2xl bg-zinc-900 border border-zinc-800">
-                        QRPH payment gateways are temporarily offline for maintenance. Please notify support.
+                        Payment gateways are temporarily offline for maintenance. Please notify support.
                       </div>
                     )}
                   </div>
@@ -691,10 +841,18 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               <div className="pt-4 border-t border-zinc-800/80 space-y-1.5 text-xs font-mono">
                 <div className="flex items-center justify-between text-zinc-400">
                   <span>Subtotal</span>
-                  <span>{order.currency === 'PHP' ? '₱' : '$'}{order.subtotal.toFixed(2)}</span>
+                  <span>{order.currency === 'PHP' ? '₱' : '$'}{(order.baseAmount ?? order.subtotal).toFixed(2)}</span>
                 </div>
-                <div className="flex items-center justify-between text-base font-bold text-white pt-1">
-                  <span>Total</span>
+
+                {Boolean(order.feeAmount && order.feeAmount > 0) && (
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span>Gateway Fee (+{order.feePercent}%)</span>
+                    <span className="text-amber-400">+{order.currency === 'PHP' ? '₱' : '$'}{order.feeAmount?.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-base font-bold text-white pt-1 border-t border-zinc-800/50">
+                  <span>Total Due</span>
                   <span className="text-purple-400">
                     {order.currency === 'PHP' ? '₱' : '$'}{order.total.toFixed(2)} {order.currency}
                   </span>
