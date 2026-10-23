@@ -93,7 +93,7 @@ export default function ProductDetailClient({
             </Link>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
             <Link href="/products" className="hover:text-white transition-colors">
-              Storefront
+              Products
             </Link>
             <ChevronRight className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
             <Link
