@@ -877,15 +877,6 @@ export default function AccountGeneratorPage() {
                     </div>
                   </div>
                 </div>
-
-                {userPlan.hasPlan && (
-                  <button
-                    onClick={() => setActivateModalOpen(true)}
-                    className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-purple-500/30 text-purple-300 hover:text-white text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <span>+ Bind Another License</span>
-                  </button>
-                )}
               </div>
 
               {/* Multi-License Stacked Quota Tray */}
