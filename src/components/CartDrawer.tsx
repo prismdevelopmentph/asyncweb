@@ -65,7 +65,8 @@ export default function CartDrawer() {
     };
   }, [isOpen, closeCart]);
 
-  if (!isHydrated || !isOpen) return null;
+  if (!isHydrated) return null;
+  if (!isOpen && !isCheckoutModalOpen) return null;
 
   const formatPrice = (usd: number, php: number) => {
     if (currency === 'USD') return `$${Number(usd).toFixed(2)}`;
@@ -74,14 +75,16 @@ export default function CartDrawer() {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
-        onClick={closeCart}
-      />
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+            onClick={closeCart}
+          />
 
-      {/* Slide-over Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-zinc-950 border-l border-zinc-800 text-white flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+          {/* Slide-over Drawer */}
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-zinc-950 border-l border-zinc-800 text-white flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
         {/* Drawer Header */}
         <div className="flex items-center justify-between p-5 border-b border-zinc-800/80 bg-zinc-900/40">
           <div className="flex items-center gap-2.5">
@@ -275,7 +278,10 @@ export default function CartDrawer() {
 
             {/* Checkout Action Button */}
             <button
-              onClick={() => setIsCheckoutModalOpen(true)}
+              onClick={() => {
+                closeCart();
+                setIsCheckoutModalOpen(true);
+              }}
               className="w-full py-3.5 px-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xl shadow-purple-950/60"
             >
               <span>Proceed to Checkout</span>
@@ -284,6 +290,8 @@ export default function CartDrawer() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Cart Checkout Modal */}
       {isCheckoutModalOpen && (

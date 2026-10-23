@@ -16,7 +16,9 @@ import {
   Zap,
   ArrowRight,
   RefreshCw,
-  QrCode
+  QrCode,
+  XCircle,
+  Ban
 } from 'lucide-react';
 
 interface OrderItem {
@@ -82,6 +84,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const [submittingRef, setSubmittingRef] = useState(false);
   const [refSuccess, setRefSuccess] = useState(false);
 
+  // Cancellation states
+  const [cancelling, setCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   // 1. Fetch order data
   const fetchOrder = async () => {
     try {
@@ -104,14 +111,41 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
 
   useEffect(() => {
     fetchOrder();
+  }, [id]);
 
-    // Poll every 3.5 seconds while status is pending or paid (until delivered)
+  useEffect(() => {
+    if (!order) return;
+    // Halt live polling if order has reached terminal status
+    if (order.status === 'delivered' || order.status === 'cancelled') return;
+
     const interval = setInterval(() => {
       fetchOrder();
     }, 3500);
 
     return () => clearInterval(interval);
-  }, [id]);
+  }, [id, order?.status]);
+
+  const handleCancelOrder = async () => {
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/order/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCancelError(data.error || 'Failed to cancel order.');
+        return;
+      }
+      setShowCancelModal(false);
+      await fetchOrder();
+    } catch (err: any) {
+      setCancelError(err?.message || 'Network error occurred.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const handleCopy = (text: string, fieldName: string) => {
     if (!navigator?.clipboard) return;
@@ -199,8 +233,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const isRejected = order.status === 'rejected';
   const isCancelled = order.status === 'cancelled';
   const isPaymentSubmitted = !isRejected && !isCancelled && Boolean(order.paidAt || order.hasSubmittedRef || order.customerRef || refSuccess || order.status === 'pending');
-  const isPaid = !isRejected && (order.status === 'paid' || isPaymentSubmitted || isDelivered);
-  const isPending = order.status === 'pending' || order.status === 'awaiting_payment';
+  const isPaid = !isRejected && !isCancelled && (order.status === 'paid' || isPaymentSubmitted || isDelivered);
+  const isPending = !isCancelled && (order.status === 'pending' || order.status === 'awaiting_payment');
+  const canCancel = !isDelivered && !isCancelled && order.status !== 'paid';
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden dev-grid-bg">
@@ -210,44 +245,77 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         
         {/* ── 1. HEADER CARD ── */}
         <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-zinc-800/80 space-y-6">
-          <div className="flex items-start gap-4">
-            <div className={`p-3 rounded-2xl border shrink-0 ${
-              isDelivered
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : isRejected
-                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-            }`}>
-              {isDelivered ? (
-                <CheckCircle2 className="w-6 h-6" />
-              ) : isRejected ? (
-                <AlertCircle className="w-6 h-6" />
-              ) : (
-                <Clock className="w-6 h-6 animate-pulse" />
-              )}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className={`p-3 rounded-2xl border shrink-0 ${
+                isDelivered
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : isCancelled
+                  ? 'bg-zinc-900 border-zinc-800 text-zinc-500'
+                  : isRejected
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+              }`}>
+                {isDelivered ? (
+                  <CheckCircle2 className="w-6 h-6" />
+                ) : isCancelled ? (
+                  <XCircle className="w-6 h-6" />
+                ) : isRejected ? (
+                  <AlertCircle className="w-6 h-6" />
+                ) : (
+                  <Clock className="w-6 h-6 animate-pulse" />
+                )}
+              </div>
+
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 font-sans">
+                  {isDelivered
+                    ? 'Your License Key is Delivered'
+                    : isCancelled
+                    ? 'Order Cancelled'
+                    : isRejected
+                    ? 'Payment Verification Rejected'
+                    : isPaymentSubmitted
+                    ? 'Payment Submitted // Pending Staff Approval'
+                    : order.provider === 'balance'
+                    ? 'Processing Order'
+                    : `Complete your ${order.providerLabel} payment`}
+                </h1>
+                <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
+                  {isDelivered
+                    ? 'Your payment is confirmed. Your cryptographic license key is ready to use below.'
+                    : isCancelled
+                    ? 'This order has been cancelled. No payment was captured and no license keys will be generated.'
+                    : isRejected
+                    ? 'Staff could not verify the submitted payment. Please check the reason below and submit the correct reference.'
+                    : isPaymentSubmitted
+                    ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your license key will unlock here automatically.'
+                    : 'Follow the steps below. Once we confirm your payment, your items unlock here automatically.'}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 font-sans">
-                {isDelivered
-                  ? 'Your License Key is Delivered'
-                  : isRejected
-                  ? 'Payment Verification Rejected'
-                  : isPaymentSubmitted
-                  ? 'Payment Submitted // Pending Staff Approval'
-                  : order.provider === 'balance'
-                  ? 'Processing Order'
-                  : `Complete your ${order.providerLabel} payment`}
-              </h1>
-              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-                {isDelivered
-                  ? 'Your payment is confirmed. Your cryptographic license key is ready to use below.'
-                  : isRejected
-                  ? 'Staff could not verify the submitted payment. Please check the reason below and submit the correct reference.'
-                  : isPaymentSubmitted
-                  ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your license key will unlock here automatically.'
-                  : 'Follow the steps below. Once we confirm your payment, your items unlock here automatically.'}
-              </p>
+            {/* Header Right Action */}
+            <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+              {canCancel && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-rose-950/40 border border-zinc-800 hover:border-rose-800/60 text-zinc-400 hover:text-rose-300 text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Ban className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>Cancel Order</span>
+                </button>
+              )}
+
+              {isCancelled && (
+                <Link
+                  href="/products"
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-purple-950/50"
+                >
+                  <span>Browse Products</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
             </div>
           </div>
 
@@ -255,24 +323,42 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800/80">
             {/* Step 1: Ordered */}
             <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold bg-emerald-500 text-black shrink-0">
-                ✓
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
+                isCancelled ? 'bg-zinc-800 text-zinc-500' : 'bg-emerald-500 text-black'
+              }`}>
+                {isCancelled ? '—' : '✓'}
               </span>
-              <span className="text-xs font-mono font-medium text-white">Ordered</span>
+              <span className={`text-xs font-mono font-medium ${isCancelled ? 'text-zinc-500 line-through' : 'text-white'}`}>
+                Ordered
+              </span>
             </div>
 
-            {/* Step 2: Paid */}
+            {/* Step 2: Paid / Cancelled */}
             <div className="flex items-center gap-2">
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
-                isPaid ? 'bg-emerald-500 text-black' : isRejected ? 'bg-rose-500 text-white' : 'bg-zinc-800 text-zinc-400'
+                isCancelled
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  : isPaid
+                  ? 'bg-emerald-500 text-black'
+                  : isRejected
+                  ? 'bg-rose-500 text-white'
+                  : 'bg-zinc-800 text-zinc-400'
               }`}>
-                {isPaid ? '✓' : isRejected ? '!' : '2'}
+                {isCancelled ? '✕' : isPaid ? '✓' : isRejected ? '!' : '2'}
               </span>
               <div className="flex flex-col">
-                <span className={`text-xs font-mono font-medium ${isPaid ? 'text-white' : isRejected ? 'text-rose-400' : 'text-zinc-500'}`}>
-                  {isRejected ? 'Rejected' : 'Paid'}
+                <span className={`text-xs font-mono font-medium ${
+                  isCancelled
+                    ? 'text-rose-400 font-semibold'
+                    : isPaid
+                    ? 'text-white'
+                    : isRejected
+                    ? 'text-rose-400'
+                    : 'text-zinc-500'
+                }`}>
+                  {isCancelled ? 'Cancelled' : isRejected ? 'Rejected' : 'Paid'}
                 </span>
-                {isPaymentSubmitted && !isDelivered && (
+                {isPaymentSubmitted && !isDelivered && !isCancelled && (
                   <span className="text-[9px] font-mono text-amber-400">Verifying</span>
                 )}
               </div>
@@ -281,7 +367,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             {/* Step 3: Delivered */}
             <div className="flex items-center gap-2">
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
-                isDelivered ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                isDelivered ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-500'
               }`}>
                 {isDelivered ? '✓' : '3'}
               </span>
@@ -297,6 +383,38 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           
           {/* Left Column (Payment & Key Delivery) */}
           <div className="lg:col-span-7 space-y-6">
+
+            {/* CANCELLED STATE CARD */}
+            {isCancelled && (
+              <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-zinc-800 space-y-5">
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 shrink-0">
+                    <XCircle className="w-6 h-6 text-zinc-400" />
+                  </div>
+                  <div className="space-y-1.5 flex-1">
+                    <div className="text-base font-bold text-white font-sans">
+                      Order Terminated
+                    </div>
+                    <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                      This order was cancelled by the customer. No payment was captured, no reference codes are pending review, and no digital licenses will be dispatched for this session.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
+                  <div className="text-zinc-400">
+                    Looking for a different payment method or product tier?
+                  </div>
+                  <Link
+                    href="/products"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-semibold transition-all shrink-0 cursor-pointer shadow-lg shadow-purple-950/50"
+                  >
+                    <span>Return to Store</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* REJECTED STATE CARD */}
             {isRejected && (
@@ -814,9 +932,15 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
                   isDelivered
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : isCancelled
+                    ? 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                    : isRejected
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                    : isPaid
+                    ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
                     : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
                 }`}>
-                  {isDelivered ? 'Delivered' : isPaid ? 'Paid' : 'Pending'}
+                  {isDelivered ? 'Delivered' : isCancelled ? 'Cancelled' : isRejected ? 'Rejected' : isPaid ? 'Paid' : 'Pending'}
                 </span>
               </div>
 
@@ -922,11 +1046,93 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   <span className="text-zinc-300">{formatDate(order.deliveredAt)}</span>
                 </div>
               </div>
+
+              {/* Cancel Button in Details */}
+              {canCancel && (
+                <div className="pt-3 border-t border-zinc-800/80">
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="w-full py-2.5 rounded-xl bg-zinc-900 hover:bg-rose-950/40 border border-zinc-800 hover:border-rose-800/60 text-zinc-400 hover:text-rose-400 text-xs font-mono font-medium transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <Ban className="w-3.5 h-3.5" />
+                    <span>Cancel this order</span>
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>
 
         </div>
+
+        {/* Cancel Order Confirmation Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div
+              className="relative w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl p-6 space-y-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                    <AlertCircle className="w-4 h-4" />
+                  </span>
+                  <span className="text-sm font-mono font-bold text-white">Cancel Order</span>
+                </div>
+                <button
+                  onClick={() => !cancelling && setShowCancelModal(false)}
+                  className="p-1.5 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2 text-xs text-zinc-300 leading-relaxed font-sans">
+                <p>
+                  Are you sure you want to cancel this order (<strong className="font-mono text-white">{order.id}</strong>)?
+                </p>
+                <p className="text-zinc-500">
+                  Any pending transfer references submitted for this order will be discarded. This action cannot be reversed.
+                </p>
+              </div>
+
+              {cancelError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs font-mono text-rose-400">
+                  {cancelError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-zinc-800/80">
+                <button
+                  type="button"
+                  disabled={cancelling}
+                  onClick={() => setShowCancelModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono font-medium transition-colors cursor-pointer"
+                >
+                  Keep Order
+                </button>
+                <button
+                  type="button"
+                  disabled={cancelling}
+                  onClick={handleCancelOrder}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  {cancelling ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Cancelling...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="w-3.5 h-3.5" />
+                      <span>Yes, Cancel Order</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </main>
 

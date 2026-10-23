@@ -29,7 +29,7 @@ export default function CartCheckoutModal({
   currentUser
 }: CartCheckoutModalProps) {
   const router = useRouter();
-  const { items, totalPHP, totalUSD, clearCart } = useCart();
+  const { items, totalPHP, totalUSD, clearCart, closeCart } = useCart();
 
   const [paymentSettings, setPaymentSettings] = useState<any>(null);
   const [selectedProvider, setSelectedProvider] = useState<PaymentRail>('paymongo_qrph');
@@ -183,8 +183,9 @@ export default function CartCheckoutModal({
         return;
       }
 
-      // 3. Clear cart and redirect to order tracking screen
+      // 3. Clear cart, close drawer, and redirect to order tracking screen
       clearCart();
+      closeCart();
       onClose();
       router.push(`/order/${data.orderId}`);
     } catch (err: any) {
