@@ -1924,7 +1924,7 @@ export default function AdminPage() {
               <span className="text-xs text-zinc-500 font-mono">Edge Middleware Enforced</span>
             </div>
 
-            <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
+            <div className="overflow-x-auto min-h-[540px] max-h-[540px] overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse text-xs">
                 <thead className="sticky top-0 z-10 bg-zinc-950 shadow-sm">
                   <tr className="border-b border-zinc-800/80 bg-zinc-950 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
@@ -2181,7 +2181,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto max-h-[620px] overflow-y-auto custom-scrollbar relative">
+              <div className="overflow-x-auto min-h-[540px] max-h-[540px] overflow-y-auto custom-scrollbar relative">
                 {genViewMode === 'users' ? (
                   /* ── USER-CENTRIC FORMAT ── */
                   <table className="w-full min-w-[1000px] text-left border-collapse text-xs">
@@ -3540,7 +3540,7 @@ export default function AdminPage() {
                   <span>LIVE GENERATION CLAIMS LOG</span>
                 </div>
 
-                <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
+                <div className="overflow-x-auto min-h-[540px] max-h-[540px] overflow-y-auto custom-scrollbar">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead className="sticky top-0 z-10 bg-zinc-950 shadow-sm">
                       <tr className="border-b border-zinc-800/80 bg-zinc-950 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
@@ -3595,7 +3595,7 @@ export default function AdminPage() {
                   <span>DESKTOP CLIENT DOWNLOAD HISTORY</span>
                 </div>
 
-                <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
+                <div className="overflow-x-auto min-h-[540px] max-h-[540px] overflow-y-auto custom-scrollbar">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead className="sticky top-0 z-10 bg-zinc-950 shadow-sm">
                       <tr className="border-b border-zinc-800/80 bg-zinc-950 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
