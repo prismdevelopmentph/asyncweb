@@ -999,11 +999,15 @@ export default function AccountGeneratorPage() {
                               `${svc.leftCount.toLocaleString()} left`
                             )}
                           </div>
-                          {!isCoveredByPlan && (
+                          {!isCoveredByPlan ? (
                             <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 mt-1">
                               Locked
                             </span>
-                          )}
+                          ) : isQuotaExhausted ? (
+                            <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold mt-1">
+                              Daily Limit Reached
+                            </span>
+                          ) : null}
                         </div>
                       </button>
                     );

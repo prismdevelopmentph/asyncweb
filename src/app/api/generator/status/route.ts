@@ -269,8 +269,9 @@ export async function GET(request: Request) {
           for (const svc of allServices) {
             const svcLower = svc.name.toLowerCase();
             let isUnlocked = false;
-            let isolatedLimit = 0;
-            let isolatedUsed = 0;
+            let totalAvailableForService = 0;
+            let serviceMaxLimit = 0;
+            let serviceUsed = 0;
             const matchedKeyList: string[] = [];
 
             for (const lic of processedLicenses) {
@@ -278,37 +279,18 @@ export async function GET(request: Request) {
               if (coversThisSvc) {
                 isUnlocked = true;
                 matchedKeyList.push(lic.licenseKey);
-                if (lic.quotaMode === 'isolated') {
-                  isolatedLimit += lic.dailyLimit;
-                  // Look up specific service usage for this license
-                  const svcKey = `${lic.id}:${svcLower}`;
-                  const specificUsed = usageMapByLicAndSvc.get(svcKey) || lic.usedToday;
-                  isolatedUsed += specificUsed;
-                }
+                serviceMaxLimit += lic.dailyLimit;
+                serviceUsed += lic.usedToday;
+                totalAvailableForService += Math.max(0, lic.dailyLimit - lic.usedToday);
               }
             }
-
-            const hasDedicatedIsolated = isolatedLimit > 0;
-            const isolatedRemaining = Math.max(0, isolatedLimit - isolatedUsed);
-            const coversShared = processedLicenses.some(lic => lic.quotaMode === 'shared' && (lic.services.includes('All Services') || lic.services.some(s => s.toLowerCase() === svcLower)));
-
-            // Total available for this service: isolated remaining + shared pool headroom (if covered)
-            const totalAvailable = hasDedicatedIsolated
-              ? isolatedRemaining + (coversShared ? sharedAvailable : 0)
-              : coversShared
-              ? sharedAvailable
-              : 0;
 
             serviceQuotas[svcLower] = {
               serviceName: svc.name,
               isUnlocked,
-              hasDedicatedIsolated,
-              coversShared,
-              isolatedLimit,
-              isolatedUsed,
-              isolatedRemaining,
-              sharedAvailable,
-              totalAvailable,
+              serviceLimit: serviceMaxLimit,
+              serviceUsed,
+              totalAvailable: totalAvailableForService,
               licenseKeys: matchedKeyList
             };
           }
