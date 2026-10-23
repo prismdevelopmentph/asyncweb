@@ -46,6 +46,7 @@ export default function ProductDetailClient({
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -150,11 +151,13 @@ export default function ProductDetailClient({
 
               {/* Product Visual */}
               <div className="relative aspect-[16/9] w-full rounded-2xl overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-black border border-zinc-800/60 flex items-center justify-center group">
-                {product.imageUrl ? (
+                {product.imageUrl && !imgError ? (
                   <Image
                     src={product.imageUrl}
                     alt={product.title}
                     fill
+                    unoptimized
+                    onError={() => setImgError(true)}
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                     priority
                   />
@@ -532,3 +535,4 @@ export default function ProductDetailClient({
     </div>
   );
 }
+

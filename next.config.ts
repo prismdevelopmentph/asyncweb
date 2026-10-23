@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
         hostname: "images.discordapp.net",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+        pathname: "/**",
+      },
     ],
   },
 };
