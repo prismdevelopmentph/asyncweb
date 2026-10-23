@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // ── SUB-ROUTE: GCASH / MAYA QR ──
+      // ── SUB-ROUTE: QRPH PAYMENT ──
       if (provider === 'qrph') {
         const refTag = `ASYNC-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -165,14 +165,16 @@ export async function POST(req: NextRequest) {
             amount: finalPhp,
             currency: 'PHP',
             provider: 'qrph',
-            provider_label: 'GCash / Maya QR',
+            provider_label: 'QRPH Payment',
             payment_details: {
               gcash_number: settings.gcashNumber,
               gcash_name: settings.gcashName,
               gcash_qr_url: settings.gcashQrUrl,
+              gcash_enabled: settings.gcashEnabled,
               maya_number: settings.mayaNumber,
               maya_name: settings.mayaName,
               maya_qr_url: settings.mayaQrUrl,
+              maya_enabled: settings.mayaEnabled,
               ref_code: refTag
             },
             status: 'pending'
@@ -232,14 +234,16 @@ export async function POST(req: NextRequest) {
             amount: topupPhp,
             currency: 'PHP',
             provider: 'qrph',
-            provider_label: 'GCash / Maya QR',
+            provider_label: 'QRPH Payment',
             payment_details: {
               gcash_number: settings.gcashNumber,
               gcash_name: settings.gcashName,
               gcash_qr_url: settings.gcashQrUrl,
+              gcash_enabled: settings.gcashEnabled,
               maya_number: settings.mayaNumber,
               maya_name: settings.mayaName,
               maya_qr_url: settings.mayaQrUrl,
+              maya_enabled: settings.mayaEnabled,
               ref_code: refTag,
               target_credit_php: topupPhp
             },

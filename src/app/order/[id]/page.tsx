@@ -43,9 +43,11 @@ interface OrderData {
   gcashNumber?: string | null;
   gcashName?: string | null;
   gcashQrUrl?: string | null;
+  gcashEnabled?: boolean;
   mayaNumber?: string | null;
   mayaName?: string | null;
   mayaQrUrl?: string | null;
+  mayaEnabled?: boolean;
   qrImageUrl?: string | null;
   refCode?: string | null;
   customerRef?: string | null;
@@ -428,129 +430,154 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               </div>
             )}
 
-            {/* PENDING STATE: GCASH / MAYA QR CARD */}
-            {isPending && order.provider === 'qrph' && (
-              <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-purple-500/30 space-y-6">
-                <div className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider">
-                  GCASH & MAYA QR PAYMENT
-                </div>
+            {/* PENDING STATE: QRPH PAYMENT CARD */}
+            {isPending && order.provider === 'qrph' && (() => {
+              const showGcash = order.gcashEnabled !== false;
+              const showMaya = order.mayaEnabled !== false;
+              const singleCard = (showGcash && !showMaya) || (!showGcash && showMaya);
 
-                {/* Send Exactly Box */}
-                <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between">
-                  <span className="text-xs font-mono text-zinc-400">Send exactly</span>
-                  <span className="text-xl sm:text-2xl font-mono font-bold text-white">
-                    ₱{order.amount.toLocaleString('en-PH')} PHP
-                  </span>
-                </div>
+              return (
+                <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-purple-500/30 space-y-6">
+                  <div className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>QRPH PAYMENT</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">
+                      {showGcash && showMaya
+                        ? 'GCash & Maya Accepted'
+                        : showGcash
+                        ? 'GCash Accepted'
+                        : showMaya
+                        ? 'Maya Accepted'
+                        : 'Temporary Maintenance'}
+                    </span>
+                  </div>
 
-                {/* Dual QR Code Display (GCash & Maya) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* GCash Card */}
-                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-500" />
-                      <span className="text-xs font-mono font-bold text-white uppercase">GCash Transfer</span>
-                    </div>
+                  {/* Send Exactly Box */}
+                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between">
+                    <span className="text-xs font-mono text-zinc-400">Send exactly</span>
+                    <span className="text-xl sm:text-2xl font-mono font-bold text-white">
+                      ₱{order.amount.toLocaleString('en-PH')} PHP
+                    </span>
+                  </div>
 
-                    {order.gcashQrUrl ? (
-                      <div className="relative w-44 h-44 rounded-xl overflow-hidden border border-zinc-700 bg-white p-1 shadow-md">
-                        <Image
-                          src={order.gcashQrUrl}
-                          alt="GCash QR Code"
-                          fill
-                          unoptimized
-                          className="object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-44 h-44 rounded-xl border border-dashed border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center p-3 text-zinc-500 text-[11px] font-mono">
-                        <QrCode className="w-8 h-8 mb-1.5 text-blue-400 opacity-80" />
-                        <span>Send via Mobile #</span>
+                  {/* Dynamic QR Code Display (Adjusts based on GCash / Maya enabled states) */}
+                  <div className={`grid gap-4 ${singleCard ? 'grid-cols-1 max-w-sm mx-auto w-full' : 'grid-cols-1 sm:grid-cols-2'}`}>
+                    {/* GCash Card */}
+                    {showGcash && (
+                      <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span className="text-xs font-mono font-bold text-white uppercase">GCash Transfer</span>
+                        </div>
+
+                        {order.gcashQrUrl ? (
+                          <div className="relative w-44 h-44 rounded-xl overflow-hidden border border-zinc-700 bg-white p-1 shadow-md">
+                            <Image
+                              src={order.gcashQrUrl}
+                              alt="GCash QR Code"
+                              fill
+                              unoptimized
+                              className="object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-44 h-44 rounded-xl border border-dashed border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center p-3 text-zinc-500 text-[11px] font-mono">
+                            <QrCode className="w-8 h-8 mb-1.5 text-blue-400 opacity-80" />
+                            <span>Send via Mobile #</span>
+                          </div>
+                        )}
+
+                        <div className="w-full text-left space-y-1 font-mono text-xs pt-1">
+                          <div className="text-[10px] text-zinc-500 uppercase">Account Name:</div>
+                          <div className="text-white font-semibold truncate">{order.gcashName || 'ASYNC DEV'}</div>
+                          <div className="text-[10px] text-zinc-500 uppercase pt-1">Mobile Number:</div>
+                          <div className="flex items-center justify-between text-zinc-200">
+                            <span>{order.gcashNumber}</span>
+                            <button
+                              onClick={() => handleCopy(order.gcashNumber!, 'gcash')}
+                              className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
+                            >
+                              {copiedField === 'gcash' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
 
-                    <div className="w-full text-left space-y-1 font-mono text-xs pt-1">
-                      <div className="text-[10px] text-zinc-500 uppercase">Account Name:</div>
-                      <div className="text-white font-semibold truncate">{order.gcashName || 'ASYNC DEV'}</div>
-                      <div className="text-[10px] text-zinc-500 uppercase pt-1">Mobile Number:</div>
-                      <div className="flex items-center justify-between text-zinc-200">
-                        <span>{order.gcashNumber}</span>
-                        <button
-                          onClick={() => handleCopy(order.gcashNumber!, 'gcash')}
-                          className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-                        >
-                          {copiedField === 'gcash' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                    {/* Maya Card */}
+                    {showMaya && (
+                      <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-xs font-mono font-bold text-white uppercase">Maya Transfer</span>
+                        </div>
 
-                  {/* Maya Card */}
-                  <div className="p-4 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-mono font-bold text-white uppercase">Maya Transfer</span>
-                    </div>
+                        {order.mayaQrUrl ? (
+                          <div className="relative w-44 h-44 rounded-xl overflow-hidden border border-zinc-700 bg-white p-1 shadow-md">
+                            <Image
+                              src={order.mayaQrUrl}
+                              alt="Maya QR Code"
+                              fill
+                              unoptimized
+                              className="object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-44 h-44 rounded-xl border border-dashed border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center p-3 text-zinc-500 text-[11px] font-mono">
+                            <QrCode className="w-8 h-8 mb-1.5 text-emerald-400 opacity-80" />
+                            <span>Send via Mobile #</span>
+                          </div>
+                        )}
 
-                    {order.mayaQrUrl ? (
-                      <div className="relative w-44 h-44 rounded-xl overflow-hidden border border-zinc-700 bg-white p-1 shadow-md">
-                        <Image
-                          src={order.mayaQrUrl}
-                          alt="Maya QR Code"
-                          fill
-                          unoptimized
-                          className="object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-44 h-44 rounded-xl border border-dashed border-zinc-700 bg-zinc-950 flex flex-col items-center justify-center p-3 text-zinc-500 text-[11px] font-mono">
-                        <QrCode className="w-8 h-8 mb-1.5 text-emerald-400 opacity-80" />
-                        <span>Send via Mobile #</span>
+                        <div className="w-full text-left space-y-1 font-mono text-xs pt-1">
+                          <div className="text-[10px] text-zinc-500 uppercase">Account Name:</div>
+                          <div className="text-white font-semibold truncate">{order.mayaName || 'ASYNC DEV'}</div>
+                          <div className="text-[10px] text-zinc-500 uppercase pt-1">Mobile Number:</div>
+                          <div className="flex items-center justify-between text-zinc-200">
+                            <span>{order.mayaNumber}</span>
+                            <button
+                              onClick={() => handleCopy(order.mayaNumber!, 'maya')}
+                              className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
+                            >
+                              {copiedField === 'maya' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
 
-                    <div className="w-full text-left space-y-1 font-mono text-xs pt-1">
-                      <div className="text-[10px] text-zinc-500 uppercase">Account Name:</div>
-                      <div className="text-white font-semibold truncate">{order.mayaName || 'ASYNC DEV'}</div>
-                      <div className="text-[10px] text-zinc-500 uppercase pt-1">Mobile Number:</div>
-                      <div className="flex items-center justify-between text-zinc-200">
-                        <span>{order.mayaNumber}</span>
-                        <button
-                          onClick={() => handleCopy(order.mayaNumber!, 'maya')}
-                          className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
-                        >
-                          {copiedField === 'maya' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
+                    {!showGcash && !showMaya && (
+                      <div className="p-8 text-center text-zinc-400 font-mono text-xs col-span-2 rounded-2xl bg-zinc-900 border border-zinc-800">
+                        QRPH payment gateways are temporarily offline for maintenance. Please notify support.
                       </div>
+                    )}
+                  </div>
+
+                  {/* Instructions & Reference Submission */}
+                  <form onSubmit={handleSubmitReference} className="space-y-3 pt-3 border-t border-zinc-800/80">
+                    <div className="text-xs text-zinc-400">
+                      After completing the transfer, enter your <strong>Reference Number</strong> below and click <strong>Submit Payment</strong>:
                     </div>
-                  </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={referenceInput}
+                        onChange={(e) => setReferenceInput(e.target.value)}
+                        placeholder="e.g. 102948291048"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={submittingRef || !referenceInput.trim()}
+                        className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40"
+                      >
+                        {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
-
-                {/* Instructions & Reference Submission */}
-                <form onSubmit={handleSubmitReference} className="space-y-3 pt-3 border-t border-zinc-800/80">
-                  <div className="text-xs text-zinc-400">
-                    After completing the transfer, enter your <strong>Reference Number</strong> below and click <strong>Submit Payment</strong>:
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={referenceInput}
-                      onChange={(e) => setReferenceInput(e.target.value)}
-                      placeholder="e.g. 102948291048"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
-                    />
-                    <button
-                      type="submit"
-                      disabled={submittingRef || !referenceInput.trim()}
-                      className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40"
-                    >
-                      {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Right Column (Order Summary & Details) */}

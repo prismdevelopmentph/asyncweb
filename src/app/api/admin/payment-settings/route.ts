@@ -61,9 +61,11 @@ export async function POST(req: NextRequest) {
       gcashNumber,
       gcashName,
       gcashQrUrl,
+      gcashEnabled,
       mayaNumber,
       mayaName,
-      mayaQrUrl
+      mayaQrUrl,
+      mayaEnabled
     } = body;
 
     const upserts = [
@@ -71,9 +73,11 @@ export async function POST(req: NextRequest) {
       { key: 'payment_gcash_number', value: (gcashNumber || '').trim() },
       { key: 'payment_gcash_name', value: (gcashName || '').trim() },
       { key: 'payment_gcash_qr_url', value: (gcashQrUrl || '').trim() },
+      { key: 'payment_gcash_enabled', value: gcashEnabled !== false ? 'true' : 'false' },
       { key: 'payment_maya_number', value: (mayaNumber || '').trim() },
       { key: 'payment_maya_name', value: (mayaName || '').trim() },
-      { key: 'payment_maya_qr_url', value: (mayaQrUrl || '').trim() }
+      { key: 'payment_maya_qr_url', value: (mayaQrUrl || '').trim() },
+      { key: 'payment_maya_enabled', value: mayaEnabled !== false ? 'true' : 'false' }
     ];
 
     for (const item of upserts) {

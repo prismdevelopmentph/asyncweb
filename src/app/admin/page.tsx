@@ -159,9 +159,11 @@ export default function AdminPage() {
   const [payConfigGcashName, setPayConfigGcashName] = useState('');
   const [payConfigGcashNumber, setPayConfigGcashNumber] = useState('');
   const [payConfigGcashQrUrl, setPayConfigGcashQrUrl] = useState('');
+  const [payConfigGcashEnabled, setPayConfigGcashEnabled] = useState(true);
   const [payConfigMayaName, setPayConfigMayaName] = useState('');
   const [payConfigMayaNumber, setPayConfigMayaNumber] = useState('');
   const [payConfigMayaQrUrl, setPayConfigMayaQrUrl] = useState('');
+  const [payConfigMayaEnabled, setPayConfigMayaEnabled] = useState(true);
   const [uploadingGcashQr, setUploadingGcashQr] = useState(false);
   const [uploadingMayaQr, setUploadingMayaQr] = useState(false);
   const [savingPayConfig, setSavingPayConfig] = useState(false);
@@ -423,9 +425,11 @@ export default function AdminPage() {
           setPayConfigGcashName(data.settings.gcashName || '');
           setPayConfigGcashNumber(data.settings.gcashNumber || '');
           setPayConfigGcashQrUrl(data.settings.gcashQrUrl || '');
+          setPayConfigGcashEnabled(data.settings.gcashEnabled !== false);
           setPayConfigMayaName(data.settings.mayaName || '');
           setPayConfigMayaNumber(data.settings.mayaNumber || '');
           setPayConfigMayaQrUrl(data.settings.mayaQrUrl || '');
+          setPayConfigMayaEnabled(data.settings.mayaEnabled !== false);
         }
       }
     } catch (e) {
@@ -491,9 +495,11 @@ export default function AdminPage() {
           gcashName: payConfigGcashName,
           gcashNumber: payConfigGcashNumber,
           gcashQrUrl: payConfigGcashQrUrl,
+          gcashEnabled: payConfigGcashEnabled,
           mayaName: payConfigMayaName,
           mayaNumber: payConfigMayaNumber,
-          mayaQrUrl: payConfigMayaQrUrl
+          mayaQrUrl: payConfigMayaQrUrl,
+          mayaEnabled: payConfigMayaEnabled
         })
       });
       const data = await res.json();
@@ -2674,15 +2680,36 @@ export default function AdminPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* GCash Gateway */}
-                  <div className="p-4 rounded-2xl bg-zinc-950/70 border border-blue-500/20 space-y-4">
+                  <div className={`p-4 rounded-2xl bg-zinc-950/70 border space-y-4 transition-all ${
+                    payConfigGcashEnabled ? 'border-blue-500/30' : 'border-zinc-800/80 opacity-60'
+                  }`}>
                     <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
-                        <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">GCash QR Payment</h4>
+                        <span className={`w-2.5 h-2.5 rounded-full ${payConfigGcashEnabled ? 'bg-blue-400 animate-pulse' : 'bg-zinc-600'}`} />
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">GCash QR</h4>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        Manual Approval
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPayConfigGcashEnabled(!payConfigGcashEnabled)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            payConfigGcashEnabled ? 'bg-blue-600' : 'bg-zinc-700'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                              payConfigGcashEnabled ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                          payConfigGcashEnabled
+                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                            : 'bg-zinc-800 text-zinc-500 border-zinc-700/60'
+                        }`}>
+                          {payConfigGcashEnabled ? 'ACTIVE' : 'OFF'}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="space-y-3">
@@ -2760,15 +2787,36 @@ export default function AdminPage() {
                   </div>
 
                   {/* Maya Gateway */}
-                  <div className="p-4 rounded-2xl bg-zinc-950/70 border border-emerald-500/20 space-y-4">
+                  <div className={`p-4 rounded-2xl bg-zinc-950/70 border space-y-4 transition-all ${
+                    payConfigMayaEnabled ? 'border-emerald-500/30' : 'border-zinc-800/80 opacity-60'
+                  }`}>
                     <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
                       <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                        <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">Maya QR Payment</h4>
+                        <span className={`w-2.5 h-2.5 rounded-full ${payConfigMayaEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'}`} />
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider font-mono">Maya QR</h4>
                       </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        Manual Approval
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPayConfigMayaEnabled(!payConfigMayaEnabled)}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            payConfigMayaEnabled ? 'bg-emerald-600' : 'bg-zinc-700'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                              payConfigMayaEnabled ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                          payConfigMayaEnabled
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            : 'bg-zinc-800 text-zinc-500 border-zinc-700/60'
+                        }`}>
+                          {payConfigMayaEnabled ? 'ACTIVE' : 'OFF'}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="space-y-3">

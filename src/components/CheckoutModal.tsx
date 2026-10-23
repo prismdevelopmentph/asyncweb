@@ -251,7 +251,7 @@ export default function CheckoutModal({
                 </div>
               </div>
 
-              {/* Option 2: GCash / Maya QR */}
+              {/* Option 2: QRPH Payment (GCash / Maya) */}
               <div
                 onClick={() => setSelectedProvider('qrph')}
                 className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
@@ -266,13 +266,13 @@ export default function CheckoutModal({
                   </div>
                   <div>
                     <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>GCash / Maya QR</span>
+                      <span>QRPH Payment</span>
                       <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 font-normal">
                         LOCAL PH
                       </span>
                     </div>
                     <div className="text-[11px] font-mono text-zinc-400 mt-0.5">
-                      Direct QR transfer with reference verification
+                      Direct QR scan via GCash, Maya, or any QRPH banking app
                     </div>
                   </div>
                 </div>
