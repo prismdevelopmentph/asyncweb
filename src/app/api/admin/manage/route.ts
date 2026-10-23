@@ -403,9 +403,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid daily limit' }, { status: 400 });
       }
 
+      const updates: Record<string, any> = { daily_limit: newLimit };
+      if (body.quotaMode && (body.quotaMode === 'isolated' || body.quotaMode === 'shared')) {
+        updates.quota_mode = body.quotaMode;
+      }
       const { error } = await supabaseAdmin
         .from('licenses')
-        .update({ daily_limit: newLimit })
+        .update(updates)
         .eq('id', licenseId);
 
       if (error) throw error;
@@ -420,7 +424,13 @@ export async function POST(request: NextRequest) {
 
       const nowIso = new Date().toISOString();
 
+      const todayStr = new Date().toISOString().split('T')[0];
       if (licenseId) {
+        await supabaseAdmin
+          .from('license_daily_usages')
+          .delete()
+          .eq('license_id', licenseId)
+          .eq('usage_date', todayStr);
         await supabaseAdmin
           .from('user_limits')
           .update({ count: 0, updated_at: nowIso })

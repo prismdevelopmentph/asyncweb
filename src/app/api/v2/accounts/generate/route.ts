@@ -84,9 +84,9 @@ export async function POST(request: Request) {
     const claimedBy = await resolveDiscordUserId(request, body);
 
     // 1. Attempt Atomic PostgreSQL RPC claim with SKIP LOCKED
-    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('claim_account_direct', {
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('claim_service_account', {
+      p_user_id: claimedBy,
       p_service_name: serviceName,
-      p_claimed_by: claimedBy,
     });
 
     if (!rpcError && rpcData) {
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         service: rpcData.service || serviceName,
-        account: rpcData.account || '',
+        account: rpcData.account || rpcData.accountData || '',
         claimedBy,
         message: 'Account generated successfully.',
       });

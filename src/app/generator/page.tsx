@@ -201,6 +201,27 @@ export default function AccountGeneratorPage() {
     allowedServices?: string[] | 'all';
     vouchGiven?: boolean;
     licenseId?: string | null;
+    licenses?: Array<{
+      id: string;
+      licenseKey: string;
+      tier: string;
+      quotaMode: 'isolated' | 'shared';
+      dailyLimit: number;
+      usedToday: number;
+      remainingToday: number;
+      expiresAt: string | null;
+      services: string[];
+    }>;
+    serviceQuotas?: Record<string, {
+      serviceName: string;
+      isUnlocked: boolean;
+      isolatedLimit: number;
+      isolatedUsed: number;
+      isolatedRemaining: number;
+      sharedAvailable: number;
+      totalAvailable: number;
+      licenseKeys?: string[];
+    }>;
   }>({
     hasPlan: false,
     name: 'No active plan',
@@ -210,6 +231,8 @@ export default function AccountGeneratorPage() {
     allowedServices: [],
     vouchGiven: true,
     licenseId: null,
+    licenses: [],
+    serviceQuotas: {}
   });
 
   // Vouch / Customer Review Modal State
@@ -847,14 +870,82 @@ export default function AccountGeneratorPage() {
                       {loadingStatus ? (
                         <span className="inline-block w-28 h-3.5 bg-zinc-800 rounded animate-pulse" />
                       ) : userPlan.hasPlan ? (
-                        <span>{userPlan.name} · expires {userPlan.expiresAt || 'Never'}</span>
+                        <span className="text-purple-300 font-semibold">{userPlan.name} · Expiry: {userPlan.expiresAt || 'Never'}</span>
                       ) : (
                         <span>No active plan</span>
                       )}
                     </div>
                   </div>
                 </div>
+
+                {userPlan.hasPlan && (
+                  <button
+                    onClick={() => setActivateModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-purple-500/30 text-purple-300 hover:text-white text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>+ Bind Another License</span>
+                  </button>
+                )}
               </div>
+
+              {/* Multi-License Stacked Quota Tray */}
+              {userPlan.hasPlan && userPlan.licenses && userPlan.licenses.length > 0 && (
+                <div className="mb-6 p-4 rounded-2xl bg-zinc-900/50 border border-zinc-800/80 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[11px]">
+                      Bound Licenses ({userPlan.licenses.length})
+                    </span>
+                    <span className="text-zinc-500 text-[10px]">
+                      Stacked Daily Limit: <strong className="text-white">{userPlan.dailyUsed}/{userPlan.dailyLimit}</strong> Used
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                    {userPlan.licenses.map((lic) => {
+                      const pct = lic.dailyLimit > 0 ? Math.min(100, Math.round((lic.usedToday / lic.dailyLimit) * 100)) : 0;
+                      return (
+                        <div key={lic.id} className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 flex flex-col justify-between gap-2">
+                          <div className="flex items-start justify-between gap-1.5">
+                            <div className="min-w-0">
+                              <div className="font-mono text-xs font-bold text-white truncate select-all">
+                                {lic.licenseKey}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                                  {lic.tier}
+                                </span>
+                                <span className="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">
+                                  {lic.quotaMode}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-zinc-500 shrink-0">
+                              {lic.expiresAt ? new Date(lic.expiresAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'Lifetime'}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[10px] font-mono">
+                              <span className="text-zinc-400 truncate max-w-[130px]">
+                                {lic.services.join(', ')}
+                              </span>
+                              <span className={pct >= 100 ? 'text-rose-400 font-bold' : 'text-zinc-300'}>
+                                {lic.usedToday}/{lic.dailyLimit}
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                              <div
+                                className={"h-full transition-all " + (pct >= 100 ? "bg-rose-500" : pct >= 75 ? "bg-amber-400" : "bg-purple-500")}
+                                style={{ width: pct + "%" }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-5">
                 {/* 6 Core Service Cards Grid */}
@@ -862,22 +953,29 @@ export default function AccountGeneratorPage() {
                   {servicesConfig.map((svc) => {
                     const IconComp = svc.icon;
                     const isOutOfStock = svc.leftCount === 0;
-                    const isAllowed = userPlan.hasPlan && (
+                    const svcKey = svc.name.toLowerCase();
+                    const quotaInfo = userPlan.serviceQuotas?.[svcKey] || userPlan.serviceQuotas?.[svc.id.toLowerCase()];
+                    const isCoveredByPlan = userPlan.hasPlan && (
                       userPlan.allowedServices === 'all' ||
                       (Array.isArray(userPlan.allowedServices) && (
                         userPlan.allowedServices.includes(svc.id) ||
-                        userPlan.allowedServices.includes(svc.name.toLowerCase())
-                      ))
+                        userPlan.allowedServices.includes(svcKey)
+                      )) ||
+                      (quotaInfo ? quotaInfo.isUnlocked : false)
                     );
+                    const isQuotaExhausted = quotaInfo ? quotaInfo.totalAvailable <= 0 : false;
+                    const canClaim = isCoveredByPlan && !isQuotaExhausted;
 
                     return (
                       <button
                         key={svc.id}
-                        disabled={claiming || !isAllowed}
+                        disabled={claiming || !canClaim}
                         onClick={() => handleClaimAccount(svc.name, svc.leftCount)}
                         className={`p-4 rounded-xl border border-zinc-800/80 flex flex-col items-center justify-center text-center transition-all duration-150 group relative ${
-                          !isAllowed
-                            ? 'opacity-40 grayscale-[40%] cursor-not-allowed bg-zinc-950'
+                          !isCoveredByPlan
+                            ? 'opacity-35 grayscale-[50%] cursor-not-allowed bg-zinc-950'
+                            : isQuotaExhausted
+                            ? 'opacity-50 border-rose-500/30 bg-rose-950/10 cursor-not-allowed'
                             : isOutOfStock && !stockLoading
                             ? 'opacity-60 bg-zinc-950 hover:bg-zinc-900/60 cursor-pointer'
                             : 'bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 hover:-translate-y-0.5 cursor-pointer'
@@ -890,8 +988,8 @@ export default function AccountGeneratorPage() {
                           {svc.name}
                         </div>
 
-                        {/* Stock count + No Access badge */}
-                        <div className="flex flex-col items-center gap-0.5 mt-1">
+                        {/* Stock count + Quota Headroom badge */}
+                        <div className="flex flex-col items-center gap-0.5 mt-1 w-full">
                           <div className={`text-[11px] font-mono font-medium ${isOutOfStock && !stockLoading ? 'text-rose-400 font-semibold' : 'text-zinc-400'}`}>
                             {stockLoading ? (
                               <span className="inline-block w-8 h-3.5 bg-zinc-800 rounded animate-pulse mt-0.5" />
@@ -901,11 +999,19 @@ export default function AccountGeneratorPage() {
                               `${svc.leftCount.toLocaleString()} left`
                             )}
                           </div>
-                          {!isAllowed && (
+                          {!isCoveredByPlan ? (
                             <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 mt-1">
-                              No Access
+                              Locked
                             </span>
-                          )}
+                          ) : isQuotaExhausted ? (
+                            <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold mt-1">
+                              0 Quota Left
+                            </span>
+                          ) : quotaInfo && quotaInfo.totalAvailable !== undefined ? (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium mt-1 truncate max-w-full">
+                              {quotaInfo.totalAvailable} left today
+                            </span>
+                          ) : null}
                         </div>
                       </button>
                     );

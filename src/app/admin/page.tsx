@@ -242,6 +242,7 @@ export default function AdminPage() {
   const [showEditLimitModal, setShowEditLimitModal] = useState(false);
   const [editingLic, setEditingLic] = useState<any>(null);
   const [editLimitValue, setEditLimitValue] = useState('15');
+  const [editQuotaMode, setEditQuotaMode] = useState<'isolated' | 'shared'>('isolated');
 
   // Restock Modal State
   const [showRestockModal, setShowRestockModal] = useState(false);
@@ -917,6 +918,7 @@ export default function AdminPage() {
           ownerUserId,
           licenseId: editingLic.id,
           dailyLimit: editLimitValue,
+          quotaMode: editQuotaMode,
         }),
       });
 
@@ -2240,6 +2242,7 @@ export default function AdminPage() {
                                     onClick={() => {
                                       setEditingLic(lic);
                                       setEditLimitValue(String(lic.effective_limit ?? lic.daily_limit ?? 15));
+                                      setEditQuotaMode((lic.quota_mode || 'isolated') as 'isolated' | 'shared');
                                       setShowEditLimitModal(true);
                                       setActiveDropdownId(null);
                                     }}
@@ -3686,6 +3689,18 @@ export default function AdminPage() {
                   onChange={(e) => setEditLimitValue(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
                 />
+              </div>
+
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Quota Policy Mode</label>
+                <select
+                  value={editQuotaMode}
+                  onChange={(e) => setEditQuotaMode(e.target.value as 'isolated' | 'shared')}
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                >
+                  <option value="isolated">Isolated (Strictly applies only to covered services)</option>
+                  <option value="shared">Shared Pool (Can be used across any eligible service)</option>
+                </select>
               </div>
 
               <div className="pt-4 flex items-center justify-end gap-3">

@@ -22,6 +22,27 @@ export async function GET(request: Request) {
         allowedServices: [] as string[] | 'all',
         vouchGiven: true,
         licenseId: null as string | null,
+        licenses: [] as Array<{
+          id: string;
+          licenseKey: string;
+          tier: string;
+          quotaMode: 'isolated' | 'shared';
+          dailyLimit: number;
+          usedToday: number;
+          remainingToday: number;
+          expiresAt: string | null;
+          services: string[];
+        }>,
+        serviceQuotas: {} as Record<string, {
+          serviceName: string;
+          isUnlocked: boolean;
+          isolatedLimit: number;
+          isolatedUsed: number;
+          isolatedRemaining: number;
+          sharedAvailable: number;
+          totalAvailable: number;
+          licenseKeys: string[];
+        }>
       },
       stock: {
         steam: 0,
@@ -73,19 +94,31 @@ export async function GET(request: Request) {
       }
     })();
 
-    // 2. Parallel User License & Plan Query (Schema v2)
+    // 2. Parallel User Multi-License & Stacked Quota Query
     const userPlanPromise = (async () => {
       if (!userId) return;
       try {
         const now = new Date();
-        const [{ data: lockData }, { data: licenseData }, { data: guildConfigData }] = await Promise.all([
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        const [
+          { data: lockData },
+          { data: licenseData },
+          { data: servicesData },
+          { data: packageServicesData }
+        ] = await Promise.all([
           supabaseAdmin.from('user_guild_locks').select('guild_id').eq('discord_user_id', userId).limit(1),
           supabaseAdmin.from('licenses').select('*').eq('redeemed_by', userId).eq('is_active', true).order('created_at', { ascending: false }),
-          supabaseAdmin.from('guild_config').select('generate_limit').limit(1)
+          supabaseAdmin.from('services').select('id, name'),
+          supabaseAdmin.from('package_services').select('package_id, service_id')
         ]);
 
         const userGuildLock = lockData?.[0]?.guild_id ? String(lockData[0].guild_id) : null;
-        const defaultGuildLimit = guildConfigData?.[0]?.generate_limit || 15;
+        const allServices = servicesData || [];
+        const svcIdToName = new Map<string, string>();
+        for (const s of allServices) {
+          svcIdToName.set(String(s.id), s.name);
+        }
 
         const activeLicenses = (licenseData || []).filter((lic: any) => {
           if (!lic.expires_at) return true;
@@ -95,11 +128,13 @@ export async function GET(request: Request) {
         if (activeLicenses.length > 0) {
           response.userPlan.hasPlan = true;
           const mainLic = activeLicenses[0];
-          response.userPlan.name = mainLic.tier
+          response.userPlan.name = activeLicenses.length > 1
+            ? `Multi-License Plan (${activeLicenses.length} Active)`
+            : mainLic.tier
             ? `${mainLic.tier.charAt(0).toUpperCase() + mainLic.tier.slice(1)} Gen Plan`
             : 'Active Gen Plan';
 
-          // Determine latest expiration date
+          // Latest expiration calculation
           let isLifetime = false;
           let maxExpiresAt: Date | null = null;
           for (const lic of activeLicenses) {
@@ -116,64 +151,166 @@ export async function GET(request: Request) {
           response.userPlan.licenseId = String(mainLic.id);
           response.userPlan.vouchGiven = Boolean(activeLicenses.some((lic: any) => lic.vouch_given));
 
-          // Fetch user limits & license_services across all active licenses
+          // Fetch daily usages and license_services for all active licenses
           const activeLicIds = activeLicenses.map((lic: any) => String(lic.id));
-          const [{ data: userLimitRows }, { data: licServicesData }] = await Promise.all([
+          const [
+            { data: dailyUsagesData },
+            { data: userLimitRows },
+            { data: licServicesData }
+          ] = await Promise.all([
+            supabaseAdmin.from('license_daily_usages').select('license_id, service_name, used_count').in('license_id', activeLicIds).eq('usage_date', todayStr),
             supabaseAdmin.from('user_limits').select('license_id, count').eq('discord_user_id', userId).in('license_id', activeLicIds),
             supabaseAdmin.from('license_services').select('license_id, service_id').in('license_id', activeLicIds)
           ]);
 
-          let hasAllAccess = false;
-          const allowedServiceIdsSet = new Set<string>();
+          // Map usage per license (from license_daily_usages, with user_limits fallback)
+          const usageMapByLicAndSvc = new Map<string, number>();
+          const totalUsageByLic = new Map<string, number>();
+
+          if (dailyUsagesData) {
+            for (const u of dailyUsagesData) {
+              const licId = String(u.license_id);
+              const count = Number(u.used_count) || 0;
+              const svcKey = `${licId}:${(u.service_name || 'general').toLowerCase()}`;
+              usageMapByLicAndSvc.set(svcKey, (usageMapByLicAndSvc.get(svcKey) || 0) + count);
+              totalUsageByLic.set(licId, (totalUsageByLic.get(licId) || 0) + count);
+            }
+          }
+
+          // Fallback to user_limits if license_daily_usages has no entries for a license
+          if (userLimitRows) {
+            for (const ul of userLimitRows) {
+              const licId = String(ul.license_id);
+              if (!totalUsageByLic.has(licId) || (totalUsageByLic.get(licId) === 0 && Number(ul.count) > 0)) {
+                totalUsageByLic.set(licId, Number(ul.count) || 0);
+              }
+            }
+          }
+
+          // Build individual license items and allowed scopes
+          let hasGlobalAllAccess = false;
+          const unionAllowedServiceNames = new Set<string>();
+          const processedLicenses = [];
 
           for (const lic of activeLicenses) {
             const licIdStr = String(lic.id);
-            const rowsForLic = licServicesData?.filter((r: any) => String(r.license_id) === licIdStr) || [];
-            if (rowsForLic.length === 0) {
-              hasAllAccess = true;
-              break;
-            } else {
-              for (const r of rowsForLic) {
-                allowedServiceIdsSet.add(String(r.service_id));
+            const quotaMode = (lic.quota_mode || 'isolated') as 'isolated' | 'shared';
+            const dailyLimit = Number(lic.daily_limit) || 15;
+            const usedToday = totalUsageByLic.get(licIdStr) || 0;
+            const remainingToday = Math.max(0, dailyLimit - usedToday);
+
+            // Determine services covered by this specific license
+            const coveredServiceNames: string[] = [];
+
+            if (lic.package_id) {
+              const pkgServices = (packageServicesData || []).filter((ps: any) => String(ps.package_id) === String(lic.package_id));
+              for (const ps of pkgServices) {
+                const sName = svcIdToName.get(String(ps.service_id));
+                if (sName) coveredServiceNames.push(sName);
               }
+            }
+
+            const explicitLicServices = (licServicesData || []).filter((ls: any) => String(ls.license_id) === licIdStr);
+            for (const ls of explicitLicServices) {
+              const sName = svcIdToName.get(String(ls.service_id));
+              if (sName && !coveredServiceNames.includes(sName)) {
+                coveredServiceNames.push(sName);
+              }
+            }
+
+            // If no package and no explicit license_services, it covers all services
+            const isAllAccessLic = !lic.package_id && explicitLicServices.length === 0;
+            if (isAllAccessLic) {
+              hasGlobalAllAccess = true;
+              coveredServiceNames.push('All Services');
+            } else {
+              for (const s of coveredServiceNames) unionAllowedServiceNames.add(s.toLowerCase());
+            }
+
+            processedLicenses.push({
+              id: licIdStr,
+              licenseKey: lic.license_key,
+              tier: lic.tier || 'standard',
+              quotaMode,
+              dailyLimit,
+              usedToday,
+              remainingToday,
+              expiresAt: lic.expires_at || null,
+              services: coveredServiceNames
+            });
+          }
+
+          response.userPlan.licenses = processedLicenses;
+
+          if (hasGlobalAllAccess) {
+            response.userPlan.allowedServices = 'all';
+          } else {
+            response.userPlan.allowedServices = Array.from(unionAllowedServiceNames);
+          }
+
+          // Compute Isolated vs Shared Quotas per service
+          let totalStackedLimit = 0;
+          let totalStackedUsed = 0;
+          let sharedPoolLimit = 0;
+          let sharedPoolUsed = 0;
+
+          for (const lic of processedLicenses) {
+            totalStackedLimit += lic.dailyLimit;
+            totalStackedUsed += lic.usedToday;
+            if (lic.quotaMode === 'shared') {
+              sharedPoolLimit += lic.dailyLimit;
+              sharedPoolUsed += lic.usedToday;
             }
           }
 
-          if (hasAllAccess) {
-            response.userPlan.allowedServices = 'all';
-          } else {
-            const { data: servicesTable } = await supabaseAdmin.from('services').select('id, name');
-            const allowedNames: string[] = [];
-            if (servicesTable) {
-              for (const s of servicesTable) {
-                if (allowedServiceIdsSet.has(String(s.id))) {
-                  allowedNames.push(s.name.toLowerCase());
+          const sharedAvailable = Math.max(0, sharedPoolLimit - sharedPoolUsed);
+          const serviceQuotas: Record<string, any> = {};
+
+          for (const svc of allServices) {
+            const svcLower = svc.name.toLowerCase();
+            let isUnlocked = false;
+            let isolatedLimit = 0;
+            let isolatedUsed = 0;
+            const matchedKeyList: string[] = [];
+
+            for (const lic of processedLicenses) {
+              const coversThisSvc = lic.services.includes('All Services') || lic.services.some(s => s.toLowerCase() === svcLower);
+              if (coversThisSvc) {
+                isUnlocked = true;
+                matchedKeyList.push(lic.licenseKey);
+                if (lic.quotaMode === 'isolated') {
+                  isolatedLimit += lic.dailyLimit;
+                  // Look up specific service usage for this license
+                  const svcKey = `${lic.id}:${svcLower}`;
+                  const specificUsed = usageMapByLicAndSvc.get(svcKey) || lic.usedToday;
+                  isolatedUsed += specificUsed;
                 }
               }
             }
-            response.userPlan.allowedServices = allowedNames;
+
+            const isolatedRemaining = Math.max(0, isolatedLimit - isolatedUsed);
+            // Total available for this service: isolated remaining + shared pool headroom (if covered)
+            const totalAvailable = isolatedLimit > 0
+              ? isolatedRemaining + (hasGlobalAllAccess ? sharedAvailable : 0)
+              : isUnlocked && sharedPoolLimit > 0
+              ? sharedAvailable
+              : 0;
+
+            serviceQuotas[svcLower] = {
+              serviceName: svc.name,
+              isUnlocked,
+              isolatedLimit,
+              isolatedUsed,
+              isolatedRemaining,
+              sharedAvailable,
+              totalAvailable,
+              licenseKeys: matchedKeyList
+            };
           }
 
-          const limitMap = new Map<string, number>();
-          if (userLimitRows) {
-            for (const row of userLimitRows) {
-              limitMap.set(String(row.license_id), Number(row.count) || 0);
-            }
-          }
-
-          let totalLimit = 0;
-          let totalUsed = 0;
-          for (const lic of activeLicenses) {
-            const licLimit = (lic.daily_limit !== null && lic.daily_limit !== undefined)
-              ? Number(lic.daily_limit)
-              : defaultGuildLimit;
-            const used = limitMap.get(String(lic.id)) || 0;
-            totalLimit += licLimit;
-            totalUsed += used;
-          }
-
-          response.userPlan.dailyLimit = totalLimit;
-          response.userPlan.dailyUsed = totalUsed;
+          response.userPlan.serviceQuotas = serviceQuotas;
+          response.userPlan.dailyLimit = totalStackedLimit;
+          response.userPlan.dailyUsed = totalStackedUsed;
         }
       } catch (err) {
         console.warn('[Generator Status] User plan fetch warning:', err);
@@ -251,7 +388,7 @@ export async function GET(request: Request) {
       }
     })();
 
-    // Await all 3 major operations concurrently in parallel
+    // Await all operations concurrently
     await Promise.all([stockPromise, userPlanPromise, userHistoryPromise]);
 
     return NextResponse.json(response);
