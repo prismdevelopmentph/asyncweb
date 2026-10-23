@@ -346,23 +346,37 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
 
                 <div>
                   <div className="text-xs font-mono text-emerald-400 font-bold mb-2 uppercase tracking-wider">
-                    YOUR LICENSE KEY IS NOW ACTIVATED
+                    {order.licenseKey.includes(',') ? 'YOUR ACTIVATED LICENSE KEYS' : 'YOUR LICENSE KEY IS NOW ACTIVATED'}
                   </div>
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-900 border border-emerald-500/30 font-mono text-sm sm:text-base font-bold text-emerald-300 select-all">
-                    <span>{order.licenseKey}</span>
-                    <button
-                      onClick={() => handleCopy(order.licenseKey!, 'delivered_key')}
-                      className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors ml-2 cursor-pointer"
-                      title="Copy Key"
-                    >
-                      {copiedField === 'delivered_key' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    </button>
+                  <div className="space-y-2">
+                    {order.licenseKey.split(',').map((k, kIdx) => {
+                      const cleanK = k.trim();
+                      return (
+                        <div
+                          key={kIdx}
+                          className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-zinc-900 border border-emerald-500/30 font-mono text-xs sm:text-sm font-bold text-emerald-300 select-all"
+                        >
+                          <span className="truncate">{cleanK}</span>
+                          <button
+                            onClick={() => handleCopy(cleanK, `delivered_key_${kIdx}`)}
+                            className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors ml-2 cursor-pointer shrink-0"
+                            title="Copy Key"
+                          >
+                            {copiedField === `delivered_key_${kIdx}` ? (
+                              <Check className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
                 <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   <a
-                    href={`https://gen.asyncdevph.xyz?key=${encodeURIComponent(order.licenseKey)}`}
+                    href={`https://gen.asyncdevph.xyz?key=${encodeURIComponent(order.licenseKey.split(',')[0].trim())}`}
                     target="_blank"
                     rel="noreferrer"
                     className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono font-bold text-xs transition-all shadow-lg shadow-emerald-950/40"
@@ -374,7 +388,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     onClick={() => handleCopy(order.licenseKey!, 'copy_main')}
                     className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-mono text-xs transition-all cursor-pointer"
                   >
-                    {copiedField === 'copy_main' ? 'Copied!' : 'Copy Key'}
+                    {copiedField === 'copy_main' ? 'Copied!' : 'Copy All Keys'}
                   </button>
                 </div>
               </div>

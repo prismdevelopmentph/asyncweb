@@ -25,8 +25,10 @@ import {
   Lock,
   Package,
   QrCode,
-  Shield
+  Shield,
+  ShoppingBag
 } from 'lucide-react';
+import { useCart } from '@/context/CartContext';
 
 interface ProductDetailClientProps {
   product: CatalogProduct;
@@ -47,6 +49,9 @@ export default function ProductDetailClient({
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+
+  const { addItem, openCart } = useCart();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -64,6 +69,29 @@ export default function ProductDetailClient({
   const currentOrigUSD = activeTier ? activeTier.originalPriceUSD : product.originalPriceUSD;
   const hasDiscount = Boolean(activeTier?.hasDiscount && currentOrigPHP);
   const discountPercent = activeTier?.discountPercent || product.discountPercent;
+
+  const handleAddToCart = () => {
+    if (!activeTier || product.isOutOfStock) return;
+    addItem({
+      productId: product.id,
+      title: product.title,
+      imageUrl: product.imageUrl,
+      categoryLabel: product.categoryLabel,
+      tierKey: activeTier.tierKey,
+      tierName: activeTier.name,
+      dailyLimit: activeTier.dailyLimit,
+      pricePHP: currentPricePHP,
+      priceUSD: currentPriceUSD,
+      originalPricePHP: currentOrigPHP,
+      originalPriceUSD: currentOrigUSD,
+      discountPercent: discountPercent,
+      hasDiscount: hasDiscount,
+      deliveryMode: product.deliveryMode
+    });
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
+    openCart();
+  };
 
   const formatPrice = (usd: number, php: number) => {
     if (currency === 'USD') {
@@ -396,25 +424,41 @@ export default function ProductDetailClient({
                 </div>
               )}
 
-              {/* Primary Action Button */}
+              {/* Primary Action Buttons (Add to Cart + Buy Now) */}
               <div className="space-y-2.5 pt-2">
-                <button
-                  type="button"
-                  disabled={product.isOutOfStock}
-                  onClick={() => setIsCheckoutOpen(true)}
-                  className={`w-full py-4 px-6 rounded-2xl font-mono text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    product.isOutOfStock
-                      ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
-                      : 'bg-purple-600 hover:bg-purple-500 text-white shadow-xl shadow-purple-950/60 hover:shadow-purple-900/80 hover:translate-y-[-1px]'
-                  }`}
-                >
-                  <span>
-                    {product.isOutOfStock
-                      ? 'Currently Out of Stock'
-                      : `Buy Now · ${formatPrice(currentPriceUSD, currentPricePHP)}`}
-                  </span>
-                  {!product.isOutOfStock && <ArrowRight className="w-4 h-4" />}
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    disabled={product.isOutOfStock}
+                    onClick={handleAddToCart}
+                    className={`py-3.5 px-4 rounded-2xl font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      product.isOutOfStock
+                        ? 'bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed'
+                        : 'bg-zinc-900/90 hover:bg-zinc-850 hover:border-purple-500/60 border border-zinc-700/80 text-white'
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4 text-purple-400" />
+                    <span>{addedToCart ? 'Added to Cart ✓' : 'Add to Cart'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={product.isOutOfStock}
+                    onClick={() => setIsCheckoutOpen(true)}
+                    className={`py-3.5 px-4 rounded-2xl font-mono text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      product.isOutOfStock
+                        ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-zinc-700'
+                        : 'bg-purple-600 hover:bg-purple-500 text-white shadow-xl shadow-purple-950/60 hover:shadow-purple-900/80 hover:translate-y-[-1px]'
+                    }`}
+                  >
+                    <span>
+                      {product.isOutOfStock
+                        ? 'Sold Out'
+                        : `Buy Now · ${formatPrice(currentPriceUSD, currentPricePHP)}`}
+                    </span>
+                    {!product.isOutOfStock && <ArrowRight className="w-4 h-4" />}
+                  </button>
+                </div>
 
                 <div className="text-[11px] font-mono text-center text-zinc-500">
                   Instant Dispatch &bull; Encrypted Token &bull; Lifetime Vouch Guarantee

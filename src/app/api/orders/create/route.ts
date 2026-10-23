@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
       email,
       discordId,
       orderType = 'product_purchase', // 'product_purchase' | 'balance_topup'
-      topupAmount
+      topupAmount,
+      cartItems
     } = body;
 
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -28,30 +29,48 @@ export async function POST(req: NextRequest) {
 
     // ── CASE A: PRODUCT PURCHASE ──
     if (orderType === 'product_purchase') {
-      if (!productId) {
-        return NextResponse.json({ ok: false, error: 'Product ID required' }, { status: 400 });
+      const isCartOrder = Array.isArray(cartItems) && cartItems.length > 0;
+      let finalPhp = 0;
+      let finalUsd = 0;
+      let orderProductId = productId || null;
+      let orderTierKey = tierKey || 'daily';
+
+      if (isCartOrder) {
+        for (const item of cartItems) {
+          finalPhp += Number(item.pricePHP || 0) * (Number(item.quantity) || 1);
+        }
+        finalPhp = Math.round(finalPhp);
+        finalUsd = Math.round(((finalPhp / liveRate) + Number.EPSILON) * 100) / 100;
+        orderProductId = cartItems[0]?.productId || null;
+        orderTierKey = cartItems[0]?.tierKey || 'daily';
+      } else {
+        if (!productId) {
+          return NextResponse.json({ ok: false, error: 'Product ID required' }, { status: 400 });
+        }
+
+        // 1. Fetch product configuration
+        const { data: product, error: prodErr } = await supabaseAdmin
+          .from('products')
+          .select('*')
+          .eq('id', productId)
+          .eq('is_active', true)
+          .single();
+
+        if (prodErr || !product) {
+          return NextResponse.json({ ok: false, error: 'Product not found or inactive' }, { status: 404 });
+        }
+
+        // 2. Resolve price for selected tier
+        const rawTiers = Array.isArray(product.tiers) ? product.tiers : [];
+        const matchedTier = rawTiers.find((t: any) => (t.tier_key || t.tierKey) === tierKey) || rawTiers[0];
+
+        const basePhp = Number(matchedTier?.price_php ?? matchedTier?.pricePHP ?? product.price_php ?? 0);
+        const discountPct = Number(matchedTier?.discount_percent ?? matchedTier?.discountPercent ?? product.discount_percent ?? 0);
+        finalPhp = discountPct > 0 ? Math.round(basePhp * (1 - discountPct / 100)) : basePhp;
+        finalUsd = Math.round(((finalPhp / liveRate) + Number.EPSILON) * 100) / 100;
+        orderProductId = productId;
+        orderTierKey = tierKey;
       }
-
-      // 1. Fetch product configuration
-      const { data: product, error: prodErr } = await supabaseAdmin
-        .from('products')
-        .select('*')
-        .eq('id', productId)
-        .eq('is_active', true)
-        .single();
-
-      if (prodErr || !product) {
-        return NextResponse.json({ ok: false, error: 'Product not found or inactive' }, { status: 404 });
-      }
-
-      // 2. Resolve price for selected tier
-      const rawTiers = Array.isArray(product.tiers) ? product.tiers : [];
-      const matchedTier = rawTiers.find((t: any) => (t.tier_key || t.tierKey) === tierKey) || rawTiers[0];
-
-      const basePhp = Number(matchedTier?.price_php ?? matchedTier?.pricePHP ?? product.price_php ?? 0);
-      const discountPct = Number(matchedTier?.discount_percent ?? matchedTier?.discountPercent ?? product.discount_percent ?? 0);
-      const finalPhp = discountPct > 0 ? Math.round(basePhp * (1 - discountPct / 100)) : basePhp;
-      const finalUsd = Math.round(((finalPhp / liveRate) + Number.EPSILON) * 100) / 100;
 
       // ── SUB-ROUTE: WEB BALANCE (Instant) ──
       if (provider === 'balance') {
@@ -88,13 +107,17 @@ export async function POST(req: NextRequest) {
             discord_id: discordId,
             email: cleanEmail || `${discordId}@discord.asyncdevph.xyz`,
             order_type: 'product_purchase',
-            product_id: productId,
-            tier_key: tierKey,
+            product_id: orderProductId,
+            tier_key: orderTierKey,
             amount: finalPhp,
             currency: 'PHP',
             provider: 'balance',
             provider_label: 'Web Balance',
-            payment_details: { deducted_php: finalPhp, remaining_balance: newBalance },
+            payment_details: {
+              deducted_php: finalPhp,
+              remaining_balance: newBalance,
+              ...(isCartOrder ? { cart_items: cartItems } : {})
+            },
             status: 'paid',
             paid_at: new Date().toISOString()
           })
@@ -125,8 +148,8 @@ export async function POST(req: NextRequest) {
             discord_id: discordId || null,
             email: cleanEmail,
             order_type: 'product_purchase',
-            product_id: productId,
-            tier_key: tierKey,
+            product_id: orderProductId,
+            tier_key: orderTierKey,
             amount: finalUsd,
             currency: 'USD',
             provider: 'paypal',
@@ -134,7 +157,8 @@ export async function POST(req: NextRequest) {
             payment_details: {
               paypal_email: settings.paypalEmail,
               paypal_note: uniqueMemo,
-              original_php: finalPhp
+              original_php: finalPhp,
+              ...(isCartOrder ? { cart_items: cartItems } : {})
             },
             status: 'awaiting_payment'
           })
@@ -160,8 +184,8 @@ export async function POST(req: NextRequest) {
             discord_id: discordId || null,
             email: cleanEmail,
             order_type: 'product_purchase',
-            product_id: productId,
-            tier_key: tierKey,
+            product_id: orderProductId,
+            tier_key: orderTierKey,
             amount: finalPhp,
             currency: 'PHP',
             provider: 'qrph',
@@ -175,7 +199,8 @@ export async function POST(req: NextRequest) {
               maya_name: settings.mayaName,
               maya_qr_url: settings.mayaQrUrl,
               maya_enabled: settings.mayaEnabled,
-              ref_code: refTag
+              ref_code: refTag,
+              ...(isCartOrder ? { cart_items: cartItems } : {})
             },
             status: 'awaiting_payment'
           })

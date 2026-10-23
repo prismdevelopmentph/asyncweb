@@ -28,6 +28,8 @@ export const metadata: Metadata = {
 
 import DevToolsProtection from "@/components/DevToolsProtection";
 import SessionInactivityTracker from "@/components/SessionInactivityTracker";
+import { CartProvider } from "@/context/CartContext";
+import CartDrawer from "@/components/CartDrawer";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
@@ -43,7 +45,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-full flex flex-col" data-subdomain={subdomain}>
         <DevToolsProtection />
         <SessionInactivityTracker />
-        {children}
+        <CartProvider>
+          {children}
+          <CartDrawer />
+        </CartProvider>
       </body>
     </html>
   );

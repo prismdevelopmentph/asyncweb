@@ -19,10 +19,172 @@ export function generateCryptoLicenseKey(): string {
   return `LIC-${seg()}-${seg()}-${seg()}`;
 }
 
+async function createLicenseForProduct(
+  productId: string | null,
+  tierKey: string,
+  discordId: string | null
+): Promise<{ licenseKey: string; dailyLimit: number; expiresAt: string | null }> {
+  let product: any = null;
+  if (productId) {
+    const { data: prodData } = await supabaseAdmin
+      .from('products')
+      .select('*')
+      .eq('id', productId)
+      .maybeSingle();
+    product = prodData;
+  }
+
+  const cleanTierKey = (tierKey || 'daily').toLowerCase();
+  const durationDays = TIER_DURATIONS[cleanTierKey] ?? 1;
+  let expiresAt: string | null = null;
+  if (durationDays !== null) {
+    expiresAt = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
+  }
+
+  let dailyLimit = 15;
+  if (product && Array.isArray(product.tiers)) {
+    const matchedTier = product.tiers.find((t: any) => (t.tier_key || t.tierKey) === cleanTierKey);
+    if (matchedTier && matchedTier.daily_limit !== undefined) {
+      dailyLimit = Number(matchedTier.daily_limit);
+    }
+  }
+
+  let serviceIds: string[] = [];
+  let packageId: string | null = null;
+  const rawScope = (
+    product?.service_scope ||
+    product?.serviceScope ||
+    product?.target_scope ||
+    product?.targetScope ||
+    'all'
+  ).trim();
+
+  const isUUID = (str: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+  if (rawScope.toLowerCase().startsWith('service:')) {
+    const clean = rawScope.replace(/service:/i, '').trim();
+    if (isUUID(clean)) {
+      serviceIds = [clean];
+    } else {
+      const { data: svc } = await supabaseAdmin
+        .from('services')
+        .select('id')
+        .ilike('name', clean)
+        .maybeSingle();
+      if (svc) serviceIds = [svc.id];
+    }
+  } else if (rawScope.toLowerCase().startsWith('package:')) {
+    const clean = rawScope.replace(/package:/i, '').trim();
+    if (isUUID(clean)) {
+      packageId = clean;
+    } else {
+      const { data: pkg } = await supabaseAdmin
+        .from('packages')
+        .select('id')
+        .ilike('name', clean)
+        .maybeSingle();
+      if (pkg) packageId = pkg.id;
+    }
+
+    if (packageId) {
+      const { data: psData } = await supabaseAdmin
+        .from('package_services')
+        .select('service_id')
+        .eq('package_id', packageId);
+      serviceIds = (psData || []).map((r: any) => r.service_id);
+    }
+  } else if (rawScope.toLowerCase() === 'fivem') {
+    const { data: pkg } = await supabaseAdmin
+      .from('packages')
+      .select('id')
+      .ilike('name', '%fivem%')
+      .maybeSingle();
+    if (pkg) {
+      packageId = pkg.id;
+      const { data: psData } = await supabaseAdmin
+        .from('package_services')
+        .select('service_id')
+        .eq('package_id', packageId);
+      serviceIds = (psData || []).map((r: any) => r.service_id);
+    }
+  } else if (rawScope.toLowerCase() !== 'all' && rawScope.toLowerCase() !== 'single') {
+    const { data: svc } = await supabaseAdmin
+      .from('services')
+      .select('id')
+      .ilike('name', rawScope)
+      .maybeSingle();
+    if (svc) {
+      serviceIds = [svc.id];
+    } else {
+      const { data: pkg } = await supabaseAdmin
+        .from('packages')
+        .select('id')
+        .ilike('name', rawScope)
+        .maybeSingle();
+      if (pkg) {
+        packageId = pkg.id;
+        const { data: psData } = await supabaseAdmin
+          .from('package_services')
+          .select('service_id')
+          .eq('package_id', packageId);
+        serviceIds = (psData || []).map((r: any) => r.service_id);
+      }
+    }
+  }
+
+  let genKey = generateCryptoLicenseKey();
+  let attempts = 0;
+  while (attempts < 5) {
+    const { data: exists } = await supabaseAdmin
+      .from('licenses')
+      .select('id')
+      .eq('license_key', genKey)
+      .maybeSingle();
+    if (!exists) break;
+    genKey = generateCryptoLicenseKey();
+    attempts++;
+  }
+
+  const isDedicatedSingleService = serviceIds.length === 1 && !packageId;
+  const quotaMode = isDedicatedSingleService ? 'isolated' : 'shared';
+
+  const { data: newLic, error: licErr } = await supabaseAdmin
+    .from('licenses')
+    .insert({
+      license_key: genKey,
+      license_type: 'account',
+      package_id: packageId,
+      is_active: true,
+      tier: cleanTierKey,
+      quota_mode: quotaMode,
+      daily_limit: dailyLimit,
+      expires_at: expiresAt,
+      redeemed_by: discordId || null,
+      created_at: new Date().toISOString()
+    })
+    .select('id')
+    .single();
+
+  if (licErr || !newLic) {
+    throw licErr || new Error('Failed to create license key in database');
+  }
+
+  if (serviceIds.length > 0) {
+    const junctionRows = serviceIds.map((sid) => ({
+      license_id: newLic.id,
+      service_id: sid
+    }));
+    await supabaseAdmin.from('license_services').insert(junctionRows);
+  }
+
+  return { licenseKey: genKey, dailyLimit, expiresAt };
+}
+
 /**
  * Fulfills a product purchase order:
- * 1. Generates cryptographic key
- * 2. Binds target scope & daily quota
+ * 1. Generates cryptographic key(s)
+ * 2. Binds target scope & daily quota per item
  * 3. Inserts into licenses and license_services
  * 4. Updates order row to status: 'delivered'
  */
@@ -43,177 +205,46 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
       return { success: true, licenseKey: order.license_key };
     }
 
-    // 2. Fetch product configuration
-    let product: any = null;
-    if (order.product_id) {
-      const { data: prodData } = await supabaseAdmin
-        .from('products')
-        .select('*')
-        .eq('id', order.product_id)
-        .maybeSingle();
-      product = prodData;
-    }
+    const details = order.payment_details || {};
+    const cartItems = details.cart_items;
+    const generatedKeys: string[] = [];
 
-    // 3. Resolve duration & daily quota from tier
-    const tierKey = (order.tier_key || 'daily').toLowerCase();
-    const durationDays = TIER_DURATIONS[tierKey] ?? 1;
-    let expiresAt: string | null = null;
-    if (durationDays !== null) {
-      expiresAt = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
-    }
-
-    // Find daily quota from product tierOptions if available
-    let dailyLimit = 15;
-    if (product && Array.isArray(product.tiers)) {
-      const matchedTier = product.tiers.find((t: any) => (t.tier_key || t.tierKey) === tierKey);
-      if (matchedTier && matchedTier.daily_limit !== undefined) {
-        dailyLimit = Number(matchedTier.daily_limit);
-      }
-    }
-
-    // 4. Resolve Target Service Scope
-    let serviceIds: string[] = [];
-    let packageId: string | null = null;
-    const rawScope = (
-      product?.service_scope ||
-      product?.serviceScope ||
-      product?.target_scope ||
-      product?.targetScope ||
-      'all'
-    ).trim();
-
-    const isUUID = (str: string) =>
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-
-    if (rawScope.toLowerCase().startsWith('service:')) {
-      const clean = rawScope.replace(/service:/i, '').trim();
-      if (isUUID(clean)) {
-        serviceIds = [clean];
-      } else {
-        const { data: svc } = await supabaseAdmin
-          .from('services')
-          .select('id')
-          .ilike('name', clean)
-          .maybeSingle();
-        if (svc) serviceIds = [svc.id];
-      }
-    } else if (rawScope.toLowerCase().startsWith('package:')) {
-      const clean = rawScope.replace(/package:/i, '').trim();
-      if (isUUID(clean)) {
-        packageId = clean;
-      } else {
-        const { data: pkg } = await supabaseAdmin
-          .from('packages')
-          .select('id')
-          .ilike('name', clean)
-          .maybeSingle();
-        if (pkg) packageId = pkg.id;
-      }
-
-      if (packageId) {
-        const { data: psData } = await supabaseAdmin
-          .from('package_services')
-          .select('service_id')
-          .eq('package_id', packageId);
-        serviceIds = (psData || []).map((r: any) => r.service_id);
-      }
-    } else if (rawScope.toLowerCase() === 'fivem') {
-      const { data: pkg } = await supabaseAdmin
-        .from('packages')
-        .select('id')
-        .ilike('name', '%fivem%')
-        .maybeSingle();
-      if (pkg) {
-        packageId = pkg.id;
-        const { data: psData } = await supabaseAdmin
-          .from('package_services')
-          .select('service_id')
-          .eq('package_id', packageId);
-        serviceIds = (psData || []).map((r: any) => r.service_id);
-      }
-    } else if (rawScope.toLowerCase() !== 'all' && rawScope.toLowerCase() !== 'single') {
-      const { data: svc } = await supabaseAdmin
-        .from('services')
-        .select('id')
-        .ilike('name', rawScope)
-        .maybeSingle();
-      if (svc) {
-        serviceIds = [svc.id];
-      } else {
-        const { data: pkg } = await supabaseAdmin
-          .from('packages')
-          .select('id')
-          .ilike('name', rawScope)
-          .maybeSingle();
-        if (pkg) {
-          packageId = pkg.id;
-          const { data: psData } = await supabaseAdmin
-            .from('package_services')
-            .select('service_id')
-            .eq('package_id', packageId);
-          serviceIds = (psData || []).map((r: any) => r.service_id);
+    if (Array.isArray(cartItems) && cartItems.length > 0) {
+      for (const cItem of cartItems) {
+        const qty = Number(cItem.quantity) || 1;
+        for (let q = 0; q < qty; q++) {
+          const lic = await createLicenseForProduct(
+            cItem.productId,
+            cItem.tierKey || 'daily',
+            order.discord_id
+          );
+          generatedKeys.push(lic.licenseKey);
         }
       }
+    } else {
+      const lic = await createLicenseForProduct(
+        order.product_id,
+        order.tier_key || 'daily',
+        order.discord_id
+      );
+      generatedKeys.push(lic.licenseKey);
     }
 
-    // 5. Generate unique license key
-    let genKey = generateCryptoLicenseKey();
-    let attempts = 0;
-    while (attempts < 5) {
-      const { data: exists } = await supabaseAdmin
-        .from('licenses')
-        .select('id')
-        .eq('license_key', genKey)
-        .maybeSingle();
-      if (!exists) break;
-      genKey = generateCryptoLicenseKey();
-      attempts++;
-    }
-
-    // 6. Insert License into licenses table
-    const isDedicatedSingleService = serviceIds.length === 1 && !packageId;
-    const quotaMode = isDedicatedSingleService ? 'isolated' : 'shared';
-
-    const { data: newLic, error: licErr } = await supabaseAdmin
-      .from('licenses')
-      .insert({
-        license_key: genKey,
-        license_type: 'account',
-        package_id: packageId,
-        is_active: true,
-        tier: tierKey,
-        quota_mode: quotaMode,
-        daily_limit: dailyLimit,
-        expires_at: expiresAt,
-        redeemed_by: order.discord_id || null,
-        created_at: new Date().toISOString()
-      })
-      .select('id')
-      .single();
-
-    if (licErr || !newLic) {
-      console.error('[Fulfillment] License creation failed:', licErr);
-      return { success: false, error: 'Failed to create license key in database' };
-    }
-
-    // 7. Insert into license_services junction if restricted scope
-    if (serviceIds.length > 0) {
-      const junctionRows = serviceIds.map((sid) => ({
-        license_id: newLic.id,
-        service_id: sid
-      }));
-      await supabaseAdmin.from('license_services').insert(junctionRows);
-    }
-
-    // 8. Update order to status: 'delivered'
+    const finalKeyString = generatedKeys.join(', ');
     const nowIso = new Date().toISOString();
+
+    // Update order to status: 'delivered'
     await supabaseAdmin
       .from('orders')
       .update({
         status: 'delivered',
-        license_key: genKey,
+        license_key: finalKeyString,
         paid_at: order.paid_at || nowIso,
-        delivered_at: nowIso
+        delivered_at: nowIso,
+        payment_details: {
+          ...details,
+          delivered_licenses: generatedKeys
+        }
       })
       .eq('id', orderId);
 
@@ -234,17 +265,19 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
 
       const logChannelId = cfgRow?.value?.trim();
       if (botToken && logChannelId) {
-        const prodName = product?.title || 'ASYNC License';
+        const prodName =
+          Array.isArray(cartItems) && cartItems.length > 0
+            ? `${cartItems.length} Cart Products (${cartItems.map((c) => c.title).slice(0, 2).join(', ')}${cartItems.length > 2 ? '...' : ''})`
+            : 'ASYNC License';
+
         const embed = {
           title: '🛒 Verified Storefront Purchase Delivered',
           color: 0x9333ea, // Purple
           fields: [
-            { name: 'Product', value: `**${prodName}** (${tierKey.toUpperCase()})`, inline: true },
+            { name: 'Product', value: `**${prodName}** (${(order.tier_key || 'CUSTOM').toUpperCase()})`, inline: true },
             { name: 'Amount Paid', value: `${order.currency === 'PHP' ? '₱' : '$'}${order.amount} (${order.provider_label})`, inline: true },
             { name: 'Customer', value: order.discord_id ? `<@${order.discord_id}>` : order.email, inline: true },
-            { name: 'License Key Issued', value: `\`${genKey}\``, inline: false },
-            { name: 'Daily Quota', value: `${dailyLimit} gens/day`, inline: true },
-            { name: 'Expiry', value: expiresAt ? new Date(expiresAt).toLocaleDateString() : 'Never (Lifetime)', inline: true }
+            { name: 'License Key(s) Issued', value: `\`${finalKeyString}\``, inline: false }
           ],
           timestamp: new Date().toISOString(),
           footer: { text: `Order ID: ${order.id}` }
@@ -263,7 +296,7 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
       console.warn('[Fulfillment] Discord logging skipped:', discErr);
     }
 
-    return { success: true, licenseKey: genKey };
+    return { success: true, licenseKey: finalKeyString };
   } catch (err: any) {
     console.error('[Fulfillment] Critical error in fulfillProductOrder:', err);
     return { success: false, error: err?.message || 'Fulfillment error' };

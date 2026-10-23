@@ -42,6 +42,7 @@ export async function GET(
         ? '30 Days'
         : 'Lifetime';
 
+    const cartItems = details.cart_items;
     const items =
       order.order_type === 'balance_topup'
         ? [
@@ -53,6 +54,21 @@ export async function GET(
               lineTotal: Number(order.amount)
             }
           ]
+        : Array.isArray(cartItems) && cartItems.length > 0
+        ? cartItems.map((ci: any) => {
+            const unitPrice =
+              order.currency === 'USD'
+                ? Number(ci.priceUSD || 0)
+                : Number(ci.pricePHP || 0);
+            const qty = Number(ci.quantity || 1);
+            return {
+              productName: ci.title || 'ASYNC Product',
+              variantName: ci.tierName || `${tierName} Access Tier`,
+              quantity: qty,
+              unitPrice: unitPrice,
+              lineTotal: unitPrice * qty
+            };
+          })
         : [
             {
               productName: product?.title || 'ASYNC Software License',
