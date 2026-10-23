@@ -895,9 +895,6 @@ export default function AccountGeneratorPage() {
                     <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[11px]">
                       Bound Licenses ({userPlan.licenses.length})
                     </span>
-                    <span className="text-zinc-500 text-[10px]">
-                      Stacked Daily Limit: <strong className="text-white">{userPlan.dailyUsed}/{userPlan.dailyLimit}</strong> Used
-                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
