@@ -243,6 +243,7 @@ export default function AdminPage() {
   const [editingLic, setEditingLic] = useState<any>(null);
   const [editLimitValue, setEditLimitValue] = useState('15');
   const [editQuotaMode, setEditQuotaMode] = useState<'isolated' | 'shared'>('isolated');
+  const [genViewMode, setGenViewMode] = useState<'users' | 'keys'>('users');
 
   // Restock Modal State
   const [showRestockModal, setShowRestockModal] = useState(false);
@@ -1549,6 +1550,40 @@ export default function AdminPage() {
     (lic.scope_label || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Group generator licenses by user account
+  const genUserGroupsMap = new Map<string, {
+    userId: string;
+    licenses: any[];
+    totalLimit: number;
+    totalUsed: number;
+    hasActive: boolean;
+    hwid: string | null;
+  }>();
+
+  for (const lic of filteredGenLicenses) {
+    if (!lic.redeemed_by) continue;
+    const uId = String(lic.redeemed_by);
+    if (!genUserGroupsMap.has(uId)) {
+      genUserGroupsMap.set(uId, {
+        userId: uId,
+        licenses: [],
+        totalLimit: 0,
+        totalUsed: 0,
+        hasActive: false,
+        hwid: null,
+      });
+    }
+    const group = genUserGroupsMap.get(uId)!;
+    group.licenses.push(lic);
+    group.totalLimit += Number(lic.effective_limit ?? lic.daily_limit ?? 15);
+    group.totalUsed += Number(lic.used_today || 0);
+    if (lic.is_active) group.hasActive = true;
+    if (lic.hwid && !group.hwid) group.hwid = lic.hwid;
+  }
+
+  const groupedGenUserList = Array.from(genUserGroupsMap.values());
+  const unredeemedGenLicenses = filteredGenLicenses.filter((l: any) => !l.redeemed_by);
+
   const filteredClaimLogs = claimLogs.filter((c: any) =>
     (c.service_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     matchDiscordUser(c.discord_user_id, searchQuery.toLowerCase()) ||
@@ -2109,203 +2144,515 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Generator License Keys Table */}
+            {/* Generator Access & User Management Table */}
             <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
-              <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
+              <div className="p-4 sm:p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 font-mono text-xs text-amber-300 font-semibold">
                   <Key className="w-4 h-4 text-amber-400" />
-                  <span>ACTIVE GENERATOR LICENSES ({filteredGenLicenses.length})</span>
+                  <span>
+                    {genViewMode === 'users'
+                      ? `ACTIVE SUBSCRIBER ACCOUNTS (${groupedGenUserList.length})`
+                      : `ALL RAW GENERATOR KEYS (${filteredGenLicenses.length})`}
+                  </span>
                 </div>
-                <span className="text-xs text-zinc-500 font-mono">10 licenses per view &bull; scroll for more</span>
+
+                {/* View Switcher Pills */}
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-950 border border-zinc-800/80 self-start sm:self-center font-mono text-xs">
+                  <button
+                    onClick={() => setGenViewMode('users')}
+                    className={`px-3 py-1 rounded-lg transition-all ${
+                      genViewMode === 'users'
+                        ? 'bg-purple-600 text-white font-bold shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Active Users ({groupedGenUserList.length})
+                  </button>
+                  <button
+                    onClick={() => setGenViewMode('keys')}
+                    className={`px-3 py-1 rounded-lg transition-all ${
+                      genViewMode === 'keys'
+                        ? 'bg-zinc-800 text-white font-bold shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Raw Keys ({filteredGenLicenses.length})
+                  </button>
+                </div>
               </div>
 
-              <div className="overflow-x-auto max-h-[580px] overflow-y-auto custom-scrollbar relative">
-                <table className="w-full min-w-[1100px] text-left border-collapse text-xs">
-                  <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
-                    <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
-                      <th className="py-4 px-6">License Key</th>
-                      <th className="py-4 px-6">Scope</th>
-                      <th className="py-4 px-6">Tier</th>
-                      <th className="py-4 px-6">Redeemed By</th>
-                      <th className="py-4 px-6">Hardware ID</th>
-                      <th className="py-4 px-6">Daily Usage</th>
-                      <th className="py-4 px-6">Created</th>
-                      <th className="py-4 px-6">Status</th>
-                      <th className="py-4 px-6 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/50 font-mono">
-                    {filteredGenLicenses.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="py-16 text-center text-zinc-500 font-sans">
-                          No generator licenses found matching search.
-                        </td>
+              <div className="overflow-x-auto max-h-[620px] overflow-y-auto custom-scrollbar relative">
+                {genViewMode === 'users' ? (
+                  /* ── USER-CENTRIC FORMAT ── */
+                  <table className="w-full min-w-[1000px] text-left border-collapse text-xs">
+                    <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+                      <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+                        <th className="py-4 px-6 min-w-[200px]">User / Owner</th>
+                        <th className="py-4 px-6 min-w-[320px]">Active Scopes (Hover for License)</th>
+                        <th className="py-4 px-6">Daily Quota</th>
+                        <th className="py-4 px-6">Hardware ID</th>
+                        <th className="py-4 px-6">Status</th>
+                        <th className="py-4 px-6 text-right">Actions</th>
                       </tr>
-                    ) : (
-                      filteredGenLicenses.map((lic: any) => (
-                        <tr key={lic.id} className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="py-4 px-6 font-mono font-semibold text-zinc-200 select-all whitespace-nowrap">
-                            <div className="inline-flex items-center gap-2">
-                              <span>{lic.license_key}</span>
-                              <button onClick={() => copyToClipboard(lic.license_key)} className="text-zinc-500 hover:text-white transition-colors p-1 rounded hover:bg-zinc-800">
-                                {copiedKey === lic.license_key ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6 font-mono whitespace-nowrap">
-                            <span
-                              className={`text-xs px-2.5 py-1 rounded-full font-mono ${
-                                lic.scope_label?.startsWith('[Package]')
-                                  ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
-                                  : lic.scope_label === 'All Services'
-                                  ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
-                                  : 'bg-blue-500/10 text-blue-300 border border-blue-500/30'
-                              }`}
-                            >
-                              {lic.scope_label || 'All Services'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 font-mono uppercase text-xs whitespace-nowrap text-zinc-400">
-                            {lic.tier || 'lifetime'}
-                          </td>
-                          <td className="py-4 px-6 font-mono whitespace-nowrap min-w-[180px]">
-                            {lic.redeemed_by ? (
-                              <DiscordUserBadge userId={lic.redeemed_by} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
-                            ) : (
-                              <span className="text-zinc-500 font-mono text-xs">UNREDEEMED</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-6 font-mono whitespace-nowrap">
-                            {lic.hwid ? (
-                              <div className="inline-flex items-center gap-2">
-                                <span className="text-xs text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2.5 py-0.5 rounded font-mono truncate max-w-[150px]">
-                                  {lic.hwid}
-                                </span>
-                                <button
-                                  onClick={() => handleResetGenHwid(lic)}
-                                  className="p-1 rounded hover:bg-rose-500/15 text-zinc-400 hover:text-rose-400 transition-colors"
-                                  title="Reset / Unbind HWID"
-                                >
-                                  <Unlock className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">
-                                UNBOUND
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-4 px-6 font-mono whitespace-nowrap">
-                            <span className={`font-semibold ${ (lic.used_today || 0) >= (lic.effective_limit ?? lic.daily_limit ?? 15) ? 'text-rose-400' : 'text-zinc-200' }`}>
-                              {lic.used_today || 0} / {lic.effective_limit ?? lic.daily_limit ?? 15}
-                            </span>
-                            <span className="text-zinc-500 text-[11px] ml-1.5">used</span>
-                          </td>
-                          <td className="py-4 px-6 font-mono text-zinc-400 text-xs whitespace-nowrap">
-                            {new Date(lic.created_at || Date.now()).toLocaleDateString()}
-                          </td>
-                          <td className="py-4 px-6 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-medium ${lic.is_active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
-                              {lic.is_active ? 'ACTIVE' : 'INACTIVE'}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-right whitespace-nowrap action-dropdown-container">
-                            <div className="relative inline-block text-left">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (activeDropdownId === lic.id) {
-                                    setActiveDropdownId(null);
-                                    setDropdownPos(null);
-                                  } else {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setDropdownPos({
-                                      top: rect.bottom + 6,
-                                      right: window.innerWidth - rect.right,
-                                    });
-                                    setActiveDropdownId(lic.id);
-                                  }
-                                }}
-                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 ml-auto transition-colors"
-                              >
-                                <span>Options</span>
-                                <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
-                              </button>
-
-                              {activeDropdownId === lic.id && dropdownPos && (
-                                <div
-                                  style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
-                                  className="fixed z-50 w-52 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl p-1.5 text-xs font-sans animate-in fade-in zoom-in-95"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <button
-                                    onClick={() => {
-                                      setEditingLic(lic);
-                                      setEditLimitValue(String(lic.effective_limit ?? lic.daily_limit ?? 15));
-                                      setEditQuotaMode((lic.quota_mode || 'isolated') as 'isolated' | 'shared');
-                                      setShowEditLimitModal(true);
-                                      setActiveDropdownId(null);
-                                    }}
-                                    className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5 text-purple-400" />
-                                    <span>Edit Daily Limit</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      handleResetGenUsage(lic);
-                                      setActiveDropdownId(null);
-                                    }}
-                                    className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                                    <span>Reset Daily Usage</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      handleResetGenHwid(lic);
-                                      setActiveDropdownId(null);
-                                    }}
-                                    className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
-                                  >
-                                    <Unlock className="w-3.5 h-3.5 text-blue-400" />
-                                    <span>Reset HWID Binding</span>
-                                  </button>
-
-                                  <button
-                                    onClick={() => {
-                                      handleToggleGenLicense(lic.id, lic.is_active);
-                                      setActiveDropdownId(null);
-                                    }}
-                                    className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
-                                  >
-                                    <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span>{lic.is_active ? 'Disable License' : 'Enable License'}</span>
-                                  </button>
-
-                                  <div className="h-px bg-zinc-800 my-1" />
-
-                                  <button
-                                    onClick={() => {
-                                      handleDeleteGenLicense(lic);
-                                      setActiveDropdownId(null);
-                                    }}
-                                    className="w-full px-3 py-2 text-left rounded-xl hover:bg-rose-500/10 text-rose-400 flex items-center gap-2.5 transition-colors"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Delete Key</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50 font-mono">
+                      {groupedGenUserList.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-16 text-center text-zinc-500 font-sans">
+                            No active subscriber users found matching search.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        groupedGenUserList.map((group: any) => {
+                          const pct = group.totalLimit > 0 ? Math.min(100, Math.round((group.totalUsed / group.totalLimit) * 100)) : 0;
+                          const primaryLic = group.licenses[0];
+
+                          return (
+                            <tr key={group.userId} className="hover:bg-zinc-800/30 transition-colors">
+                              {/* 1. User Badge */}
+                              <td className="py-4 px-6 whitespace-nowrap min-w-[200px]">
+                                <DiscordUserBadge
+                                  userId={group.userId}
+                                  userProfiles={userProfiles}
+                                  onCopy={copyToClipboard}
+                                  copiedKey={copiedKey}
+                                />
+                              </td>
+
+                              {/* 2. Active Scope Pills (Hover reveals License Card) */}
+                              <td className="py-4 px-6">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {group.licenses.map((lic: any) => {
+                                    const scopeLabel = lic.scope_label || 'All Services';
+                                    const isPkg = scopeLabel.startsWith('[Package]');
+                                    const isAll = scopeLabel === 'All Services';
+
+                                    return (
+                                      <div key={lic.id} className="relative group/scope inline-block">
+                                        <div
+                                          className={`text-xs px-2.5 py-1 rounded-full font-mono font-medium flex items-center gap-1.5 cursor-pointer transition-all border ${
+                                            isPkg
+                                              ? 'bg-purple-500/10 text-purple-300 border-purple-500/30 hover:border-purple-400'
+                                              : isAll
+                                              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:border-emerald-400'
+                                              : 'bg-blue-500/10 text-blue-300 border-blue-500/30 hover:border-blue-400'
+                                          }`}
+                                        >
+                                          <span>{scopeLabel.replace('[Package] ', '')}</span>
+                                          <span className="text-[10px] opacity-75 font-normal uppercase">
+                                            ({lic.tier || 'lifetime'})
+                                          </span>
+                                        </div>
+
+                                        {/* Hover Tooltip Card */}
+                                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover/scope:flex flex-col z-50 w-72 p-3.5 rounded-2xl bg-zinc-950 border border-zinc-700 shadow-2xl text-xs font-mono text-zinc-300 animate-in fade-in zoom-in-95 pointer-events-auto">
+                                          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                                            <span className="text-[10px] text-zinc-500 uppercase font-semibold">License Key</span>
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 uppercase">
+                                              {lic.quota_mode || 'shared'} pool
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center justify-between py-2 font-bold text-white select-all">
+                                            <span className="text-xs truncate">{lic.license_key}</span>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                copyToClipboard(lic.license_key);
+                                              }}
+                                              className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 ml-2 transition-colors cursor-pointer"
+                                              title="Copy License Key"
+                                            >
+                                              {copiedKey === lic.license_key ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                            </button>
+                                          </div>
+
+                                          <div className="pt-2 border-t border-zinc-800/80 space-y-1.5 text-[11px] text-zinc-400">
+                                            <div className="flex justify-between">
+                                              <span>Daily Cap:</span>
+                                              <span className="text-white font-semibold">{lic.used_today || 0} / {lic.effective_limit ?? lic.daily_limit ?? 15} used</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Expires:</span>
+                                              <span className="text-zinc-200">
+                                                {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Lifetime'}
+                                              </span>
+                                            </div>
+                                            {lic.hwid && (
+                                              <div className="flex justify-between items-center pt-1 text-[10px]">
+                                                <span className="text-zinc-500">HWID:</span>
+                                                <span className="truncate max-w-[140px] text-purple-300 font-mono">{lic.hwid}</span>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Quick Actions inside Hover Card */}
+                                          <div className="pt-2 mt-2 border-t border-zinc-800/80 flex items-center justify-end gap-1.5">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingLic(lic);
+                                                setEditLimitValue(String(lic.effective_limit ?? lic.daily_limit ?? 15));
+                                                setEditQuotaMode((lic.quota_mode || 'shared') as 'isolated' | 'shared');
+                                                setShowEditLimitModal(true);
+                                              }}
+                                              className="px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-[10px] flex items-center gap-1 cursor-pointer"
+                                            >
+                                              <Edit3 className="w-3 h-3 text-purple-400" />
+                                              <span>Edit</span>
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleResetGenUsage(lic);
+                                              }}
+                                              className="px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white text-[10px] flex items-center gap-1 cursor-pointer"
+                                            >
+                                              <RotateCcw className="w-3 h-3 text-amber-400" />
+                                              <span>Reset</span>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+
+                              {/* 3. Daily Quota */}
+                              <td className="py-4 px-6 font-mono whitespace-nowrap">
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-semibold ${group.totalUsed >= group.totalLimit ? 'text-rose-400 font-bold' : 'text-zinc-200'}`}>
+                                    {group.totalUsed} / {group.totalLimit}
+                                  </span>
+                                  <span className="text-zinc-500 text-[11px]">stacked</span>
+                                </div>
+                                <div className="w-24 h-1.5 rounded-full bg-zinc-800 overflow-hidden mt-1.5">
+                                  <div
+                                    className={`h-full transition-all ${pct >= 100 ? 'bg-rose-500' : pct >= 75 ? 'bg-amber-400' : 'bg-purple-500'}`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </td>
+
+                              {/* 4. Hardware ID */}
+                              <td className="py-4 px-6 font-mono whitespace-nowrap">
+                                {group.hwid ? (
+                                  <div className="inline-flex items-center gap-1.5">
+                                    <span className="text-xs text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded font-mono truncate max-w-[120px]">
+                                      {group.hwid}
+                                    </span>
+                                    <button
+                                      onClick={() => {
+                                        const licWithHwid = group.licenses.find((l: any) => l.hwid);
+                                        if (licWithHwid) handleResetGenHwid(licWithHwid);
+                                      }}
+                                      className="p-1 rounded hover:bg-rose-500/15 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer"
+                                      title="Reset HWID Binding"
+                                    >
+                                      <Unlock className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">
+                                    UNBOUND
+                                  </span>
+                                )}
+                              </td>
+
+                              {/* 5. Status */}
+                              <td className="py-4 px-6 whitespace-nowrap">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-medium ${
+                                  group.hasActive
+                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                    : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                                }`}>
+                                  {group.hasActive ? 'ACTIVE' : 'INACTIVE'}
+                                </span>
+                              </td>
+
+                              {/* 6. Actions Dropdown */}
+                              <td className="py-4 px-6 text-right whitespace-nowrap action-dropdown-container">
+                                <div className="relative inline-block text-left">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (activeDropdownId === group.userId) {
+                                        setActiveDropdownId(null);
+                                        setDropdownPos(null);
+                                      } else {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setDropdownPos({
+                                          top: rect.bottom + 6,
+                                          right: window.innerWidth - rect.right,
+                                        });
+                                        setActiveDropdownId(group.userId);
+                                      }
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 ml-auto transition-colors cursor-pointer"
+                                  >
+                                    <span>Options</span>
+                                    <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
+                                  </button>
+
+                                  {activeDropdownId === group.userId && dropdownPos && (
+                                    <div
+                                      style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
+                                      className="fixed z-50 w-56 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl p-1.5 text-xs font-sans animate-in fade-in zoom-in-95"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {/* Edit Limit for Primary / First License */}
+                                      <button
+                                        onClick={() => {
+                                          setEditingLic(primaryLic);
+                                          setEditLimitValue(String(primaryLic.effective_limit ?? primaryLic.daily_limit ?? 15));
+                                          setEditQuotaMode((primaryLic.quota_mode || 'shared') as 'isolated' | 'shared');
+                                          setShowEditLimitModal(true);
+                                          setActiveDropdownId(null);
+                                        }}
+                                        className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5 text-purple-400" />
+                                        <span>Edit Daily Limit & Mode</span>
+                                      </button>
+
+                                      {/* Reset Usage for this user */}
+                                      <button
+                                        onClick={() => {
+                                          handleResetGenUsage(primaryLic);
+                                          setActiveDropdownId(null);
+                                        }}
+                                        className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                      >
+                                        <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                                        <span>Reset Today's Usage</span>
+                                      </button>
+
+                                      {/* Reset HWID */}
+                                      {group.hwid && (
+                                        <button
+                                          onClick={() => {
+                                            const licWithHwid = group.licenses.find((l: any) => l.hwid);
+                                            if (licWithHwid) handleResetGenHwid(licWithHwid);
+                                            setActiveDropdownId(null);
+                                          }}
+                                          className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                        >
+                                          <Unlock className="w-3.5 h-3.5 text-blue-400" />
+                                          <span>Reset HWID Lock</span>
+                                        </button>
+                                      )}
+
+                                      {/* Toggle Active */}
+                                      <button
+                                        onClick={() => {
+                                          handleToggleGenLicense(primaryLic.id, primaryLic.is_active);
+                                          setActiveDropdownId(null);
+                                        }}
+                                        className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                      >
+                                        <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>{primaryLic.is_active ? 'Disable License' : 'Enable License'}</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                ) : (
+                  /* ── RAW KEYS FORMAT (FALLBACK) ── */
+                  <table className="w-full min-w-[1100px] text-left border-collapse text-xs">
+                    <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+                      <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+                        <th className="py-4 px-6">License Key</th>
+                        <th className="py-4 px-6">Scope</th>
+                        <th className="py-4 px-6">Tier</th>
+                        <th className="py-4 px-6">Redeemed By</th>
+                        <th className="py-4 px-6">Hardware ID</th>
+                        <th className="py-4 px-6">Daily Usage</th>
+                        <th className="py-4 px-6">Created</th>
+                        <th className="py-4 px-6">Status</th>
+                        <th className="py-4 px-6 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50 font-mono">
+                      {filteredGenLicenses.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="py-16 text-center text-zinc-500 font-sans">
+                            No generator licenses found matching search.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredGenLicenses.map((lic: any) => (
+                          <tr key={lic.id} className="hover:bg-zinc-800/30 transition-colors">
+                            <td className="py-4 px-6 font-mono font-semibold text-zinc-200 select-all whitespace-nowrap">
+                              <div className="inline-flex items-center gap-2">
+                                <span>{lic.license_key}</span>
+                                <button onClick={() => copyToClipboard(lic.license_key)} className="text-zinc-500 hover:text-white transition-colors p-1 rounded hover:bg-zinc-800">
+                                  {copiedKey === lic.license_key ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-4 px-6 font-mono whitespace-nowrap">
+                              <span
+                                className={`text-xs px-2.5 py-1 rounded-full font-mono ${
+                                  lic.scope_label?.startsWith('[Package]')
+                                    ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
+                                    : lic.scope_label === 'All Services'
+                                    ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                                    : 'bg-blue-500/10 text-blue-300 border border-blue-500/30'
+                                }`}
+                              >
+                                {lic.scope_label || 'All Services'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 font-mono uppercase text-xs whitespace-nowrap text-zinc-400">
+                              {lic.tier || 'lifetime'}
+                            </td>
+                            <td className="py-4 px-6 font-mono whitespace-nowrap min-w-[180px]">
+                              {lic.redeemed_by ? (
+                                <DiscordUserBadge userId={lic.redeemed_by} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
+                              ) : (
+                                <span className="text-zinc-500 font-mono text-xs">UNREDEEMED</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6 font-mono whitespace-nowrap">
+                              {lic.hwid ? (
+                                <div className="inline-flex items-center gap-2">
+                                  <span className="text-xs text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2.5 py-0.5 rounded font-mono truncate max-w-[150px]">
+                                    {lic.hwid}
+                                  </span>
+                                  <button
+                                    onClick={() => handleResetGenHwid(lic)}
+                                    className="p-1 rounded hover:bg-rose-500/15 text-zinc-400 hover:text-rose-400 transition-colors"
+                                    title="Reset / Unbind HWID"
+                                  >
+                                    <Unlock className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">
+                                  UNBOUND
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6 font-mono whitespace-nowrap">
+                              <span className={`font-semibold ${ (lic.used_today || 0) >= (lic.effective_limit ?? lic.daily_limit ?? 15) ? 'text-rose-400' : 'text-zinc-200' }`}>
+                                {lic.used_today || 0} / {lic.effective_limit ?? lic.daily_limit ?? 15}
+                              </span>
+                              <span className="text-zinc-500 text-[11px] ml-1.5">used</span>
+                            </td>
+                            <td className="py-4 px-6 font-mono text-zinc-400 text-xs whitespace-nowrap">
+                              {new Date(lic.created_at || Date.now()).toLocaleDateString()}
+                            </td>
+                            <td className="py-4 px-6 whitespace-nowrap">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-medium ${lic.is_active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'}`}>
+                                {lic.is_active ? 'ACTIVE' : 'INACTIVE'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-right whitespace-nowrap action-dropdown-container">
+                              <div className="relative inline-block text-left">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (activeDropdownId === lic.id) {
+                                      setActiveDropdownId(null);
+                                      setDropdownPos(null);
+                                    } else {
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setDropdownPos({
+                                        top: rect.bottom + 6,
+                                        right: window.innerWidth - rect.right,
+                                      });
+                                      setActiveDropdownId(lic.id);
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 ml-auto transition-colors"
+                                >
+                                  <span>Options</span>
+                                  <MoreVertical className="w-3.5 h-3.5 text-zinc-400" />
+                                </button>
+
+                                {activeDropdownId === lic.id && dropdownPos && (
+                                  <div
+                                    style={{ top: `${dropdownPos.top}px`, right: `${dropdownPos.right}px` }}
+                                    className="fixed z-50 w-52 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-2xl p-1.5 text-xs font-sans animate-in fade-in zoom-in-95"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={() => {
+                                        setEditingLic(lic);
+                                        setEditLimitValue(String(lic.effective_limit ?? lic.daily_limit ?? 15));
+                                        setEditQuotaMode((lic.quota_mode || 'isolated') as 'isolated' | 'shared');
+                                        setShowEditLimitModal(true);
+                                        setActiveDropdownId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 text-purple-400" />
+                                      <span>Edit Daily Limit</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        handleResetGenUsage(lic);
+                                        setActiveDropdownId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
+                                    >
+                                      <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                                      <span>Reset Daily Usage</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        handleResetGenHwid(lic);
+                                        setActiveDropdownId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
+                                    >
+                                      <Unlock className="w-3.5 h-3.5 text-blue-400" />
+                                      <span>Reset HWID Binding</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        handleToggleGenLicense(lic.id, lic.is_active);
+                                        setActiveDropdownId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-left rounded-xl hover:bg-zinc-800 text-zinc-200 flex items-center gap-2.5 transition-colors"
+                                    >
+                                      <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                                      <span>{lic.is_active ? 'Disable License' : 'Enable License'}</span>
+                                    </button>
+
+                                    <div className="h-px bg-zinc-800 my-1" />
+
+                                    <button
+                                      onClick={() => {
+                                        handleDeleteGenLicense(lic);
+                                        setActiveDropdownId(null);
+                                      }}
+                                      className="w-full px-3 py-2 text-left rounded-xl hover:bg-rose-500/10 text-rose-400 flex items-center gap-2.5 transition-colors"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>Delete Key</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           </div>
