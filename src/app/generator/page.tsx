@@ -999,23 +999,11 @@ export default function AccountGeneratorPage() {
                               `${svc.leftCount.toLocaleString()} left`
                             )}
                           </div>
-                          {!isCoveredByPlan ? (
+                          {!isCoveredByPlan && (
                             <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 mt-1">
                               Locked
                             </span>
-                          ) : isQuotaExhausted ? (
-                            <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-400 font-semibold mt-1">
-                              Daily Cap Reached
-                            </span>
-                          ) : (quotaInfo as any)?.hasDedicatedIsolated ? (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-medium mt-1 truncate max-w-full">
-                              {(quotaInfo as any).isolatedRemaining} dedicated left
-                            </span>
-                          ) : (quotaInfo as any)?.coversShared ? (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/30 text-purple-300 font-medium mt-1 truncate max-w-full">
-                              Shared Pool ({Math.max(0, userPlan.dailyLimit - userPlan.dailyUsed)} left)
-                            </span>
-                          ) : null}
+                          )}
                         </div>
                       </button>
                     );
