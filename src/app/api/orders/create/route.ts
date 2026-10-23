@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
               paypal_note: uniqueMemo,
               original_php: finalPhp
             },
-            status: 'pending'
+            status: 'awaiting_payment'
           })
           .select()
           .single();
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           ok: true,
           orderId: newOrder.id,
-          status: 'pending'
+          status: 'awaiting_payment'
         });
       }
 
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
               maya_enabled: settings.mayaEnabled,
               ref_code: refTag
             },
-            status: 'pending'
+            status: 'awaiting_payment'
           })
           .select()
           .single();
@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           ok: true,
           orderId: newOrder.id,
-          status: 'pending'
+          status: 'awaiting_payment'
         });
       }
     }
@@ -214,13 +214,13 @@ export async function POST(req: NextRequest) {
               paypal_note: uniqueMemo,
               target_credit_php: topupPhp
             },
-            status: 'pending'
+            status: 'awaiting_payment'
           })
           .select()
           .single();
 
         if (orderErr) throw orderErr;
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'pending' });
+        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
       }
 
       if (provider === 'qrph') {
@@ -247,13 +247,13 @@ export async function POST(req: NextRequest) {
               ref_code: refTag,
               target_credit_php: topupPhp
             },
-            status: 'pending'
+            status: 'awaiting_payment'
           })
           .select()
           .single();
 
         if (orderErr) throw orderErr;
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'pending' });
+        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
       }
     }
 

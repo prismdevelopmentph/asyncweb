@@ -87,6 +87,7 @@ export async function GET(
       qrImageUrl: details.qr_image_url || details.gcash_qr_url || details.maya_qr_url || null,
       refCode: details.ref_code || null,
       customerRef: details.customer_reference || null,
+      rejectionReason: details.rejection_reason || null,
       hasSubmittedRef: Boolean(details.customer_reference || details.reference_submitted_at),
       createdAt: order.created_at,
       paidAt: order.paid_at,

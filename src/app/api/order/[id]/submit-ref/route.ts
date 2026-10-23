@@ -33,6 +33,7 @@ export async function POST(
     await supabaseAdmin
       .from('orders')
       .update({
+        status: 'pending',
         payment_details: updatedDetails,
         paid_at: new Date().toISOString()
       })

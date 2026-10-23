@@ -30,7 +30,7 @@ interface OrderItem {
 interface OrderData {
   ok: boolean;
   id: string;
-  status: 'pending' | 'paid' | 'delivered' | 'cancelled';
+  status: 'awaiting_payment' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'rejected';
   provider: 'balance' | 'qrph' | 'paypal';
   providerLabel: string;
   email: string;
@@ -51,6 +51,7 @@ interface OrderData {
   qrImageUrl?: string | null;
   refCode?: string | null;
   customerRef?: string | null;
+  rejectionReason?: string | null;
   hasSubmittedRef?: boolean;
   createdAt: string;
   paidAt?: string | null;
@@ -124,6 +125,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       });
       if (res.ok) {
         setRefSuccess(true);
+        fetchOrder();
         setTimeout(() => setRefSuccess(false), 3000);
       }
     } catch (err) {
@@ -187,9 +189,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   }
 
   const isDelivered = order.status === 'delivered';
-  const isPaymentSubmitted = Boolean(order.paidAt || order.hasSubmittedRef || order.customerRef || refSuccess);
-  const isPaid = order.status === 'paid' || isPaymentSubmitted || isDelivered;
-  const isPending = order.status === 'pending';
+  const isRejected = order.status === 'rejected';
+  const isCancelled = order.status === 'cancelled';
+  const isPaymentSubmitted = !isRejected && !isCancelled && Boolean(order.paidAt || order.hasSubmittedRef || order.customerRef || refSuccess || order.status === 'pending');
+  const isPaid = !isRejected && (order.status === 'paid' || isPaymentSubmitted || isDelivered);
+  const isPending = order.status === 'pending' || order.status === 'awaiting_payment';
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden dev-grid-bg">
@@ -203,15 +207,25 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             <div className={`p-3 rounded-2xl border shrink-0 ${
               isDelivered
                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : isRejected
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                 : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
             }`}>
-              {isDelivered ? <CheckCircle2 className="w-6 h-6" /> : <Clock className="w-6 h-6 animate-pulse" />}
+              {isDelivered ? (
+                <CheckCircle2 className="w-6 h-6" />
+              ) : isRejected ? (
+                <AlertCircle className="w-6 h-6" />
+              ) : (
+                <Clock className="w-6 h-6 animate-pulse" />
+              )}
             </div>
 
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 font-sans">
                 {isDelivered
                   ? 'Your License Key is Delivered'
+                  : isRejected
+                  ? 'Payment Verification Rejected'
                   : isPaymentSubmitted
                   ? 'Payment Submitted // Pending Staff Approval'
                   : order.provider === 'balance'
@@ -221,6 +235,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
                 {isDelivered
                   ? 'Your payment is confirmed. Your cryptographic license key is ready to use below.'
+                  : isRejected
+                  ? 'Staff could not verify the submitted payment. Please check the reason below and submit the correct reference.'
                   : isPaymentSubmitted
                   ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your license key will unlock here automatically.'
                   : 'Follow the steps below. Once we confirm your payment, your items unlock here automatically.'}
@@ -241,13 +257,13 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             {/* Step 2: Paid */}
             <div className="flex items-center gap-2">
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
-                isPaid ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-400'
+                isPaid ? 'bg-emerald-500 text-black' : isRejected ? 'bg-rose-500 text-white' : 'bg-zinc-800 text-zinc-400'
               }`}>
-                {isPaid ? '✓' : '2'}
+                {isPaid ? '✓' : isRejected ? '!' : '2'}
               </span>
               <div className="flex flex-col">
-                <span className={`text-xs font-mono font-medium ${isPaid ? 'text-white' : 'text-zinc-500'}`}>
-                  Paid
+                <span className={`text-xs font-mono font-medium ${isPaid ? 'text-white' : isRejected ? 'text-rose-400' : 'text-zinc-500'}`}>
+                  {isRejected ? 'Rejected' : 'Paid'}
                 </span>
                 {isPaymentSubmitted && !isDelivered && (
                   <span className="text-[9px] font-mono text-amber-400">Verifying</span>
@@ -274,6 +290,48 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
           
           {/* Left Column (Payment & Key Delivery) */}
           <div className="lg:col-span-7 space-y-6">
+
+            {/* REJECTED STATE CARD */}
+            {isRejected && (
+              <div className="p-6 rounded-3xl bg-rose-500/10 border border-rose-500/40 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-rose-400 font-mono text-xs font-bold">
+                    <AlertCircle className="w-4 h-4 text-rose-400" />
+                    <span>PAYMENT VERIFICATION REJECTED BY ADMIN</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300">
+                    Action Required
+                  </span>
+                </div>
+                <div>
+                  <div className="text-[11px] font-mono text-zinc-400 mb-1">REASON GIVEN:</div>
+                  <div className="p-3.5 rounded-xl bg-zinc-900 border border-rose-500/40 text-sm font-mono font-semibold text-rose-200">
+                    {order.rejectionReason || 'Reference number invalid or transfer not received.'}
+                  </div>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                  If this was a typo or you transferred under a different reference number, update it below and click <strong>Re-Submit Payment</strong> for re-verification.
+                </p>
+                <form onSubmit={handleSubmitReference} className="pt-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={referenceInput}
+                      onChange={(e) => setReferenceInput(e.target.value)}
+                      placeholder="Enter correct Reference Number / TxID"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-rose-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={submittingRef || !referenceInput.trim()}
+                      className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-xs font-mono font-semibold text-white transition-all cursor-pointer"
+                    >
+                      {refSuccess ? 'Re-submitted ✓' : submittingRef ? 'Submitting...' : 'Re-Submit Payment'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
             
             {/* DELIVERED STATE: KEY REVEAL CARD */}
             {isDelivered && order.licenseKey && (

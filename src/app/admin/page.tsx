@@ -150,7 +150,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'products' | 'orders' | 'audit' | 'chat'>('security');
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered'>('all');
+  const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered' | 'awaiting_payment' | 'rejected'>('all');
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
 
   // Payment Gateway Settings Configurator
@@ -410,6 +410,29 @@ export default function AdminPage() {
       }
     } catch (e: any) {
       alert(e?.message || 'Error cancelling order');
+    } finally {
+      setProcessingOrderId(null);
+    }
+  };
+
+  const handleRejectOrder = async (orderId: string) => {
+    const reason = prompt('Enter rejection reason (visible to customer):', 'Reference number invalid or transfer not received.');
+    if (reason === null) return;
+    setProcessingOrderId(orderId);
+    try {
+      const res = await fetch('/api/admin/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject_order', orderId, reason })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        fetchOrders();
+      } else {
+        alert(data.error || 'Failed to reject order');
+      }
+    } catch (e: any) {
+      alert(e?.message || 'Error rejecting order');
     } finally {
       setProcessingOrderId(null);
     }
@@ -2608,7 +2631,7 @@ export default function AdminPage() {
                     orderFilter === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-zinc-400 hover:text-white'
                   }`}
                 >
-                  <span>Pending</span>
+                  <span>Pending Approvals</span>
                   <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-200 text-[10px]">
                     {ordersList.filter((o) => o.status === 'pending').length}
                   </span>
@@ -2620,6 +2643,22 @@ export default function AdminPage() {
                   }`}
                 >
                   Delivered ({ordersList.filter((o) => o.status === 'delivered').length})
+                </button>
+                <button
+                  onClick={() => setOrderFilter('awaiting_payment')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
+                    orderFilter === 'awaiting_payment' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Awaiting Payment ({ordersList.filter((o) => o.status === 'awaiting_payment').length})
+                </button>
+                <button
+                  onClick={() => setOrderFilter('rejected')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
+                    orderFilter === 'rejected' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Rejected ({ordersList.filter((o) => o.status === 'rejected' || o.status === 'cancelled').length})
                 </button>
               </div>
 
@@ -2952,20 +2991,25 @@ export default function AdminPage() {
                   .filter((ord) => {
                     if (orderFilter === 'pending') return ord.status === 'pending';
                     if (orderFilter === 'delivered') return ord.status === 'delivered';
+                    if (orderFilter === 'awaiting_payment') return ord.status === 'awaiting_payment';
+                    if (orderFilter === 'rejected') return ord.status === 'rejected' || ord.status === 'cancelled';
                     return true;
                   })
                   .map((ord) => {
                     const isOrdPending = ord.status === 'pending';
                     const isOrdDelivered = ord.status === 'delivered';
+                    const isOrdAwaiting = ord.status === 'awaiting_payment';
+                    const isOrdRejected = ord.status === 'rejected';
                     const memo = ord.payment_details?.paypal_note;
                     const customerRef = ord.payment_details?.customer_reference;
+                    const rejectionReason = ord.payment_details?.rejection_reason;
                     const tierName = ord.tier_key ? `${ord.tier_key.toUpperCase()}` : '';
 
                     return (
                       <div
                         key={ord.id}
                         className={`p-4 sm:p-5 rounded-2xl bg-zinc-950/80 border transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${
-                          isOrdPending ? 'border-amber-500/40 bg-amber-950/5' : 'border-zinc-800/80'
+                          isOrdPending ? 'border-amber-500/40 bg-amber-950/5' : isOrdRejected ? 'border-rose-500/30 bg-rose-950/5' : 'border-zinc-800/80'
                         }`}
                       >
                         <div className="space-y-1.5 flex-1 min-w-0">
@@ -2976,9 +3020,13 @@ export default function AdminPage() {
                                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                                 : isOrdPending
                                 ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
+                                : isOrdAwaiting
+                                ? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
+                                : isOrdRejected
+                                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                                 : 'bg-zinc-800 border-zinc-700 text-zinc-400'
                             }`}>
-                              {ord.status}
+                              {ord.status === 'awaiting_payment' ? 'Awaiting Payment' : ord.status}
                             </span>
 
                             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300">
@@ -3030,6 +3078,12 @@ export default function AdminPage() {
                                 Submitted Ref #: <strong className="text-white select-all">{customerRef}</strong>
                               </div>
                             )}
+
+                            {rejectionReason && (
+                              <div className="p-1 px-2 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300">
+                                Rejection Reason: <strong className="text-white">{rejectionReason}</strong>
+                              </div>
+                            )}
                           </div>
 
                           {/* Row 4: License Key if delivered */}
@@ -3055,7 +3109,7 @@ export default function AdminPage() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
-                          {isOrdPending && (
+                          {(isOrdPending || isOrdAwaiting) && (
                             <>
                               <button
                                 onClick={() => handleApproveOrder(ord.id)}
@@ -3067,9 +3121,18 @@ export default function AdminPage() {
                               </button>
 
                               <button
+                                onClick={() => handleRejectOrder(ord.id)}
+                                disabled={processingOrderId === ord.id}
+                                className="px-3 py-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 hover:text-white font-mono text-xs flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                <Ban className="w-3.5 h-3.5" />
+                                <span>Reject</span>
+                              </button>
+
+                              <button
                                 onClick={() => handleCancelOrder(ord.id)}
                                 disabled={processingOrderId === ord.id}
-                                className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-rose-950/30 hover:border-rose-500/40 border border-zinc-800 text-zinc-400 hover:text-rose-400 font-mono text-xs transition-colors cursor-pointer"
+                                className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white font-mono text-xs transition-colors cursor-pointer"
                               >
                                 Cancel
                               </button>

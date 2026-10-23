@@ -91,7 +91,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── CANCEL / REJECT ORDER ──
+    // ── REJECT ORDER ──
+    if (action === 'reject_order') {
+      const reason = (body.reason || '').trim() || 'Payment verification failed or invalid reference.';
+      const currentDetails = order.payment_details || {};
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'rejected',
+          payment_details: {
+            ...currentDetails,
+            rejection_reason: reason,
+            rejected_at: new Date().toISOString()
+          }
+        })
+        .eq('id', orderId);
+
+      return NextResponse.json({ ok: true, message: 'Order marked as rejected.' });
+    }
+
+    // ── CANCEL ORDER ──
     if (action === 'cancel_order') {
       await supabaseAdmin
         .from('orders')
