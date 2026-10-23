@@ -4421,14 +4421,24 @@ export default function AdminPage() {
                         </optgroup>
 
                         <optgroup label="Bundled Packages">
-                          <option value="fivem">FiveM Bundle (Rockstar + Steam + Discord)</option>
+                          <option value="fivem">
+                            FiveM Bundle ({(() => {
+                              const fPkg = availablePackages.find((p: any) => p.name?.toLowerCase() === 'fivem bundle');
+                              return (fPkg?.services && fPkg.services.length > 0)
+                                ? fPkg.services.join(' + ')
+                                : 'Rockstar + Steam + Discord + CyberGhost';
+                            })()})
+                          </option>
                           {availablePackages
-                            .filter((pkg: any) => pkg.name.toLowerCase() !== 'fivem bundle')
-                            .map((pkg: any) => (
-                              <option key={pkg.id} value={`package:${pkg.name}`}>
-                                Package: {pkg.name}
-                              </option>
-                            ))}
+                            .filter((pkg: any) => pkg.name?.toLowerCase() !== 'fivem bundle')
+                            .map((pkg: any) => {
+                              const svcList = Array.isArray(pkg.services) && pkg.services.length > 0 ? ` (${pkg.services.join(' + ')})` : '';
+                              return (
+                                <option key={pkg.id} value={`package:${pkg.name}`}>
+                                  Package: {pkg.name}{svcList}
+                                </option>
+                              );
+                            })}
                         </optgroup>
 
                         <optgroup label="Dedicated Discrete Services (Single Target Binding)">

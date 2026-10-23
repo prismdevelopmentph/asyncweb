@@ -126,15 +126,21 @@ export async function GET() {
 
     const { data: dbPackages } = await supabaseAdmin
       .from('packages')
-      .select('id, name')
+      .select('id, name, package_services(services(name))')
       .order('name', { ascending: true });
+
+    const formattedPackages = (dbPackages || []).map((pkg: any) => ({
+      id: pkg.id,
+      name: pkg.name,
+      services: (pkg.package_services || []).map((ps: any) => ps.services?.name).filter(Boolean)
+    }));
 
     return new NextResponse(
       JSON.stringify({
         products: enriched,
         liveRate,
         services: dbServices || [],
-        packages: dbPackages || []
+        packages: formattedPackages
       }),
       {
         status: 200,
