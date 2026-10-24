@@ -37,10 +37,12 @@ export async function POST(req: NextRequest) {
 
     console.log(`[PayMongo Webhook] Received event: ${eventType}`);
 
-    // We listen to checkout_session.payment.paid and direct payment.paid events
+    // We listen to checkout_session.payment.paid, payment.paid, qr.paid, and link.payment.paid events
     const isPaidEvent =
       eventType === 'checkout_session.payment.paid' ||
       eventType === 'payment.paid' ||
+      eventType === 'qr.paid' ||
+      eventType === 'link.payment.paid' ||
       eventType === 'source.chargeable';
 
     if (!isPaidEvent) {
@@ -117,3 +119,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message || 'Server Error' }, { status: 500 });
   }
 }
+
