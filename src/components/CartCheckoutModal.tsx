@@ -21,12 +21,14 @@ interface CartCheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser?: any;
+  appliedCoupon?: any;
 }
 
 export default function CartCheckoutModal({
   isOpen,
   onClose,
-  currentUser
+  currentUser,
+  appliedCoupon
 }: CartCheckoutModalProps) {
   const router = useRouter();
   const { items, totalPHP, totalUSD, clearCart, closeCart } = useCart();
@@ -101,7 +103,9 @@ export default function CartCheckoutModal({
   const activeFeePercent = getFeePercent(selectedProvider);
   const isUsdProvider = selectedProvider === 'paypal' || selectedProvider === 'crypto';
 
-  const baseTotal = isUsdProvider ? totalUSD : totalPHP;
+  const rawBaseTotal = isUsdProvider ? totalUSD : totalPHP;
+  const discountAmount = appliedCoupon ? Number(appliedCoupon.discountAmount || 0) : 0;
+  const baseTotal = Math.max(0, rawBaseTotal - discountAmount);
   const feeAmount = Math.round((baseTotal * (activeFeePercent / 100)) * 100) / 100;
   const finalTotal = Math.round((baseTotal + feeAmount) * 100) / 100;
 
@@ -163,6 +167,7 @@ export default function CartCheckoutModal({
           email: email || `${discordId}@discord.asyncdevph.xyz`,
           discordId: discordId || null,
           orderType: 'product_purchase',
+          couponCode: appliedCoupon?.code || null,
           cartItems: items.map((i) => ({
             productId: i.productId,
             tierKey: i.tierKey,
@@ -465,8 +470,21 @@ export default function CartCheckoutModal({
           <div className="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-1.5 font-mono text-xs">
             <div className="flex items-center justify-between text-zinc-400">
               <span>Cart Subtotal</span>
-              <span>{isUsdProvider ? `$${baseTotal.toFixed(2)} USD` : `₱${baseTotal.toLocaleString('en-PH')} PHP`}</span>
+              <span>{isUsdProvider ? `$${rawBaseTotal.toFixed(2)} USD` : `₱${rawBaseTotal.toLocaleString('en-PH')} PHP`}</span>
             </div>
+            {discountAmount > 0 && (
+              <div className="flex items-center justify-between text-emerald-400 font-medium">
+                <span className="flex items-center gap-1.5">
+                  <span>Coupon Discount</span>
+                  {appliedCoupon?.code && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                      {appliedCoupon.code}
+                    </span>
+                  )}
+                </span>
+                <span>-{isUsdProvider ? `$${discountAmount.toFixed(2)} USD` : `₱${discountAmount.toFixed(2)} PHP`}</span>
+              </div>
+            )}
             {activeFeePercent > 0 && (
               <div className="flex items-center justify-between text-zinc-400">
                 <span>Gateway Fee (+{activeFeePercent}%)</span>

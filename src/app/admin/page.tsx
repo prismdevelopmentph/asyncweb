@@ -55,7 +55,9 @@ import {
   Crop,
   Sliders,
   Coins,
-  Percent
+  Percent,
+  Eye,
+  Tag
 } from 'lucide-react';
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -150,11 +152,28 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'products' | 'orders' | 'payments' | 'audit' | 'chat'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'products' | 'orders' | 'payments' | 'coupons' | 'audit' | 'chat'>('security');
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered' | 'awaiting_payment' | 'rejected'>('all');
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+
+  // Order Detail Inspection Modal State
+  const [selectedOrderForModal, setSelectedOrderForModal] = useState<any | null>(null);
+  const [rejectReasonInput, setRejectReasonInput] = useState('');
+  const [showRejectForm, setShowRejectForm] = useState(false);
+
+  // Coupons Management State
+  const [couponsList, setCouponsList] = useState<any[]>([]);
+  const [couponsLoading, setCouponsLoading] = useState(false);
+  const [showCreateCouponModal, setShowCreateCouponModal] = useState(false);
+  const [couponFormCode, setCouponFormCode] = useState('');
+  const [couponFormType, setCouponFormType] = useState<'percent' | 'fixed'>('percent');
+  const [couponFormValue, setCouponFormValue] = useState('');
+  const [couponFormMinSpend, setCouponFormMinSpend] = useState('0');
+  const [couponFormMaxUses, setCouponFormMaxUses] = useState('');
+  const [savingCoupon, setSavingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   // Payment Gateway Settings Configurator
   const [showPaymentConfig, setShowPaymentConfig] = useState(false);
@@ -459,6 +478,82 @@ export default function AdminPage() {
       alert(e?.message || 'Error rejecting order');
     } finally {
       setProcessingOrderId(null);
+    }
+  };
+
+  // Coupons Handlers
+  const fetchCoupons = async () => {
+    try {
+      setCouponsLoading(true);
+      const res = await fetch('/api/admin/coupons');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.coupons)) {
+          setCouponsList(data.coupons);
+        }
+      }
+    } catch (err) {
+      console.error('[Admin] Error fetching coupons:', err);
+    } finally {
+      setCouponsLoading(false);
+    }
+  };
+
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponFormCode.trim() || !couponFormValue) return;
+    setSavingCoupon(true);
+    setCouponError(null);
+    try {
+      const res = await fetch('/api/admin/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponFormCode.trim(),
+          discountType: couponFormType,
+          discountValue: Number(couponFormValue),
+          minSpend: Number(couponFormMinSpend) || 0,
+          maxUses: couponFormMaxUses ? Number(couponFormMaxUses) : null
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCouponError(data.error || 'Failed to create coupon.');
+        return;
+      }
+      setShowCreateCouponModal(false);
+      setCouponFormCode('');
+      setCouponFormValue('');
+      setCouponFormMinSpend('0');
+      setCouponFormMaxUses('');
+      fetchCoupons();
+    } catch (err: any) {
+      setCouponError(err?.message || 'Error creating coupon.');
+    } finally {
+      setSavingCoupon(false);
+    }
+  };
+
+  const handleToggleCoupon = async (id: string, currentActive: boolean) => {
+    try {
+      const res = await fetch('/api/admin/coupons', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive: !currentActive })
+      });
+      if (res.ok) fetchCoupons();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this coupon?')) return;
+    try {
+      const res = await fetch(`/api/admin/coupons?id=${id}`, { method: 'DELETE' });
+      if (res.ok) fetchCoupons();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -1877,6 +1972,30 @@ export default function AdminPage() {
               </button>
 
               <button
+                onClick={() => {
+                  setActiveTab('coupons');
+                  fetchCoupons();
+                }}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'coupons'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'coupons' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800/60 text-emerald-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <Tag className="w-4 h-4" />
+                  </div>
+                  <span>Coupons & Promos</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                  {couponsList.length}
+                </span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('audit')}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'audit'
@@ -3258,6 +3377,14 @@ export default function AdminPage() {
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+                          <button
+                            onClick={() => setSelectedOrderForModal(ord)}
+                            className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-mono font-medium text-zinc-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                            title="Inspect Full Order Details"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-purple-400" />
+                            <span>Inspect</span>
+                          </button>
                           {(isOrdPending || isOrdAwaiting) && (
                             <>
                               <button
@@ -3887,6 +4014,136 @@ export default function AdminPage() {
               </div>
             </div>
           </form>
+        )}
+
+        {/* ── TAB: COUPONS & PROMOTIONAL DISCOUNTS ── */}
+        {activeTab === 'coupons' && (
+          <div className="space-y-6">
+            {/* Header Strip & Stats */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-zinc-900/90 border border-emerald-500/30 backdrop-blur-xl relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                  <Tag className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>Coupons & Promo Codes</span>
+                    <span className="text-[10px] font-mono font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                      Non-Stacking Engine
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Create promo codes with custom percentage or flat deductions. Enforces regular-price-only eligibility.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 relative z-10 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCouponModal(true)}
+                  className="flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-950/60"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Create Coupon</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fetchCoupons()}
+                  disabled={couponsLoading}
+                  className="px-3.5 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${couponsLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Coupons List */}
+            {couponsLoading && couponsList.length === 0 ? (
+              <div className="p-12 text-center text-xs font-mono text-zinc-500 animate-pulse bg-zinc-950 border border-zinc-800 rounded-3xl">
+                Loading coupons from database...
+              </div>
+            ) : couponsList.length === 0 ? (
+              <div className="p-12 text-center rounded-3xl bg-zinc-950/50 border border-zinc-800/80 space-y-3">
+                <Tag className="w-8 h-8 text-zinc-600 mx-auto" />
+                <h4 className="text-sm font-semibold text-white">No Promo Codes Created</h4>
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                  Generate promotional discount codes for your customers. Codes automatically apply strictly to regular-priced items.
+                </p>
+                <button
+                  onClick={() => setShowCreateCouponModal(true)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-bold transition-all"
+                >
+                  Create First Coupon
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {couponsList.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`p-5 rounded-2xl bg-zinc-950/80 border transition-all flex flex-col justify-between gap-4 ${
+                      c.is_active ? 'border-zinc-800/80' : 'border-zinc-800/40 opacity-60'
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 font-mono font-bold text-sm tracking-wider">
+                          {c.code}
+                        </span>
+                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                          c.is_active
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : 'bg-zinc-800 text-zinc-500 border-zinc-700'
+                        }`}>
+                          {c.is_active ? 'ACTIVE' : 'DISABLED'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1 text-xs font-mono">
+                        <div className="text-white text-base font-bold">
+                          {c.discount_type === 'percent' ? `${c.discount_value}% OFF` : `₱${Number(c.discount_value).toFixed(2)} OFF`}
+                        </div>
+                        <div className="text-zinc-400 text-[11px]">
+                          Min Spend: {Number(c.min_spend) > 0 ? `₱${Number(c.min_spend).toFixed(2)}` : 'No minimum'}
+                        </div>
+                        <div className="text-zinc-500 text-[11px]">
+                          Redemptions: <strong className="text-zinc-300">{c.times_used || 0}</strong> {c.max_uses ? `/ ${c.max_uses}` : '(Unlimited)'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-zinc-800/60 text-xs font-mono">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCoupon(c.id, c.is_active)}
+                        className={`px-3 py-1.5 rounded-xl border transition-colors cursor-pointer text-[11px] font-semibold ${
+                          c.is_active
+                            ? 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800'
+                            : 'bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border-emerald-500/40'
+                        }`}
+                      >
+                        {c.is_active ? 'Deactivate' : 'Activate'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCoupon(c.id)}
+                        className="p-1.5 rounded-xl hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 transition-colors cursor-pointer"
+                        title="Delete Coupon"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* ── TAB 5: AUDIT TRAIL ── */}
@@ -5136,6 +5393,387 @@ export default function AdminPage() {
         onCropComplete={handleCropComplete}
         outputSize={800}
       />
+
+      {/* ── MODAL 8: ORDER DETAIL INSPECTION POP-UP ── */}
+      {selectedOrderForModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div
+            className="relative w-full max-w-3xl rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl p-6 sm:p-7 space-y-6 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-zinc-800/80 pb-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                    <Eye className="w-4 h-4" />
+                  </span>
+                  <h3 className="text-base font-mono font-bold text-white">Order Inspector</h3>
+                  <span className={`text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full font-bold border ${
+                    selectedOrderForModal.status === 'delivered'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                      : selectedOrderForModal.status === 'pending'
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                      : selectedOrderForModal.status === 'awaiting_payment'
+                      ? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
+                      : selectedOrderForModal.status === 'rejected'
+                      ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                  }`}>
+                    {selectedOrderForModal.status}
+                  </span>
+                </div>
+                <div className="text-xs font-mono text-zinc-500 flex items-center gap-2 pt-0.5">
+                  <span>ID: <code className="text-zinc-300 select-all">{selectedOrderForModal.id}</code></span>
+                  <span>•</span>
+                  <span>{new Date(selectedOrderForModal.created_at).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedOrderForModal(null);
+                  setShowRejectForm(false);
+                }}
+                className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Grid 1: Customer & Payment Rail */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5 font-mono text-xs">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Customer Information</span>
+                <div className="text-white font-semibold truncate">{selectedOrderForModal.email}</div>
+                <div className="text-zinc-400 text-[11px]">Discord ID: {selectedOrderForModal.discord_id || 'Not linked / Web Buyer'}</div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5 font-mono text-xs">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Payment Channel</span>
+                <div className="text-purple-300 font-bold">{selectedOrderForModal.provider_label || selectedOrderForModal.provider}</div>
+                <div className="text-zinc-400 text-[11px]">Currency: {selectedOrderForModal.currency}</div>
+              </div>
+            </div>
+
+            {/* Items Roster */}
+            <div className="space-y-2">
+              <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold block">Purchased Items</span>
+              <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-2">
+                {Array.isArray(selectedOrderForModal.payment_details?.cart_items) && selectedOrderForModal.payment_details.cart_items.length > 0 ? (
+                  selectedOrderForModal.payment_details.cart_items.map((ci: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between text-xs font-mono py-1 border-b border-zinc-800/50 last:border-0">
+                      <div>
+                        <div className="text-white font-bold">{ci.title || 'Product'}</div>
+                        <div className="text-[11px] text-zinc-400">{ci.tierName || ci.tierKey} × {ci.quantity || 1}</div>
+                      </div>
+                      <div className="text-zinc-200 font-semibold">
+                        {selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{(Number(selectedOrderForModal.currency === 'USD' ? ci.priceUSD : ci.pricePHP) * (ci.quantity || 1)).toFixed(2)}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <div>
+                      <div className="text-white font-bold">{selectedOrderForModal.products?.title || (selectedOrderForModal.order_type === 'balance_topup' ? 'Web Balance Top-Up' : 'ASYNC Product License')}</div>
+                      <div className="text-[11px] text-zinc-400">{selectedOrderForModal.tier_key || 'Standard Tier'}</div>
+                    </div>
+                    <div className="text-zinc-200 font-semibold">
+                      {selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.amount).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Ledger Breakdown */}
+            <div className="p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-2 font-mono text-xs">
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Financial Breakdown</span>
+              <div className="flex items-center justify-between text-zinc-400">
+                <span>Base Subtotal</span>
+                <span>{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details?.base_amount || selectedOrderForModal.amount).toFixed(2)}</span>
+              </div>
+
+              {selectedOrderForModal.payment_details?.coupon_code && (
+                <div className="flex items-center justify-between text-emerald-400 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <span>Applied Coupon</span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 text-[10px]">
+                      {selectedOrderForModal.payment_details.coupon_code}
+                    </span>
+                  </span>
+                  <span>-{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details.discount_amount || 0).toFixed(2)}</span>
+                </div>
+              )}
+
+              {Number(selectedOrderForModal.payment_details?.fee_amount || 0) > 0 && (
+                <div className="flex items-center justify-between text-zinc-400">
+                  <span>Gateway Surcharge (+{selectedOrderForModal.payment_details?.fee_percent}%)</span>
+                  <span className="text-amber-400">+{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details.fee_amount).toFixed(2)}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-sm font-bold text-white pt-2 border-t border-zinc-800">
+                <span>Total Amount Due</span>
+                <span className="text-purple-400">{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.amount).toFixed(2)} {selectedOrderForModal.currency}</span>
+              </div>
+            </div>
+
+            {/* Verification Proof & Customer Ref */}
+            <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-2 font-mono text-xs">
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Payment Verification & Proof</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                <div>
+                  <span className="text-zinc-500">Customer Submitted Ref / TxID:</span>
+                  <div className="text-white font-bold text-xs mt-0.5 select-all p-2 rounded-lg bg-zinc-950 border border-zinc-800">
+                    {selectedOrderForModal.payment_details?.customer_reference || 'None submitted yet'}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-zinc-500">Assigned Memo / Ref Code:</span>
+                  <div className="text-amber-300 font-bold text-xs mt-0.5 select-all p-2 rounded-lg bg-zinc-950 border border-zinc-800">
+                    {selectedOrderForModal.payment_details?.paypal_note || selectedOrderForModal.payment_details?.ref_code || 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              {selectedOrderForModal.license_key && (
+                <div className="pt-2 border-t border-zinc-800/50">
+                  <span className="text-zinc-500 text-[10px] block mb-1">Delivered Cryptographic License Key:</span>
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold">
+                    <span className="select-all truncate mr-2">{selectedOrderForModal.license_key}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedOrderForModal.license_key);
+                        alert('License key copied to clipboard!');
+                      }}
+                      className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] cursor-pointer"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedOrderForModal.payment_details?.rejection_reason && (
+                <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs">
+                  Rejection Reason: {selectedOrderForModal.payment_details.rejection_reason}
+                </div>
+              )}
+            </div>
+
+            {/* Administrative Action Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-800/80">
+              <div className="flex items-center gap-2">
+                {(selectedOrderForModal.status === 'pending' || selectedOrderForModal.status === 'awaiting_payment') && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        await handleApproveOrder(selectedOrderForModal.id);
+                        setSelectedOrderForModal(null);
+                      }}
+                      disabled={processingOrderId === selectedOrderForModal.id}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/50 disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{selectedOrderForModal.order_type === 'balance_topup' ? 'Approve & Credit Balance' : 'Approve & Dispatch Key'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowRejectForm(!showRejectForm)}
+                      className="px-3.5 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-mono font-medium transition-colors cursor-pointer"
+                    >
+                      <span>Reject...</span>
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        await handleCancelOrder(selectedOrderForModal.id);
+                        setSelectedOrderForModal(null);
+                      }}
+                      className="px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-mono transition-colors cursor-pointer"
+                    >
+                      <span>Cancel Order</span>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedOrderForModal(null);
+                  setShowRejectForm(false);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer"
+              >
+                Close Inspector
+              </button>
+            </div>
+
+            {/* Inline Reject Form */}
+            {showRejectForm && (
+              <div className="p-4 rounded-2xl bg-rose-950/20 border border-rose-500/40 space-y-3 pt-3">
+                <span className="text-xs font-mono font-bold text-rose-300 block">Reject Payment with Reason:</span>
+                <input
+                  type="text"
+                  value={rejectReasonInput}
+                  onChange={(e) => setRejectReasonInput(e.target.value)}
+                  placeholder="e.g. Reference number not found in bank ledger"
+                  className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-rose-500/40 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none"
+                />
+                <div className="flex items-center gap-2 justify-end">
+                  <button
+                    onClick={() => setShowRejectForm(false)}
+                    className="px-3 py-1.5 rounded-lg bg-zinc-900 text-xs font-mono text-zinc-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (!rejectReasonInput.trim()) return;
+                      await handleRejectOrder(selectedOrderForModal.id);
+                      setSelectedOrderForModal(null);
+                      setShowRejectForm(false);
+                      setRejectReasonInput('');
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-mono font-bold text-white"
+                  >
+                    Confirm Rejection
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 9: CREATE COUPON MODAL ── */}
+      {showCreateCouponModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl p-6 space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                  <Tag className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-mono font-bold text-white">Create Promo Code</span>
+              </div>
+              <button
+                onClick={() => setShowCreateCouponModal(false)}
+                className="p-1.5 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCoupon} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider font-bold mb-1.5">
+                  Coupon Code
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={couponFormCode}
+                  onChange={(e) => setCouponFormCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+                  placeholder="e.g. FLASH20"
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500 uppercase tracking-wider"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider font-bold mb-1.5">
+                    Discount Type
+                  </label>
+                  <select
+                    value={couponFormType}
+                    onChange={(e: any) => setCouponFormType(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="percent">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount (₱)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider font-bold mb-1.5">
+                    Discount Value {couponFormType === 'percent' ? '(%)' : '(₱)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={couponFormValue}
+                    onChange={(e) => setCouponFormValue(e.target.value)}
+                    placeholder={couponFormType === 'percent' ? '10' : '50'}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider font-bold mb-1.5">
+                    Min Spend (₱)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={couponFormMinSpend}
+                    onChange={(e) => setCouponFormMinSpend(e.target.value)}
+                    placeholder="0"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider font-bold mb-1.5">
+                    Max Uses (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={couponFormMaxUses}
+                    onChange={(e) => setCouponFormMaxUses(e.target.value)}
+                    placeholder="Unlimited"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="text-[11px] font-mono text-zinc-500 bg-zinc-900/50 p-3 rounded-xl border border-zinc-800/80">
+                Notice: Coupons automatically exclude items in cart that are already on sale or discounted.
+              </div>
+
+              {couponError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs font-mono text-rose-400">
+                  {couponError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-zinc-800/80">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCouponModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingCoupon}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-mono font-bold transition-all cursor-pointer"
+                >
+                  {savingCoupon ? 'Creating...' : 'Save Coupon'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

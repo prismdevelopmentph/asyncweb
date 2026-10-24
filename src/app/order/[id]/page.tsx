@@ -66,6 +66,11 @@ interface OrderData {
   paidAt?: string | null;
   deliveredAt?: string | null;
   licenseKey?: string | null;
+  couponCode?: string | null;
+  discountAmount?: number;
+  expiresAt?: string;
+  remainingSeconds?: number;
+  lockWindowSeconds?: number;
   items: OrderItem[];
 }
 
@@ -88,6 +93,38 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const [cancelling, setCancelling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // 15-Minute Payment Lock Countdown Timer
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (order?.remainingSeconds !== undefined) {
+      setSecondsLeft(order.remainingSeconds);
+    }
+  }, [order?.remainingSeconds]);
+
+  useEffect(() => {
+    if (secondsLeft === null || secondsLeft <= 0 || order?.status !== 'awaiting_payment' || order?.hasSubmittedRef) return;
+
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          fetchOrder();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [secondsLeft, order?.status, order?.hasSubmittedRef]);
+
+  const formatLockTimer = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   // 1. Fetch order data
   const fetchOrder = async () => {
@@ -296,7 +333,20 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
             </div>
 
             {/* Header Right Action */}
-            <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-center shrink-0">
+              {order.status === 'awaiting_payment' && !order.hasSubmittedRef && secondsLeft !== null && secondsLeft > 0 && (
+                <div className={`px-3 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 border transition-all ${
+                  secondsLeft < 120
+                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                    : secondsLeft < 300
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                }`}>
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Lock: {formatLockTimer(secondsLeft)}</span>
+                </div>
+              )}
+
               {canCancel && (
                 <button
                   onClick={() => setShowCancelModal(true)}
@@ -967,6 +1017,20 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   <span>Subtotal</span>
                   <span>{order.currency === 'PHP' ? '₱' : '$'}{(order.baseAmount ?? order.subtotal).toFixed(2)}</span>
                 </div>
+
+                {Boolean(order.discountAmount && order.discountAmount > 0) && (
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span className="flex items-center gap-1.5">
+                      <span>Promo Discount</span>
+                      {order.couponCode && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                          {order.couponCode}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-emerald-400 font-semibold">-{order.currency === 'PHP' ? '₱' : '$'}{order.discountAmount?.toFixed(2)}</span>
+                  </div>
+                )}
 
                 {Boolean(order.feeAmount && order.feeAmount > 0) && (
                   <div className="flex items-center justify-between text-zinc-400">

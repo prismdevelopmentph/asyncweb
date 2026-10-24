@@ -24,6 +24,35 @@ export async function GET(
     const details = order.payment_details || {};
     const product = order.products;
 
+    // 15-Minute Payment Lock & Auto-Cancellation Logic
+    const LOCK_WINDOW_SECONDS = 15 * 60; // 900s
+    const createdAtMs = new Date(order.created_at).getTime();
+    const nowMs = Date.now();
+    const elapsedSeconds = Math.floor((nowMs - createdAtMs) / 1000);
+    const remainingSeconds = Math.max(0, LOCK_WINDOW_SECONDS - elapsedSeconds);
+    const expiresAt = new Date(createdAtMs + LOCK_WINDOW_SECONDS * 1000).toISOString();
+    const hasSubmittedRef = Boolean(details.customer_reference || details.reference_submitted_at);
+
+    // If awaiting payment, over 15 minutes elapsed, and no reference was submitted: auto-cancel
+    if (order.status === 'awaiting_payment' && !hasSubmittedRef && elapsedSeconds >= LOCK_WINDOW_SECONDS) {
+      const updatedDetails = {
+        ...details,
+        cancelled_at: new Date().toISOString(),
+        cancelled_by: 'system_lock_expired',
+        cancellation_reason: '15-minute payment lock expired without payment proof'
+      };
+
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'cancelled',
+          payment_details: updatedDetails
+        })
+        .eq('id', id);
+
+      order.status = 'cancelled';
+    }
+
     // Mask email for privacy (e.g. al***@gmail.com)
     const rawEmail = order.email || '';
     const [userPart, domainPart] = rawEmail.split('@');
@@ -111,11 +140,16 @@ export async function GET(
       refCode: details.ref_code || null,
       customerRef: details.customer_reference || null,
       rejectionReason: details.rejection_reason || null,
-      hasSubmittedRef: Boolean(details.customer_reference || details.reference_submitted_at),
+      hasSubmittedRef,
       createdAt: order.created_at,
       paidAt: order.paid_at,
       deliveredAt: order.delivered_at,
       licenseKey: order.status === 'delivered' ? order.license_key : null,
+      couponCode: details.coupon_code || null,
+      discountAmount: Number(details.discount_amount || 0),
+      expiresAt,
+      remainingSeconds,
+      lockWindowSeconds: LOCK_WINDOW_SECONDS,
       items
     });
   } catch (err: any) {

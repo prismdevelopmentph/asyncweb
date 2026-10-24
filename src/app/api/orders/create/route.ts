@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
       discordId,
       orderType = 'product_purchase', // 'product_purchase' | 'balance_topup'
       topupAmount,
-      cartItems
+      cartItems,
+      couponCode
     } = body;
 
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -68,6 +69,69 @@ export async function POST(req: NextRequest) {
         orderTierKey = tierKey;
       }
 
+      // ── NON-STACKING PROMO / COUPON CODE ENGINE ──
+      let appliedCouponCode: string | null = null;
+      let appliedDiscountAmount = 0;
+      let appliedDiscountType: 'percent' | 'fixed' | null = null;
+      let appliedDiscountValue = 0;
+
+      if (couponCode && typeof couponCode === 'string' && couponCode.trim()) {
+        const cleanCode = couponCode.trim().toUpperCase();
+        const { data: couponRow } = await supabaseAdmin
+          .from('coupons')
+          .select('*')
+          .ilike('code', cleanCode)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (couponRow) {
+          const isExpired = couponRow.expires_at && new Date(couponRow.expires_at) < new Date();
+          const isMaxed = couponRow.max_uses && Number(couponRow.times_used) >= Number(couponRow.max_uses);
+
+          if (!isExpired && !isMaxed) {
+            let eligibleSubtotalPhp = 0;
+
+            if (isCartOrder) {
+              for (const item of cartItems) {
+                const isDiscounted = Boolean(
+                  item.hasDiscount ||
+                  (item.discountPercent && Number(item.discountPercent) > 0) ||
+                  (item.originalPricePHP && Number(item.originalPricePHP) > Number(item.pricePHP))
+                );
+                if (!isDiscounted) {
+                  eligibleSubtotalPhp += Number(item.pricePHP || 0) * (Number(item.quantity) || 1);
+                }
+              }
+            } else {
+              eligibleSubtotalPhp = basePhp;
+            }
+
+            const minSpend = Number(couponRow.min_spend || 0);
+            if (eligibleSubtotalPhp > 0 && eligibleSubtotalPhp >= minSpend) {
+              const val = Number(couponRow.discount_value);
+              if (couponRow.discount_type === 'percent') {
+                appliedDiscountAmount = Math.round((eligibleSubtotalPhp * (val / 100)) * 100) / 100;
+              } else {
+                appliedDiscountAmount = Math.min(val, eligibleSubtotalPhp);
+              }
+
+              appliedCouponCode = couponRow.code;
+              appliedDiscountType = couponRow.discount_type;
+              appliedDiscountValue = val;
+
+              // Apply discount to basePhp
+              basePhp = Math.max(0, Math.round((basePhp - appliedDiscountAmount) * 100) / 100);
+
+              // Increment coupon usage
+              await supabaseAdmin
+                .from('coupons')
+                .update({ times_used: Number(couponRow.times_used || 0) + 1 })
+                .eq('id', couponRow.id);
+            }
+          }
+        }
+      }
+
       const baseUsd = Math.round(((basePhp / liveRate) + Number.EPSILON) * 100) / 100;
 
       // ── SUB-ROUTE: WEB BALANCE (Instant - 0% fee) ──
@@ -114,6 +178,8 @@ export async function POST(req: NextRequest) {
               fee_amount: 0,
               deducted_php: basePhp,
               remaining_balance: newBalance,
+              coupon_code: appliedCouponCode,
+              discount_amount: appliedDiscountAmount,
               ...(isCartOrder ? { cart_items: cartItems } : {})
             },
             status: 'paid',
@@ -156,6 +222,8 @@ export async function POST(req: NextRequest) {
               base_amount: basePhp,
               fee_percent: feePercent,
               fee_amount: feeAmount,
+              coupon_code: appliedCouponCode,
+              discount_amount: appliedDiscountAmount,
               qr_image_url: settings.paymongoQrUrl || settings.gcashQrUrl,
               account_name: settings.paymongoName,
               ref_code: refTag,
@@ -200,6 +268,8 @@ export async function POST(req: NextRequest) {
               base_amount: basePhp,
               fee_percent: feePercent,
               fee_amount: feeAmount,
+              coupon_code: appliedCouponCode,
+              discount_amount: appliedDiscountAmount,
               gcash_number: settings.gcashNumber,
               gcash_name: settings.gcashName,
               gcash_qr_url: settings.gcashQrUrl,
@@ -238,6 +308,8 @@ export async function POST(req: NextRequest) {
               base_amount: basePhp,
               fee_percent: feePercent,
               fee_amount: feeAmount,
+              coupon_code: appliedCouponCode,
+              discount_amount: appliedDiscountAmount,
               maya_number: settings.mayaNumber,
               maya_name: settings.mayaName,
               maya_qr_url: settings.mayaQrUrl,
@@ -276,6 +348,8 @@ export async function POST(req: NextRequest) {
               base_amount: baseUsd,
               fee_percent: feePercent,
               fee_amount: feeAmount,
+              coupon_code: appliedCouponCode,
+              discount_amount: appliedDiscountAmount,
               paypal_email: settings.paypalEmail,
               paypal_note: uniqueMemo,
               original_php: basePhp,
@@ -313,6 +387,8 @@ export async function POST(req: NextRequest) {
               base_amount: baseUsd,
               fee_percent: feePercent,
               fee_amount: feeAmount,
+              coupon_code: appliedCouponCode,
+              discount_amount: appliedDiscountAmount,
               ltc_address: settings.cryptoLtc,
               usdt_address: settings.cryptoUsdt,
               ref_code: refTag,

@@ -12,7 +12,8 @@ import {
   CheckCircle2,
   Lock,
   Wallet,
-  Coins
+  Coins,
+  Tag
 } from 'lucide-react';
 
 interface CheckoutModalProps {
@@ -55,6 +56,12 @@ export default function CheckoutModal({
   const [emailInput, setEmailInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Promo Code State
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
 
   // User web balance
   const [balancePHP, setBalancePHP] = useState<number>(0);
@@ -121,11 +128,52 @@ export default function CheckoutModal({
   const activeFeePercent = getFeePercent(selectedProvider);
   const isUsdProvider = selectedProvider === 'paypal' || selectedProvider === 'crypto';
 
-  const basePrice = isUsdProvider ? tier.priceUSD : tier.pricePHP;
+  const rawBasePrice = isUsdProvider ? tier.priceUSD : tier.pricePHP;
+  const discountAmount = appliedCoupon ? Number(appliedCoupon.discountAmount || 0) : 0;
+  const basePrice = Math.max(0, rawBasePrice - discountAmount);
   const feeAmount = Math.round((basePrice * (activeFeePercent / 100)) * 100) / 100;
   const finalPrice = Math.round((basePrice + feeAmount) * 100) / 100;
 
-  const hasEnoughBalance = balancePHP >= tier.pricePHP;
+  const hasEnoughBalance = balancePHP >= basePrice;
+
+  const handleApplyPromo = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!promoInput.trim()) return;
+
+    setPromoLoading(true);
+    setPromoError(null);
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: promoInput.trim(),
+          items: [{
+            productId: product.id,
+            pricePHP: tier.pricePHP,
+            priceUSD: tier.priceUSD,
+            quantity: 1,
+            hasDiscount: tier.hasDiscount,
+            discountPercent: tier.discountPercent,
+            originalPricePHP: tier.originalPricePHP
+          }],
+          currency: isUsdProvider ? 'USD' : 'PHP'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setPromoError(data.error || 'Invalid coupon code.');
+        setAppliedCoupon(null);
+        return;
+      }
+      setAppliedCoupon(data);
+      setPromoInput('');
+    } catch (err: any) {
+      setPromoError(err?.message || 'Failed to validate promo code.');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,7 +186,7 @@ export default function CheckoutModal({
     }
 
     if (selectedProvider === 'balance' && !hasEnoughBalance) {
-      setErrorMsg(`Insufficient Web Balance. You need ₱${tier.pricePHP} but have ₱${balancePHP}.`);
+      setErrorMsg(`Insufficient Web Balance. You need ₱${basePrice} but have ₱${balancePHP}.`);
       return;
     }
 
@@ -153,6 +201,7 @@ export default function CheckoutModal({
           provider: selectedProvider,
           email: email || `${discordId}@discord.asyncdevph.xyz`,
           discordId: discordId || null,
+          couponCode: appliedCoupon?.code || null,
           orderType: 'product_purchase'
         })
       });
@@ -473,12 +522,79 @@ export default function CheckoutModal({
             </div>
           </div>
 
+          {/* Promo Code Input & Applied State */}
+          <div className="space-y-1.5">
+            {!appliedCoupon ? (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Tag className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                    placeholder="Promo code (regular price only)"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 uppercase tracking-wider"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={promoLoading || !promoInput.trim()}
+                  className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-xs font-mono font-bold text-zinc-200 transition-colors cursor-pointer shrink-0"
+                >
+                  {promoLoading ? 'Checking...' : 'Apply'}
+                </button>
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between text-xs font-mono">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                    {appliedCoupon.code}
+                  </span>
+                  <span className="text-[11px] text-purple-200 truncate">
+                    {appliedCoupon.message}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppliedCoupon(null);
+                    setPromoError(null);
+                  }}
+                  className="p-1 rounded hover:bg-purple-500/20 text-zinc-400 hover:text-white transition-colors cursor-pointer ml-2 shrink-0"
+                  title="Remove Promo"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {promoError && (
+              <div className="text-[11px] font-mono text-rose-400 leading-tight">
+                {promoError}
+              </div>
+            )}
+          </div>
+
           {/* Surcharge & Total Breakdown */}
           <div className="p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-1.5 font-mono text-xs">
             <div className="flex items-center justify-between text-zinc-400">
               <span>Item Subtotal</span>
-              <span>{isUsdProvider ? `$${basePrice.toFixed(2)} USD` : `₱${basePrice.toLocaleString('en-PH')} PHP`}</span>
+              <span>{isUsdProvider ? `$${rawBasePrice.toFixed(2)} USD` : `₱${rawBasePrice.toLocaleString('en-PH')} PHP`}</span>
             </div>
+            {discountAmount > 0 && (
+              <div className="flex items-center justify-between text-emerald-400 font-medium">
+                <span className="flex items-center gap-1.5">
+                  <span>Coupon Discount</span>
+                  {appliedCoupon?.code && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                      {appliedCoupon.code}
+                    </span>
+                  )}
+                </span>
+                <span>-{isUsdProvider ? `$${discountAmount.toFixed(2)} USD` : `₱${discountAmount.toFixed(2)} PHP`}</span>
+              </div>
+            )}
             {activeFeePercent > 0 && (
               <div className="flex items-center justify-between text-zinc-400">
                 <span>Gateway Fee (+{activeFeePercent}%)</span>

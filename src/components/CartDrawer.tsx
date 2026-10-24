@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   Zap,
   Sparkles,
-  Package
+  Package,
+  Tag
 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import CartCheckoutModal from '@/components/CartCheckoutModal';
@@ -36,6 +37,48 @@ export default function CartDrawer() {
   const [currency, setCurrency] = useState<'PHP' | 'USD'>('PHP');
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Promo Code State
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+
+  const handleApplyPromo = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!promoInput.trim()) return;
+
+    setPromoLoading(true);
+    setPromoError(null);
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: promoInput.trim(),
+          items,
+          currency
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setPromoError(data.error || 'Invalid coupon code.');
+        setAppliedCoupon(null);
+        return;
+      }
+      setAppliedCoupon(data);
+      setPromoInput('');
+    } catch (err: any) {
+      setPromoError(err?.message || 'Failed to validate promo code.');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedCoupon(null);
+    setPromoError(null);
+  };
 
   // Fetch current user session for checkout modal
   useEffect(() => {
@@ -224,8 +267,64 @@ export default function CartDrawer() {
         {/* Drawer Footer */}
         {items.length > 0 && (
           <div className="p-5 border-t border-zinc-800/80 bg-zinc-900/60 space-y-4 shrink-0">
+            {/* Promo Code Input & Applied State */}
+            <div className="space-y-1.5">
+              {!appliedCoupon ? (
+                <form onSubmit={handleApplyPromo} className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-500" />
+                    <input
+                      type="text"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                      placeholder="Promo / Coupon code"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 uppercase tracking-wider"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={promoLoading || !promoInput.trim()}
+                    className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-xs font-mono font-bold text-zinc-200 transition-colors cursor-pointer shrink-0"
+                  >
+                    {promoLoading ? 'Checking...' : 'Apply'}
+                  </button>
+                </form>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between text-xs font-mono">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                      {appliedCoupon.code}
+                    </span>
+                    <span className="text-[11px] text-purple-200 truncate">
+                      {appliedCoupon.message}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemovePromo}
+                    className="p-1 rounded hover:bg-purple-500/20 text-zinc-400 hover:text-white transition-colors cursor-pointer ml-2 shrink-0"
+                    title="Remove Promo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {promoError && (
+                <div className="text-[11px] font-mono text-rose-400 leading-tight">
+                  {promoError}
+                </div>
+              )}
+
+              {appliedCoupon && appliedCoupon.excludedItemsCount > 0 && (
+                <div className="text-[10px] font-mono text-zinc-500">
+                  *Non-stacking rule: applied to regular-priced items only.
+                </div>
+              )}
+            </div>
+
             {/* Currency Selector & Subtotal */}
-            <div className="space-y-2">
+            <div className="space-y-2 pt-2 border-t border-zinc-800/60">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono text-zinc-400">Currency</span>
                 <div className="flex items-center p-0.5 rounded-lg bg-zinc-950 border border-zinc-800 font-mono text-[11px]">
@@ -252,10 +351,35 @@ export default function CartDrawer() {
                 </div>
               </div>
 
+              {appliedCoupon && Number(appliedCoupon.discountAmount) > 0 && (
+                <div className="space-y-1 pt-1 text-xs font-mono">
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span>Subtotal</span>
+                    <span>{formatPrice(totalUSD, totalPHP)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-emerald-400 font-medium">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span>
+                      -{formatPrice(
+                        currency === 'USD' ? Number(appliedCoupon.discountAmount) : 0,
+                        currency === 'PHP' ? Number(appliedCoupon.discountAmount) : 0
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-baseline justify-between pt-1">
                 <span className="text-xs font-mono text-zinc-400">Total Due</span>
                 <span className="text-xl font-mono font-bold text-white">
-                  {formatPrice(totalUSD, totalPHP)}
+                  {formatPrice(
+                    appliedCoupon && currency === 'USD'
+                      ? Math.max(0, totalUSD - Number(appliedCoupon.discountAmount))
+                      : totalUSD,
+                    appliedCoupon && currency === 'PHP'
+                      ? Math.max(0, totalPHP - Number(appliedCoupon.discountAmount))
+                      : totalPHP
+                  )}
                 </span>
               </div>
             </div>
@@ -299,6 +423,7 @@ export default function CartDrawer() {
           isOpen={isCheckoutModalOpen}
           onClose={() => setIsCheckoutModalOpen(false)}
           currentUser={currentUser}
+          appliedCoupon={appliedCoupon}
         />
       )}
     </>
