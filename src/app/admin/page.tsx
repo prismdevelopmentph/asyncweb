@@ -179,6 +179,9 @@ export default function AdminPage() {
   const [showPaymentConfig, setShowPaymentConfig] = useState(false);
 
   const [payConfigPaymongoEnabled, setPayConfigPaymongoEnabled] = useState(true);
+  const [payConfigPaymongoAutomated, setPayConfigPaymongoAutomated] = useState(true);
+  const [payConfigPaymongoSecretKey, setPayConfigPaymongoSecretKey] = useState('');
+  const [payConfigPaymongoWebhookSecret, setPayConfigPaymongoWebhookSecret] = useState('');
   const [payConfigPaymongoName, setPayConfigPaymongoName] = useState('ASYNC DEV');
   const [payConfigPaymongoQrUrl, setPayConfigPaymongoQrUrl] = useState('');
   const [payConfigPaymongoFeePercent, setPayConfigPaymongoFeePercent] = useState('3.5');
@@ -564,6 +567,9 @@ export default function AdminPage() {
         const data = await res.json();
         if (data.settings) {
           setPayConfigPaymongoEnabled(data.settings.paymongoEnabled !== false);
+          setPayConfigPaymongoAutomated(data.settings.paymongoAutomated !== false);
+          setPayConfigPaymongoSecretKey(data.settings.paymongoSecretKey || '');
+          setPayConfigPaymongoWebhookSecret(data.settings.paymongoWebhookSecret || '');
           setPayConfigPaymongoName(data.settings.paymongoName || 'ASYNC DEV');
           setPayConfigPaymongoQrUrl(data.settings.paymongoQrUrl || '');
           setPayConfigPaymongoFeePercent(String(data.settings.paymongoFeePercent ?? 3.5));
@@ -652,6 +658,9 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           paymongoEnabled: payConfigPaymongoEnabled,
+          paymongoAutomated: payConfigPaymongoAutomated,
+          paymongoSecretKey: payConfigPaymongoSecretKey,
+          paymongoWebhookSecret: payConfigPaymongoWebhookSecret,
           paymongoName: payConfigPaymongoName,
           paymongoQrUrl: payConfigPaymongoQrUrl,
           paymongoFeePercent: payConfigPaymongoFeePercent,
@@ -3540,6 +3549,61 @@ export default function AdminPage() {
                       placeholder="e.g. ASYNC ENTERPRISES"
                       className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-700/60 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500"
                     />
+                  </div>
+
+                  {/* AUTOMATED PAYMONGO CHECKOUT & WEBHOOK SETTINGS */}
+                  <div className="p-3.5 rounded-2xl bg-zinc-900/90 border border-purple-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-purple-400" />
+                        <span className="text-[11px] font-bold text-white uppercase tracking-wider">Automated API Checkout</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPayConfigPaymongoAutomated(!payConfigPaymongoAutomated)}
+                        className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          payConfigPaymongoAutomated ? 'bg-purple-600' : 'bg-zinc-700'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                            payConfigPaymongoAutomated ? 'translate-x-3' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {payConfigPaymongoAutomated && (
+                      <div className="space-y-2.5 pt-1">
+                        <div>
+                          <label className="text-[10px] text-zinc-400 mb-1 block">PayMongo Secret Key</label>
+                          <input
+                            type="password"
+                            value={payConfigPaymongoSecretKey}
+                            onChange={(e) => setPayConfigPaymongoSecretKey(e.target.value)}
+                            placeholder="sk_live_... or sk_test_..."
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-[11px] text-purple-300 font-mono placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-zinc-400 mb-1 block">Webhook Signing Secret</label>
+                          <input
+                            type="password"
+                            value={payConfigPaymongoWebhookSecret}
+                            onChange={(e) => setPayConfigPaymongoWebhookSecret(e.target.value)}
+                            placeholder="whsk_..."
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-[11px] text-purple-300 font-mono placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                          />
+                        </div>
+
+                        <div className="p-2 rounded-lg bg-zinc-950/80 border border-zinc-800/80 text-[10px] text-zinc-400 space-y-1">
+                          <div className="text-zinc-300 font-bold">Register in PayMongo Dashboard:</div>
+                          <div className="text-purple-300 select-all font-mono break-all">https://asyncdevph.xyz/api/webhooks/paymongo</div>
+                          <div className="text-zinc-500">Events: checkout_session.payment.paid, payment.paid</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>

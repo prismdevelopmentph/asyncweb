@@ -213,6 +213,11 @@ export default function CheckoutModal({
         return;
       }
 
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
       router.push(`/order/${data.orderId}`);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Network error occurred. Please try again.');

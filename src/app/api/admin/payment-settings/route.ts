@@ -58,6 +58,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       paymongoEnabled,
+      paymongoAutomated,
+      paymongoSecretKey,
+      paymongoWebhookSecret,
       paymongoName,
       paymongoQrUrl,
       paymongoFeePercent,
@@ -86,6 +89,9 @@ export async function POST(req: NextRequest) {
 
     const upserts = [
       { key: 'payment_paymongo_enabled', value: paymongoEnabled !== false ? 'true' : 'false' },
+      { key: 'payment_paymongo_automated', value: paymongoAutomated !== false ? 'true' : 'false' },
+      { key: 'payment_paymongo_secret_key', value: (paymongoSecretKey || '').trim() },
+      { key: 'payment_paymongo_webhook_secret', value: (paymongoWebhookSecret || '').trim() },
       { key: 'payment_paymongo_name', value: (paymongoName || '').trim() },
       { key: 'payment_paymongo_qr_url', value: (paymongoQrUrl || '').trim() },
       { key: 'payment_paymongo_fee_percent', value: String(Math.max(0, parseFloat(paymongoFeePercent) || 0)) },

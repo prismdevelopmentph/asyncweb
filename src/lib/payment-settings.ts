@@ -1,8 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabase';
 
 export interface PaymentSettings {
-  // PayMongo QRPH (In-Store Static QR)
+  // PayMongo QRPH & Automated Checkout API
   paymongoEnabled: boolean;
+  paymongoAutomated: boolean;
+  paymongoSecretKey: string;
+  paymongoWebhookSecret: string;
   paymongoName: string;
   paymongoQrUrl: string;
   paymongoFeePercent: number;
@@ -35,6 +38,9 @@ export interface PaymentSettings {
 
 export const DEFAULT_PAYMENT_SETTINGS: PaymentSettings = {
   paymongoEnabled: true,
+  paymongoAutomated: true,
+  paymongoSecretKey: '',
+  paymongoWebhookSecret: '',
   paymongoName: 'ASYNC DEV',
   paymongoQrUrl: '',
   paymongoFeePercent: 3.5,
@@ -68,6 +74,9 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
       .select('key, value')
       .in('key', [
         'payment_paymongo_enabled',
+        'payment_paymongo_automated',
+        'payment_paymongo_secret_key',
+        'payment_paymongo_webhook_secret',
         'payment_paymongo_name',
         'payment_paymongo_qr_url',
         'payment_paymongo_fee_percent',
@@ -104,6 +113,15 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
         switch (row.key) {
           case 'payment_paymongo_enabled':
             settings.paymongoEnabled = val !== 'false';
+            break;
+          case 'payment_paymongo_automated':
+            settings.paymongoAutomated = val !== 'false';
+            break;
+          case 'payment_paymongo_secret_key':
+            settings.paymongoSecretKey = val;
+            break;
+          case 'payment_paymongo_webhook_secret':
+            settings.paymongoWebhookSecret = val;
             break;
           case 'payment_paymongo_name':
             if (val) settings.paymongoName = val;

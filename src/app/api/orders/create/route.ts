@@ -4,6 +4,7 @@ import { getUniquePayPalMemo } from '@/lib/paypal-memos';
 import { getPaymentSettings } from '@/lib/payment-settings';
 import { fulfillProductOrder } from '@/lib/fulfillment';
 import { getUsdToPhpRate } from '@/lib/currency';
+import { getPayMongoConfig, createPayMongoCheckoutSession } from '@/lib/paymongo';
 
 export async function POST(req: NextRequest) {
   try {
@@ -242,7 +243,56 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (orderErr || !newOrder) throw orderErr || new Error('Failed to create PayMongo QRPH order');
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+
+        // Attempt automated dynamic PayMongo Checkout Session creation
+        let paymongoCheckoutUrl: string | null = null;
+        try {
+          const { secretKey, isAutomated } = await getPayMongoConfig();
+          if (secretKey && isAutomated) {
+            const host = req.headers.get('host') || 'asyncdevph.xyz';
+            const proto = req.headers.get('x-forwarded-proto') || 'https';
+            const originUrl = `${proto}://${host}`;
+
+            const pmSession = await createPayMongoCheckoutSession(secretKey, {
+              orderId: newOrder.id,
+              amountPHP: finalChargedPhp,
+              productName: isCartOrder ? `${cartItems.length} Cart Products` : 'ASYNC Product License',
+              customerEmail: cleanEmail,
+              customerDiscordId: discordId || null,
+              originUrl,
+              lineItems: isCartOrder
+                ? cartItems.map((c: any) => ({
+                    name: c.title || 'ASYNC Product',
+                    quantity: Math.max(1, Number(c.quantity) || 1),
+                    amountPHP: Number(c.pricePHP || c.price || 0)
+                  }))
+                : undefined
+            });
+
+            paymongoCheckoutUrl = pmSession.checkoutUrl;
+
+            await supabaseAdmin
+              .from('orders')
+              .update({
+                payment_details: {
+                  ...newOrder.payment_details,
+                  paymongo_checkout_session_id: pmSession.sessionId,
+                  paymongo_checkout_url: pmSession.checkoutUrl,
+                  paymongo_created_at: new Date().toISOString()
+                }
+              })
+              .eq('id', newOrder.id);
+          }
+        } catch (pmErr) {
+          console.warn('[Orders Create] PayMongo automated session creation warning, falling back to static QR:', pmErr);
+        }
+
+        return NextResponse.json({
+          ok: true,
+          orderId: newOrder.id,
+          status: 'awaiting_payment',
+          checkoutUrl: paymongoCheckoutUrl
+        });
       }
 
       // ── SUB-ROUTE: GCASH DIRECT ──

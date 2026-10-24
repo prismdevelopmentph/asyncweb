@@ -55,6 +55,8 @@ interface OrderData {
   mayaEnabled?: boolean;
   paymongoQrUrl?: string | null;
   paymongoName?: string | null;
+  paymongoCheckoutUrl?: string | null;
+  paymongoSessionId?: string | null;
   cryptoLtc?: string | null;
   cryptoUsdt?: string | null;
   qrImageUrl?: string | null;
@@ -93,6 +95,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const [cancelling, setCancelling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // PayMongo Automated Session state
+  const [generatingPmSession, setGeneratingPmSession] = useState(false);
 
   // 15-Minute Payment Lock Countdown Timer
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -210,6 +215,31 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       console.error(err);
     } finally {
       setSubmittingRef(false);
+    }
+  };
+
+  const handleLaunchPayMongo = async () => {
+    if (order?.paymongoCheckoutUrl) {
+      window.location.href = order.paymongoCheckoutUrl;
+      return;
+    }
+    setGeneratingPmSession(true);
+    try {
+      const res = await fetch('/api/paymongo/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id })
+      });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        alert(data.error || 'Failed to initialize PayMongo checkout session.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error launching PayMongo session.');
+    } finally {
+      setGeneratingPmSession(false);
     }
   };
 
@@ -690,6 +720,39 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   <span className="text-xl sm:text-2xl font-mono font-bold text-white">
                     ₱{order.amount.toLocaleString('en-PH')} PHP
                   </span>
+                </div>
+
+                {/* AUTOMATED PAYMONGO CHECKOUT ACTION */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/40 via-purple-950/60 to-purple-900/40 border border-purple-500/40 space-y-2.5 text-center shadow-lg shadow-purple-950/30">
+                  <div className="text-xs font-mono font-bold text-purple-200 flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Real-Time Automated PayMongo Available</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 max-w-sm mx-auto">
+                    Launch the official PayMongo checkout page to pay with dynamic QR Ph or direct e-wallets. Zero receipt upload required.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleLaunchPayMongo}
+                    disabled={generatingPmSession}
+                    className="w-full py-3 px-5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-mono font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-purple-950/40"
+                  >
+                    {generatingPmSession ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="w-4 h-4" />
+                    )}
+                    <span>
+                      {order.paymongoCheckoutUrl
+                        ? 'Proceed to PayMongo Checkout Page'
+                        : generatingPmSession
+                        ? 'Creating Checkout Session...'
+                        : 'Launch Automated PayMongo Checkout'}
+                    </span>
+                  </button>
+                  <div className="text-[10px] font-mono text-zinc-400">
+                    ⚡ Instant auto-fulfillment: your license key unlocks seconds after payment.
+                  </div>
                 </div>
 
                 <div className="p-5 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex flex-col items-center text-center space-y-4 max-w-sm mx-auto w-full">

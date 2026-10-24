@@ -134,6 +134,8 @@ export async function GET(
       mayaEnabled: details.maya_enabled !== undefined ? Boolean(details.maya_enabled) : true,
       paymongoQrUrl: details.qr_image_url || null,
       paymongoName: details.account_name || null,
+      paymongoCheckoutUrl: details.paymongo_checkout_url || null,
+      paymongoSessionId: details.paymongo_checkout_session_id || null,
       cryptoLtc: details.ltc_address || null,
       cryptoUsdt: details.usdt_address || null,
       qrImageUrl: details.qr_image_url || details.gcash_qr_url || details.maya_qr_url || null,
