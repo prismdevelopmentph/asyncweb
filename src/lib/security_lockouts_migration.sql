@@ -29,3 +29,4 @@ ON public.security_lockouts (is_banned);
 
 CREATE INDEX IF NOT EXISTS idx_security_lockouts_created_at 
 ON public.security_lockouts (created_at DESC);
+

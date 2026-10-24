@@ -532,7 +532,7 @@ export default function CheckoutModal({
                     type="text"
                     value={promoInput}
                     onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                    placeholder="Promo code (regular price only)"
+                    placeholder="Promo / Coupon code"
                     className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 uppercase tracking-wider"
                   />
                 </div>

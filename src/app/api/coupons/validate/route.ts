@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       const symbol = currency === 'USD' ? '$' : '₱';
       return NextResponse.json({
         ok: false,
-        error: `Minimum spend of ${symbol}${minSpend.toFixed(2)} on regular-priced items required for this coupon.`
+        error: `Minimum spend of ${symbol}${minSpend.toFixed(2)} required for this coupon.`
       }, { status: 400 });
     }
 
@@ -90,8 +90,8 @@ export async function POST(req: NextRequest) {
 
     const symbol = currency === 'USD' ? '$' : '₱';
     const message = coupon.discount_type === 'percent'
-      ? `${discountVal}% off regular-priced items`
-      : `${symbol}${discountVal.toFixed(2)} off regular-priced items`;
+      ? `${discountVal}% off`
+      : `${symbol}${discountVal.toFixed(2)} off`;
 
     return NextResponse.json({
       ok: true,

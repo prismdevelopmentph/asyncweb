@@ -315,12 +315,6 @@ export default function CartDrawer() {
                   {promoError}
                 </div>
               )}
-
-              {appliedCoupon && appliedCoupon.excludedItemsCount > 0 && (
-                <div className="text-[10px] font-mono text-zinc-500">
-                  *Non-stacking rule: applied to regular-priced items only.
-                </div>
-              )}
             </div>
 
             {/* Currency Selector & Subtotal */}
