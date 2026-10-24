@@ -146,21 +146,61 @@ export default function DevToolsProtection() {
       e.preventDefault();
     };
 
-    // C. DevTools Dock & Resize Differential Polling
+    // C. Hardened DevTools Dock & Resize Differential Polling
+    let consecutiveHits = 0;
+
     const checkDimensions = () => {
-      // Mobile browsers dynamically shrink innerHeight for address bars/touch keyboards, causing false differentials (>300px)
-      if (isMobileDevice()) return;
+      if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
-      // Desktop browsers: DevTools docked open causes substantial differential (> 380px)
-      const widthDiff = window.outerWidth - window.innerWidth;
-      const heightDiff = window.outerHeight - window.innerHeight;
+      // 1. Mobile devices dynamically shrink innerHeight for address bars/touch keyboards
+      if (isMobileDevice()) {
+        consecutiveHits = 0;
+        return;
+      }
 
-      // Microsoft Edge features default built-in sidebars (Copilot / Bing / Tools panel) consuming ~320-350px width.
-      // Increase threshold for Edge to 390px, standard browsers to 380px
-      const threshold = isEdgeBrowser() ? 390 : 380;
+      // 2. Ignore when window is minimized, blurred, or tab is hidden
+      if (document.hidden || !document.hasFocus()) {
+        consecutiveHits = 0;
+        return;
+      }
 
-      if (widthDiff > threshold || heightDiff > threshold) {
-        triggerLockout('DevTools Dock Differential Detected');
+      // 3. Safeguard against collapsed layouts or initial unmeasured frames
+      if (
+        !window.outerWidth ||
+        !window.outerHeight ||
+        window.innerWidth < 250 ||
+        window.innerHeight < 250
+      ) {
+        consecutiveHits = 0;
+        return;
+      }
+
+      const dpr = window.devicePixelRatio && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+
+      // Compensate inner dimensions with devicePixelRatio to account for browser zoom and OS DPI scaling (125%, 150%, 175%)
+      const effectiveInnerWidth = Math.round(window.innerWidth * dpr);
+      const effectiveInnerHeight = Math.round(window.innerHeight * dpr);
+
+      // Delta in physical/device pixels
+      const widthDiff = window.outerWidth - effectiveInnerWidth;
+      const heightDiff = window.outerHeight - effectiveInnerHeight;
+
+      // Baseline window chrome allowances (browser tabs, address bar, scrollbars, sidebars)
+      // Standard browser title + URL bar is ~80-120 physical pixels.
+      // Sidebars (Edge Copilot, Opera sidebar, Brave panel) consume up to 360 physical pixels.
+      // An open DevTools docked window consumes >= 350-400 physical pixels.
+      const isEdge = isEdgeBrowser();
+      const thresholdWidth = isEdge ? 460 : 420;
+      const thresholdHeight = 440;
+
+      if (widthDiff > thresholdWidth || heightDiff > thresholdHeight) {
+        consecutiveHits++;
+        // Require 3 consecutive sustained hits (4.5s) to eliminate transient window snapping / resize glitches
+        if (consecutiveHits >= 3) {
+          triggerLockout('DevTools Dock Differential Detected');
+        }
+      } else {
+        consecutiveHits = 0;
       }
     };
 

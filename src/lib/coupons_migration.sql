@@ -30,3 +30,4 @@ VALUES
 ON CONFLICT (code) DO NOTHING;
 
 ANALYZE public.coupons;
+
