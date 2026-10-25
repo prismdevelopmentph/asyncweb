@@ -185,7 +185,7 @@ export async function POST(request: Request) {
               style: 3, // Success (Green)
               label: 'Unban Visitor',
               emoji: { name: '🔓' },
-              custom_id: `unban_sec:${savedRecord?.id || 'none'}:${ip}`
+              custom_id: `sec_unban_btn_${ip}`
             }
           ]
         }
