@@ -55,7 +55,19 @@ export async function POST(req: NextRequest) {
 
       // If product purchase: unblock to 'paid' and fulfill
       if (order.order_type === 'product_purchase') {
-        // Move pending / payment_mismatch / awaiting_payment / fulfillment_failed to 'paid' before fulfillment
+        // Guard active processing: allow recovery only if stuck/stale (> 5 minutes)
+        if (order.status === 'processing') {
+          const lastUpdatedMs = new Date(order.updated_at || order.created_at || nowIso).getTime();
+          const isStale = (Date.now() - lastUpdatedMs) > 5 * 60 * 1000;
+          if (!isStale) {
+            return NextResponse.json({
+              ok: false,
+              error: 'Order is currently being processed by another worker. Please wait 5 minutes before force-retrying.'
+            }, { status: 409 });
+          }
+        }
+
+        // Move pending / payment_mismatch / awaiting_payment / fulfillment_failed / stale processing to 'paid' before fulfillment
         await supabaseAdmin
           .from('orders')
           .update({
@@ -63,7 +75,7 @@ export async function POST(req: NextRequest) {
             paid_at: order.paid_at || nowIso
           })
           .eq('id', order.id)
-          .in('status', ['pending', 'payment_mismatch', 'awaiting_payment', 'fulfillment_failed']);
+          .in('status', ['pending', 'payment_mismatch', 'awaiting_payment', 'fulfillment_failed', 'processing']);
 
         const result = await fulfillProductOrder(order.id);
         if (!result.success || !result.licenseKey) {

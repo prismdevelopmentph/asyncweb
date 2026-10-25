@@ -209,12 +209,13 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
     }
 
     // Atomic idempotency lock: Claim order transition to 'processing'.
-    // Only ONE concurrent execution will match status in ['awaiting_payment', 'paid', 'fulfillment_failed'] and null license_key.
+    // Only ONE concurrent execution will match status in ['paid', 'fulfillment_failed'] and null license_key.
+    const nowIso = new Date().toISOString();
     const { data: lockedOrder } = await supabaseAdmin
       .from('orders')
-      .update({ status: 'processing' })
+      .update({ status: 'processing', updated_at: nowIso })
       .eq('id', orderId)
-      .in('status', ['awaiting_payment', 'paid', 'fulfillment_failed'])
+      .in('status', ['paid', 'fulfillment_failed'])
       .is('license_key', null)
       .select('id, status, license_key')
       .maybeSingle();
@@ -236,31 +237,61 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
 
     const details = order.payment_details || {};
     const cartItems = details.cart_items;
-    const generatedKeys: string[] = [];
 
+    interface RequiredItem {
+      productId: string | null;
+      tierKey: string;
+    }
+
+    const requiredItems: RequiredItem[] = [];
     if (Array.isArray(cartItems) && cartItems.length > 0) {
       for (const cItem of cartItems) {
-        const qty = Number(cItem.quantity) || 1;
+        const qty = Math.max(1, Math.min(20, Math.floor(Number(cItem.quantity) || 1)));
         for (let q = 0; q < qty; q++) {
-          const lic = await createLicenseForProduct(
-            cItem.productId,
-            cItem.tierKey || 'daily',
-            order.discord_id
-          );
-          generatedKeys.push(lic.licenseKey);
+          requiredItems.push({
+            productId: cItem.productId || null,
+            tierKey: cItem.tierKey || 'daily'
+          });
         }
       }
     } else {
+      requiredItems.push({
+        productId: order.product_id || null,
+        tierKey: order.tier_key || 'daily'
+      });
+    }
+
+    // Inspect licenses already minted during previous attempt(s)
+    const existingLicenses: string[] = Array.isArray(details.delivered_licenses)
+      ? [...details.delivered_licenses]
+      : [];
+
+    const generatedKeys: string[] = [...existingLicenses];
+
+    // Only mint remaining required licenses (resumes seamlessly on retry)
+    for (let i = existingLicenses.length; i < requiredItems.length; i++) {
+      const item = requiredItems[i];
       const lic = await createLicenseForProduct(
-        order.product_id,
-        order.tier_key || 'daily',
+        item.productId,
+        item.tierKey,
         order.discord_id
       );
       generatedKeys.push(lic.licenseKey);
+
+      // Persist partial progress immediately so retries never duplicate keys
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          payment_details: {
+            ...details,
+            delivered_licenses: generatedKeys
+          },
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
     }
 
     const finalKeyString = generatedKeys.join(', ');
-    const nowIso = new Date().toISOString();
 
     // Update order to status: 'delivered'
     await supabaseAdmin

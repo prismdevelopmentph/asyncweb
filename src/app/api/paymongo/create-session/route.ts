@@ -26,6 +26,17 @@ export async function POST(req: NextRequest) {
 
     // If order already has an active PayMongo session, return existing URL to prevent session overwrites
     if (details.paymongo_checkout_session_id && details.paymongo_checkout_url) {
+      const createdAtMs = details.paymongo_created_at ? new Date(details.paymongo_created_at).getTime() : 0;
+      const isExpired = createdAtMs > 0 && (Date.now() - createdAtMs > 24 * 60 * 60 * 1000);
+
+      if (isExpired) {
+        return NextResponse.json({
+          ok: false,
+          error: 'This payment session has expired (exceeded 24 hours). Please place a new order.',
+          expired: true
+        }, { status: 410 });
+      }
+
       return NextResponse.json({
         ok: true,
         checkoutUrl: details.paymongo_checkout_url,

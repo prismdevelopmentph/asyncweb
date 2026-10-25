@@ -98,6 +98,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
 
   // PayMongo Automated Session state
   const [generatingPmSession, setGeneratingPmSession] = useState(false);
+  const [pmSessionExpired, setPmSessionExpired] = useState(false);
 
   // 15-Minute Payment Lock Countdown Timer
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -234,6 +235,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       } else {
+        if (data.expired) {
+          setPmSessionExpired(true);
+        }
         alert(data.error || 'Failed to initialize PayMongo checkout session.');
       }
     } catch (err: any) {
@@ -760,6 +764,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                         : 'Launch Automated PayMongo Checkout'}
                     </span>
                   </button>
+                  {pmSessionExpired && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono text-center">
+                      This checkout session has expired (exceeded 24 hours). Please return to the store and place a new order.
+                    </div>
+                  )}
                   <div className="text-[10px] font-mono text-zinc-400">
                     ⚡ Instant auto-fulfillment: your license key unlocks seconds after payment.
                   </div>

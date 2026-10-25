@@ -135,6 +135,15 @@ export async function POST(req: NextRequest) {
         }
 
         basePhp = Math.round(basePhp);
+
+        const totalUnits = verifiedCartItems.reduce((acc, it) => acc + it.quantity, 0);
+        if (totalUnits > 50) {
+          return NextResponse.json({
+            ok: false,
+            error: `Total order quantity exceeds the maximum limit of 50 units (current total: ${totalUnits}).`
+          }, { status: 400 });
+        }
+
         orderProductId = verifiedCartItems[0]?.productId || null;
         orderTierKey = verifiedCartItems[0]?.tierKey || 'flat';
       } else {

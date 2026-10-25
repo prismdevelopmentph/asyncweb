@@ -252,8 +252,7 @@ export async function POST(req: NextRequest) {
           }
         })
         .eq('id', order.id)
-        .neq('status', 'delivered')
-        .neq('status', 'processing');
+        .not('status', 'in', '(delivered,processing)');
 
       return NextResponse.json({ received: true, mismatch: true, reason: 'Order could not be claimed; flagged for manual review' });
     }
