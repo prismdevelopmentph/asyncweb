@@ -285,6 +285,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(`${protocol}://admin.asyncdevph.xyz/`);
   }
 
+  // If hitting /generator on the apex domain in production, redirect to gen.asyncdevph.xyz
+  if (!isGenSubdomain && req.nextUrl.pathname === '/generator' && isProd) {
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    return NextResponse.redirect(`${protocol}://gen.asyncdevph.xyz/`);
+  }
+
   const subdomainTag = isGenSubdomain ? 'gen' : isAdminSubdomain ? 'admin' : 'main';
   const response = NextResponse.next();
   response.headers.set('x-subdomain', subdomainTag);
