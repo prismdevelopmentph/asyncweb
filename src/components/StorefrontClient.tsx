@@ -695,7 +695,21 @@ export default function StorefrontClient({
                         {/* Purchase Action Trigger */}
                         <button
                           type="button"
-                          onClick={() => setCheckoutTarget({ product: license, tier: activeTier })}
+                          onClick={() => {
+                            const fallbackTier = activeTier || {
+                              id: `flat_${license.id}`,
+                              tierKey: 'flat',
+                              name: 'Direct Access',
+                              pricePHP: Number(license.pricePHP) || 0,
+                              priceUSD: Number(license.priceUSD) || 0,
+                              originalPricePHP: Number(license.originalPricePHP) || 0,
+                              originalPriceUSD: Number(license.originalPriceUSD) || 0,
+                              discountPercent: Number(license.discountPercent) || 0,
+                              hasDiscount: Boolean(license.hasDiscount),
+                              dailyLimit: 0,
+                            };
+                            setCheckoutTarget({ product: license, tier: fallbackTier });
+                          }}
                           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold font-mono transition-all cursor-pointer shadow-md shadow-purple-950/40 group/btn"
                         >
                           <span>Purchase</span>

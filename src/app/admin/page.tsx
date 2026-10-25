@@ -246,6 +246,7 @@ export default function AdminPage() {
     dailyLimit: string;
   }
   const [prodTierOptions, setProdTierOptions] = useState<AdminTierOption[]>([]);
+  const [prodPricingType, setProdPricingType] = useState<'single' | 'tiered'>('tiered');
   const [liveFxRate, setLiveFxRate] = useState<number>(58.5);
   const [prodDiscountPercent, setProdDiscountPercent] = useState<string>('0');
   const [prodDetails, setProdDetails] = useState<string>('');
@@ -725,7 +726,11 @@ export default function AdminPage() {
       setProdDetails(product.details || '');
       setProdDiscountPercent(product.discountPercent !== undefined ? String(product.discountPercent) : '0');
 
+      const isManual = (product.deliveryMode === 'stock_pool');
       const rawTiers = Array.isArray(product.tiers) ? product.tiers : (Array.isArray(product.tierOptions) ? product.tierOptions : []);
+      const hasTiers = rawTiers.length > 0 && !isManual;
+      setProdPricingType(hasTiers ? 'tiered' : 'single');
+
       if (rawTiers.length > 0) {
         setProdTierOptions(
           rawTiers.map((t: any, idx: number) => ({
@@ -738,17 +743,12 @@ export default function AdminPage() {
           }))
         );
       } else {
-        setProdTierOptions([
-          { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: '50.00', discountPercent: '0', dailyLimit: '15' },
-          { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', discountPercent: '0', dailyLimit: '15' },
-          { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', discountPercent: '0', dailyLimit: '15' },
-          { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', discountPercent: '0', dailyLimit: '25' }
-        ]);
+        setProdTierOptions([]);
       }
     } else {
       setEditingProduct(null);
       setProdTitle('');
-      setProdCategory('Generator Licenses');
+      setProdCategory('Digital Goods');
       setProdPriceUSD('');
       setProdPricePHP('50.00');
       setProdOrigUSD('');
@@ -756,9 +756,10 @@ export default function AdminPage() {
       setProdDiscountPercent('0');
       setProdDescription('');
       setProdDetails('');
-      setProdFeatures('Instant cryptographic key\nDaily automated reset\n100% Replacement warranty');
+      setProdFeatures('Instant digital delivery\n100% Replacement warranty');
       setProdImageUrl('');
       setProdDeliveryMode('automated_license');
+      setProdPricingType('tiered');
       setProdLicenseTier('1day');
       setProdDailyLimit('15');
       setProdServiceScope('all');
@@ -815,24 +816,32 @@ export default function AdminPage() {
 
     try {
       setSavingProduct(true);
-      const cleanTierOptions = prodTierOptions.map((t) => {
-        const key = t.tierKey;
-        const defaultName = key === 'daily' ? '1 Day' : key === 'weekly' ? '7 Days' : key === 'monthly' ? '30 Days' : 'Lifetime';
-        return {
-          id: t.id,
-          tier_key: key,
-          name: t.name.trim() || defaultName,
-          price_php: parseFloat(t.pricePHP) || 0,
-          discount_percent: Math.min(100, Math.max(0, parseFloat(t.discountPercent) || 0)),
-          daily_limit: parseInt(t.dailyLimit, 10) || 15
-        };
-      });
+      const isSinglePricing = prodPricingType === 'single' || prodDeliveryMode === 'stock_pool';
+
+      const cleanTierOptions = isSinglePricing
+        ? []
+        : prodTierOptions.map((t) => {
+            const key = t.tierKey;
+            const defaultName = key === 'daily' ? '1 Day' : key === 'weekly' ? '7 Days' : key === 'monthly' ? '30 Days' : 'Lifetime';
+            return {
+              id: t.id,
+              tier_key: key,
+              name: t.name.trim() || defaultName,
+              price_php: parseFloat(t.pricePHP) || 0,
+              discount_percent: Math.min(100, Math.max(0, parseFloat(t.discountPercent) || 0)),
+              daily_limit: parseInt(t.dailyLimit, 10) || 15
+            };
+          });
+
+      const effectivePricePHP = isSinglePricing
+        ? (parseFloat(prodPricePHP) || 0)
+        : (cleanTierOptions[0]?.price_php || parseFloat(prodPricePHP) || 0);
 
       const payload = {
         id: editingProduct?.id,
         title: prodTitle.trim(),
         category: prodCategory.trim() || 'General',
-        price_php: parseFloat(prodPricePHP) || (cleanTierOptions[0]?.price_php || 0),
+        price_php: effectivePricePHP,
         discount_percent: parseFloat(prodDiscountPercent) || 0,
         description: prodDescription.trim(),
         details: prodDetails.trim(),
@@ -4952,48 +4961,93 @@ export default function AdminPage() {
 
               {/* Row 2: Standard PHP Pricing & Discount % with Live USD Conversion */}
               <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-mono text-purple-400 font-semibold uppercase">
-                    Standard Base Price & Discount % (PHP Base)
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono text-purple-400 font-semibold uppercase">
+                      Pricing Structure
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                      {prodPricingType === 'single' ? 'Single Flat Price' : 'Multi-Tier Duration'}
+                    </span>
                   </div>
-                  <div className="text-[11px] font-mono text-emerald-400">
-                    Live FX: 1 USD ≈ ₱{Number(liveFxRate).toFixed(2)}
+
+                  {/* Toggle Pricing Model */}
+                  <div className="flex items-center p-0.5 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] font-mono">
+                    <button
+                      type="button"
+                      onClick={() => setProdPricingType('single')}
+                      className={`px-3 py-1 rounded-lg transition-all ${
+                        prodPricingType === 'single'
+                          ? 'bg-purple-600 text-white font-bold shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Single Flat Price
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProdPricingType('tiered');
+                        if (prodTierOptions.length === 0) {
+                          setProdTierOptions([
+                            { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: '50.00', discountPercent: '0', dailyLimit: '15' },
+                            { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', discountPercent: '0', dailyLimit: '15' },
+                            { id: 'opt_monthly', tierKey: 'monthly', name: '30 Days', pricePHP: '750.00', discountPercent: '0', dailyLimit: '15' },
+                            { id: 'opt_lifetime', tierKey: 'lifetime', name: 'Lifetime', pricePHP: '1500.00', discountPercent: '0', dailyLimit: '25' }
+                          ]);
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-lg transition-all ${
+                        prodPricingType === 'tiered'
+                          ? 'bg-purple-600 text-white font-bold shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      Multi-Tier Duration
+                    </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                  <div>
-                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">Base Price (PHP ₱) *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      placeholder="50.00"
-                      value={prodPricePHP}
-                      onChange={(e) => setProdPricePHP(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
 
-                  <div>
-                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">Discount % (0 = No Sale)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      placeholder="0"
-                      value={prodDiscountPercent}
-                      onChange={(e) => setProdDiscountPercent(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-                    />
-                  </div>
+                {prodPricingType === 'single' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center pt-1">
+                    <div>
+                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">Product Price (PHP ₱) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        placeholder="50.00"
+                        value={prodPricePHP}
+                        onChange={(e) => setProdPricePHP(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
 
-                  <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
-                    <div className="text-[10px] font-mono text-zinc-500 uppercase">Live Converted USD</div>
-                    <div className="text-sm font-mono font-bold text-purple-300">
-                      ≈ ${((parseFloat(prodPricePHP) || 0) * (1 - (parseFloat(prodDiscountPercent) || 0) / 100) / (liveFxRate || 58.5)).toFixed(2)} USD
+                    <div>
+                      <label className="text-[11px] font-mono text-zinc-400 block mb-1">Discount % (0 = Regular)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="0"
+                        value={prodDiscountPercent}
+                        onChange={(e) => setProdDiscountPercent(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                      />
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800">
+                      <div className="text-[10px] font-mono text-zinc-500 uppercase">Live Converted USD</div>
+                      <div className="text-sm font-mono font-bold text-purple-300">
+                        ≈ ${((parseFloat(prodPricePHP) || 0) * (1 - (parseFloat(prodDiscountPercent) || 0) / 100) / (liveFxRate || 58.5)).toFixed(2)} USD
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/60 text-xs text-zinc-400 font-mono">
+                    Multi-tier duration pricing is active. Set specific pricing per duration (1 Day, 7 Days, etc.) below in the Fulfillment section.
+                  </div>
+                )}
               </div>
 
               {/* Row 3: Product Image Upload & Preview */}
@@ -5063,7 +5117,9 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Mode A card */}
                   <div
-                    onClick={() => setProdDeliveryMode('automated_license')}
+                    onClick={() => {
+                      setProdDeliveryMode('automated_license');
+                    }}
                     className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                       prodDeliveryMode === 'automated_license'
                         ? 'bg-purple-950/30 border-purple-500 text-white'
@@ -5081,7 +5137,11 @@ export default function AdminPage() {
 
                   {/* Mode B card */}
                   <div
-                    onClick={() => setProdDeliveryMode('stock_pool')}
+                    onClick={() => {
+                      setProdDeliveryMode('stock_pool');
+                      setProdPricingType('single');
+                      setProdTierOptions([]);
+                    }}
                     className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                       prodDeliveryMode === 'stock_pool'
                         ? 'bg-blue-950/30 border-blue-500 text-white'
@@ -5093,7 +5153,7 @@ export default function AdminPage() {
                       <span>Mode B: Manual Stock Pool</span>
                     </div>
                     <p className="text-[11px] leading-relaxed text-zinc-400">
-                      Pops items from your pasted stock list. Shows exact inventory count.
+                      Pops items from your pasted stock list. Flat pricing per single item.
                     </p>
                   </div>
                 </div>
@@ -5151,6 +5211,7 @@ export default function AdminPage() {
                     </div>
 
                     {/* Tier Options & Pricing Matrix */}
+                    {prodPricingType === 'tiered' && (
                     <div className="p-3.5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
@@ -5328,6 +5389,7 @@ export default function AdminPage() {
                         ))}
                       </div>
                     </div>
+                    )}
                   </div>
                 ) : (
                   <div className="pt-2">

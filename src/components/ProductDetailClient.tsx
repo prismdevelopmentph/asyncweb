@@ -59,9 +59,23 @@ export default function ProductDetailClient({
     });
   }, []);
 
+  const fallbackFlatTier = {
+    id: `flat_${product.id}`,
+    tierKey: 'flat',
+    name: 'Direct Access',
+    pricePHP: Number(product.pricePHP) || 0,
+    priceUSD: Number(product.priceUSD) || 0,
+    originalPricePHP: Number(product.originalPricePHP) || 0,
+    originalPriceUSD: Number(product.originalPriceUSD) || 0,
+    discountPercent: Number(product.discountPercent) || 0,
+    hasDiscount: Boolean(product.hasDiscount),
+    dailyLimit: 0,
+  };
+
   const activeTier =
-    product.tierOptions.find((t) => t.tierKey === selectedTierKey) ||
-    product.tierOptions[0];
+    product.tierOptions?.find((t) => t.tierKey === selectedTierKey) ||
+    product.tierOptions?.[0] ||
+    fallbackFlatTier;
 
   const currentPricePHP = activeTier ? activeTier.pricePHP : product.pricePHP;
   const currentPriceUSD = activeTier ? activeTier.priceUSD : product.priceUSD;
@@ -230,7 +244,9 @@ export default function ProductDetailClient({
                   Daily Quota
                 </div>
                 <div className="font-bold text-purple-400">
-                  {activeTier?.dailyLimit ? `${activeTier.dailyLimit} Accounts / Day` : 'Custom Quota'}
+                  {product.deliveryMode === 'stock_pool'
+                    ? '1 Item per Unit'
+                    : (activeTier?.dailyLimit ? `${activeTier.dailyLimit} Accounts / Day` : 'Custom Quota')}
                 </div>
               </div>
 
@@ -331,7 +347,7 @@ export default function ProductDetailClient({
               <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800/80 flex items-center justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
-                    {activeTier?.name ? `${activeTier.name} Access` : 'Total Price'}
+                    {product.tierOptions?.length > 0 && activeTier?.name ? `${activeTier.name} Access` : 'Total Price'}
                   </div>
                   <div className="flex items-baseline gap-2 mt-0.5">
                     <span className="text-3xl font-mono font-bold text-white tracking-tight">
