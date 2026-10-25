@@ -205,6 +205,28 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
       return { success: true, licenseKey: order.license_key };
     }
 
+    // Atomic idempotency lock: Claim order transition to 'processing'.
+    // Only ONE concurrent execution will match status in ['awaiting_payment', 'paid'] and null license_key.
+    const { data: lockedOrder } = await supabaseAdmin
+      .from('orders')
+      .update({ status: 'processing' })
+      .eq('id', orderId)
+      .in('status', ['awaiting_payment', 'paid'])
+      .is('license_key', null)
+      .select('id, status, license_key')
+      .maybeSingle();
+
+    if (!lockedOrder) {
+      // Another concurrent process has already claimed or completed fulfillment
+      console.log(`[Fulfillment] Order ${orderId} already locked or fulfilled by another thread. Skipping duplicate.`);
+      const { data: currentOrder } = await supabaseAdmin
+        .from('orders')
+        .select('license_key')
+        .eq('id', orderId)
+        .maybeSingle();
+      return { success: true, licenseKey: currentOrder?.license_key || undefined };
+    }
+
     const details = order.payment_details || {};
     const cartItems = details.cart_items;
     const generatedKeys: string[] = [];

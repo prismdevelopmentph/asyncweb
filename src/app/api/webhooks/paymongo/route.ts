@@ -87,16 +87,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    // We process paid payment events
-    const isPaidEvent =
-      eventType === 'checkout_session.payment.paid' ||
-      eventType === 'payment.paid' ||
-      eventType === 'qr.paid' ||
-      eventType === 'link.payment.paid' ||
-      eventType === 'source.chargeable';
-
-    if (!isPaidEvent) {
-      return NextResponse.json({ received: true, ignored: true, eventType });
+    // Single-Authority Fulfillment: PayMongo standard for hosted Checkout Sessions
+    // is to listen exclusively to checkout_session.payment.paid. Child events like
+    // payment.paid and qr.paid are safely acknowledged (HTTP 200) without double-minting licenses.
+    if (eventType !== 'checkout_session.payment.paid') {
+      console.log(`[PayMongo Webhook] Acknowledged child event: ${eventType} (Fulfillment handled by checkout_session.payment.paid).`);
+      return NextResponse.json({ received: true, ignored: true, reason: 'Child event acknowledged' });
     }
 
     // 5. Multi-Strategy Order ID Resolution:
@@ -157,9 +153,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, error: 'Order not found in database' });
     }
 
-    // If order already reached terminal fulfillment, exit cleanly
-    if (order.status === 'delivered') {
-      console.log(`[PayMongo Webhook] Order ${order.id} is already fulfilled. Acknowledging webhook.`);
+    // If order already reached terminal fulfillment or is currently fulfilling, exit cleanly
+    if (order.status === 'delivered' || order.status === 'processing' || order.license_key) {
+      console.log(`[PayMongo Webhook] Order ${order.id} is already fulfilled or processing. Acknowledging webhook.`);
       return NextResponse.json({ received: true, alreadyFulfilled: true });
     }
 

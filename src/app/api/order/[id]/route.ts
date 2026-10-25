@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getPayMongoConfig, getPayMongoCheckoutSession } from '@/lib/paymongo';
-import { fulfillProductOrder } from '@/lib/fulfillment';
 
 export async function GET(
   req: NextRequest,
@@ -23,60 +21,8 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 });
     }
 
-    let details = order.payment_details || {};
+    const details = order.payment_details || {};
     const product = order.products;
-
-    // Dual-Rail Auto-Fulfillment: If customer returns from PayMongo checkout
-    // but webhook hasn't processed yet, poll PayMongo API directly in real-time
-    if (order.status === 'awaiting_payment' && details.paymongo_checkout_session_id) {
-      try {
-        const { secretKey } = await getPayMongoConfig();
-        if (secretKey) {
-          const remoteSession = await getPayMongoCheckoutSession(
-            secretKey,
-            details.paymongo_checkout_session_id
-          );
-          const payments = remoteSession?.attributes?.payments || [];
-          const isPaid =
-            remoteSession?.attributes?.status === 'paid' ||
-            payments.some((p: any) => p.attributes?.status === 'paid');
-
-          if (isPaid) {
-            const nowIso = new Date().toISOString();
-            const primaryPayment = payments[0]?.attributes;
-            const paymentId = payments[0]?.id;
-
-            details = {
-              ...details,
-              paymongo_payment_id: paymentId,
-              paymongo_paid_at: nowIso,
-              paymongo_status: 'paid'
-            };
-
-            await supabaseAdmin
-              .from('orders')
-              .update({
-                status: 'paid',
-                paid_at: order.paid_at || nowIso,
-                payment_details: details
-              })
-              .eq('id', order.id);
-
-            const fulfillRes = await fulfillProductOrder(order.id);
-            if (fulfillRes.success) {
-              order.status = 'delivered';
-              order.delivered_at = nowIso;
-              order.license_key = fulfillRes.licenseKey;
-            } else {
-              order.status = 'paid';
-              order.paid_at = nowIso;
-            }
-          }
-        }
-      } catch (pmSyncErr) {
-        console.warn('[API Order Get] Active PayMongo sync error:', pmSyncErr);
-      }
-    }
 
     // 15-Minute Payment Lock & Auto-Cancellation Logic
     const LOCK_WINDOW_SECONDS = 15 * 60; // 900s
