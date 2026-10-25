@@ -95,6 +95,7 @@ export async function POST(request: Request) {
             url,
             discord_user_id: targetUserId,
             is_banned: true,
+            notified_discord: false,
             created_at: nowIso,
           })
           .eq('id', existingRows[0].id)
