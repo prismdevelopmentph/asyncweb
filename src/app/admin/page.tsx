@@ -378,9 +378,11 @@ export default function AdminPage() {
   }, [user, isOwner]);
 
   // Digital Products Handlers
-  const fetchProducts = async () => {
+  const fetchProducts = async (isBackground = false) => {
     try {
-      setProductsLoading(true);
+      if (!isBackground && productsList.length === 0) {
+        setProductsLoading(true);
+      }
       const res = await fetch('/api/admin/products');
       if (res.ok) {
         const data = await res.json();
@@ -1925,7 +1927,7 @@ export default function AdminPage() {
               <button
                 onClick={() => {
                   setActiveTab('products');
-                  fetchProducts();
+                  fetchProducts(true);
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'products'
@@ -2955,7 +2957,7 @@ export default function AdminPage() {
             </div>
 
             {/* Catalog List / Cards */}
-            {productsLoading ? (
+            {productsLoading && productsList.length === 0 ? (
               <div className="p-12 text-center rounded-3xl bg-zinc-950/40 border border-zinc-800">
                 <RefreshCw className="w-6 h-6 text-zinc-500 animate-spin mx-auto mb-2" />
                 <div className="text-xs text-zinc-400 font-mono">Loading digital products...</div>

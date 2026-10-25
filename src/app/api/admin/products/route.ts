@@ -38,13 +38,26 @@ export interface UnifiedProduct {
 
 export async function GET() {
   try {
-    const liveRate = await getUsdToPhpRate();
+    // Parallelize all data queries concurrently via Promise.all
+    const [liveRate, productsRes, servicesRes, packagesRes] = await Promise.all([
+      getUsdToPhpRate(),
+      supabaseAdmin
+        .from('products')
+        .select('*')
+        .order('sort_order', { ascending: true }),
+      supabaseAdmin
+        .from('services')
+        .select('id, name')
+        .order('name', { ascending: true }),
+      supabaseAdmin
+        .from('packages')
+        .select('id, name, package_services(services(name))')
+        .order('name', { ascending: true })
+    ]);
 
-    // 1. Try unified `products` table
-    const { data: dbProducts, error } = await supabaseAdmin
-      .from('products')
-      .select('*')
-      .order('sort_order', { ascending: true });
+    const { data: dbProducts, error } = productsRes;
+    const { data: dbServices } = servicesRes;
+    const { data: dbPackages } = packagesRes;
 
     let productsList: any[] = [];
 
@@ -134,17 +147,6 @@ export async function GET() {
         hasDiscount: primaryPricing.hasDiscount
       };
     });
-
-    // Fetch available services & packages for dynamic Target Service Scope binding
-    const { data: dbServices } = await supabaseAdmin
-      .from('services')
-      .select('id, name')
-      .order('name', { ascending: true });
-
-    const { data: dbPackages } = await supabaseAdmin
-      .from('packages')
-      .select('id, name, package_services(services(name))')
-      .order('name', { ascending: true });
 
     const formattedPackages = (dbPackages || []).map((pkg: any) => ({
       id: pkg.id,
