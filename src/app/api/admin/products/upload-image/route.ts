@@ -1,24 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireOwner } from '@/lib/auth';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireOwner(request);
+    if (!auth.ok) return auth.response;
+
     const formData = await request.formData();
     const file = formData.get('image') as File | null;
-    const ownerUserId = formData.get('ownerUserId') as string | null;
-
-    // Security Gate
-    const isOwner =
-      ownerUserId === '719482630633947166' ||
-      ownerUserId === process.env.OWNER_USER_ID ||
-      ownerUserId === process.env.NEXT_PUBLIC_OWNER_USER_ID;
-
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Unauthorized: Owner access required' }, { status: 403 });
-    }
 
     if (!file) {
       return NextResponse.json({ error: 'No image file uploaded' }, { status: 400 });

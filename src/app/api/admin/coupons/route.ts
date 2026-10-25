@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireOwner } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
     const { data: coupons, error } = await supabaseAdmin
       .from('coupons')
       .select('*')
@@ -20,6 +24,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const {
       code,
@@ -78,6 +85,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { id, isActive, maxUses, expiresAt } = body;
 
@@ -112,6 +122,9 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 

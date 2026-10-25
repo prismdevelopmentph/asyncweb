@@ -1,17 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser, requireOwner } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
   const isAdminRequest = searchParams.get('admin') === 'true';
 
-  if (!userId) {
-    return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-  }
-
   try {
-    const isOwner = userId === '719482630633947166' || userId === process.env.OWNER_USER_ID;
+    let authDiscordId = '';
+    let isOwner = false;
+
+    if (isAdminRequest) {
+      const auth = await requireOwner(request);
+      if (!auth.ok) return auth.response;
+      authDiscordId = auth.data.discordId;
+      isOwner = true;
+    } else {
+      const auth = await requireUser(request);
+      if (!auth.ok) return auth.response;
+      authDiscordId = auth.data.discordId;
+      const rawOwners = process.env.OWNER_DISCORD_IDS || '';
+      isOwner = rawOwners.split(',').map((s) => s.trim()).includes(authDiscordId);
+    }
+
     const date7 = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     const date30 = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
 
@@ -242,45 +253,45 @@ export async function GET(request: NextRequest) {
       supabaseAdmin
         .from('decryptions')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .order('created_at', { ascending: false })
         .limit(50),
       supabaseAdmin
         .from('fixes')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .order('created_at', { ascending: false })
         .limit(50),
       supabaseAdmin
         .from('plan_subscriptions')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .eq('active', 1)
         .order('expires_at', { ascending: false }),
       supabaseAdmin
         .from('api_licenses')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .eq('revoked', 0),
       supabaseAdmin
         .from('decryptions')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .gte('created_at', date7),
       supabaseAdmin
         .from('fixes')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .gte('created_at', date7),
       supabaseAdmin
         .from('decryptions')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .gte('created_at', date30),
       supabaseAdmin
         .from('fixes')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
+        .eq('user_id', authDiscordId)
         .gte('created_at', date30),
     ]);
 

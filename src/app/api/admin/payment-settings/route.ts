@@ -1,13 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireOwner } from '@/lib/auth';
 import { getPaymentSettings } from '@/lib/payment-settings';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+function maskSecret(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (trimmed.length <= 8) return '••••••••';
+  const prefix = trimmed.slice(0, 8);
+  const suffix = trimmed.slice(-4);
+  return `${prefix}••••••••${suffix}`;
+}
+
+function isMaskedOrEmpty(val: string | undefined | null): boolean {
+  if (!val || !val.trim()) return true;
+  const t = val.trim();
+  return t.includes('••••') || t.includes('****') || /^[a-zA-Z0-9_-]{2,8}[•*]{3,}/.test(t);
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const settings = await getPaymentSettings();
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
+    const rawSettings = await getPaymentSettings();
+    const settings = {
+      ...rawSettings,
+      paymongoSecretKey: maskSecret(rawSettings.paymongoSecretKey),
+      paymongoWebhookSecret: maskSecret(rawSettings.paymongoWebhookSecret),
+    };
+
     return NextResponse.json({ ok: true, settings });
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: err?.message }, { status: 500 });
@@ -16,6 +41,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
     const contentType = req.headers.get('content-type') || '';
 
     // ── FORM DATA (QR Photo Upload: paymongo | gcash | maya) ──
@@ -87,11 +115,11 @@ export async function POST(req: NextRequest) {
       cryptoFeePercent
     } = body;
 
-    const upserts = [
+    const upserts: { key: string; value: string }[] = [
       { key: 'payment_paymongo_enabled', value: paymongoEnabled !== false ? 'true' : 'false' },
       { key: 'payment_paymongo_automated', value: paymongoAutomated !== false ? 'true' : 'false' },
-      { key: 'payment_paymongo_secret_key', value: (paymongoSecretKey || '').trim() },
-      { key: 'payment_paymongo_webhook_secret', value: (paymongoWebhookSecret || '').trim() },
+      ...(!isMaskedOrEmpty(paymongoSecretKey) ? [{ key: 'payment_paymongo_secret_key', value: (paymongoSecretKey || '').trim() }] : []),
+      ...(!isMaskedOrEmpty(paymongoWebhookSecret) ? [{ key: 'payment_paymongo_webhook_secret', value: (paymongoWebhookSecret || '').trim() }] : []),
       { key: 'payment_paymongo_name', value: (paymongoName || '').trim() },
       { key: 'payment_paymongo_qr_url', value: (paymongoQrUrl || '').trim() },
       { key: 'payment_paymongo_fee_percent', value: String(Math.max(0, parseFloat(paymongoFeePercent) || 0)) },
@@ -125,7 +153,13 @@ export async function POST(req: NextRequest) {
     }
 
     const updated = await getPaymentSettings();
-    return NextResponse.json({ ok: true, settings: updated, message: 'Payment gateway configuration saved successfully.' });
+    const maskedUpdated = {
+      ...updated,
+      paymongoSecretKey: maskSecret(updated.paymongoSecretKey),
+      paymongoWebhookSecret: maskSecret(updated.paymongoWebhookSecret),
+    };
+
+    return NextResponse.json({ ok: true, settings: maskedUpdated, message: 'Payment gateway configuration saved successfully.' });
   } catch (err: any) {
     console.error('[Payment Settings API] Error:', err);
     return NextResponse.json({ ok: false, error: err?.message || 'Server error' }, { status: 500 });

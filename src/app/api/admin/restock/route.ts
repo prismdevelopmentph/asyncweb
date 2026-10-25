@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireOwner } from '@/lib/auth';
 
 function serviceTable(svcName: string): string {
   const normalized = svcName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -8,14 +9,12 @@ function serviceTable(svcName: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { ownerUserId, serviceName, lines } = body;
+    const auth = await requireOwner(request);
+    if (!auth.ok) return auth.response;
+    const ownerUserId = auth.data.discordId;
 
-    // Security Gate: Owner verification
-    const isOwner = ownerUserId === '719482630633947166' || ownerUserId === process.env.OWNER_USER_ID;
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Unauthorized: Owner access required' }, { status: 403 });
-    }
+    const body = await request.json();
+    const { serviceName, lines } = body;
 
     if (!serviceName || !Array.isArray(lines) || lines.length === 0) {
       return NextResponse.json({ error: 'Missing serviceName or accounts payload lines' }, { status: 400 });

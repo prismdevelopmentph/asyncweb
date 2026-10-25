@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireOwner } from '@/lib/auth';
 import { getUsdToPhpRate, computePricing } from '@/lib/currency';
 import crypto from 'crypto';
 
@@ -36,8 +37,11 @@ export interface UnifiedProduct {
   updated_at?: string;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireOwner(request);
+    if (!auth.ok) return auth.response;
+
     // Parallelize all data queries concurrently via Promise.all
     const [liveRate, productsRes, servicesRes, packagesRes] = await Promise.all([
       getUsdToPhpRate(),
@@ -177,17 +181,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireOwner(request);
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
-    const { ownerUserId, action, product } = body;
-
-    const isOwner =
-      ownerUserId === '719482630633947166' ||
-      ownerUserId === process.env.OWNER_USER_ID ||
-      ownerUserId === process.env.NEXT_PUBLIC_OWNER_USER_ID;
-
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Unauthorized: Owner access required' }, { status: 403 });
-    }
+    const { action, product } = body;
 
     if (action === 'save_product') {
       if (!product || !product.title) {
@@ -318,18 +316,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireOwner(request);
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('id');
-    const ownerUserId = searchParams.get('ownerUserId');
-
-    const isOwner =
-      ownerUserId === '719482630633947166' ||
-      ownerUserId === process.env.OWNER_USER_ID ||
-      ownerUserId === process.env.NEXT_PUBLIC_OWNER_USER_ID;
-
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Unauthorized: Owner access required' }, { status: 403 });
-    }
 
     if (!productId) {
       return NextResponse.json({ error: 'Missing product ID' }, { status: 400 });

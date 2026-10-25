@@ -330,8 +330,26 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const ownerUserId = user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id;
-  const isOwner = ownerUserId === '719482630633947166' || ownerUserId === process.env.NEXT_PUBLIC_OWNER_USER_ID;
+  const ownerUserId = (user?.app_metadata as Record<string, any> | undefined)?.discord_id || user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id;
+  const isOwner = Boolean(ownerUserId && (ownerUserId === '719482630633947166' || ownerUserId === process.env.NEXT_PUBLIC_OWNER_USER_ID));
+
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const adminFetch = async (input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> => {
+    const authHeaders = await getAuthHeaders();
+    const headers = new Headers(init.headers || {});
+    for (const [k, v] of Object.entries(authHeaders)) {
+      headers.set(k, v);
+    }
+    return fetch(input, {
+      ...init,
+      headers,
+    });
+  };
 
   const CACHE_TTL_MS = 3600000; // 1 hour fallback TTL
 
@@ -358,7 +376,7 @@ export default function AdminPage() {
 
     setDataLoading(true);
     try {
-      const res = await fetch(`/api/dashboard-data?userId=${encodeURIComponent(ownerUserId)}&admin=true`);
+      const res = await adminFetch(`/api/dashboard-data?userId=${encodeURIComponent(ownerUserId)}&admin=true`);
       if (res.ok) {
         const json = await res.json();
         setAdminData(json);
@@ -385,7 +403,7 @@ export default function AdminPage() {
       if (!isBackground && productsList.length === 0) {
         setProductsLoading(true);
       }
-      const res = await fetch('/api/admin/products');
+      const res = await adminFetch('/api/admin/products');
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.products)) {
@@ -412,7 +430,7 @@ export default function AdminPage() {
   const fetchOrders = async () => {
     try {
       setOrdersLoading(true);
-      const res = await fetch('/api/admin/orders');
+      const res = await adminFetch('/api/admin/orders');
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.orders)) {
@@ -429,7 +447,7 @@ export default function AdminPage() {
   const handleApproveOrder = async (orderId: string) => {
     setProcessingOrderId(orderId);
     try {
-      const res = await fetch('/api/admin/orders', {
+      const res = await adminFetch('/api/admin/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'approve_order', orderId })
@@ -452,7 +470,7 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to cancel this order?')) return;
     setProcessingOrderId(orderId);
     try {
-      const res = await fetch('/api/admin/orders', {
+      const res = await adminFetch('/api/admin/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'cancel_order', orderId })
@@ -475,7 +493,7 @@ export default function AdminPage() {
     if (reason === null) return;
     setProcessingOrderId(orderId);
     try {
-      const res = await fetch('/api/admin/orders', {
+      const res = await adminFetch('/api/admin/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'reject_order', orderId, reason })
@@ -497,7 +515,7 @@ export default function AdminPage() {
   const fetchCoupons = async () => {
     try {
       setCouponsLoading(true);
-      const res = await fetch('/api/admin/coupons');
+      const res = await adminFetch('/api/admin/coupons');
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.coupons)) {
@@ -517,7 +535,7 @@ export default function AdminPage() {
     setSavingCoupon(true);
     setCouponError(null);
     try {
-      const res = await fetch('/api/admin/coupons', {
+      const res = await adminFetch('/api/admin/coupons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -548,7 +566,7 @@ export default function AdminPage() {
 
   const handleToggleCoupon = async (id: string, currentActive: boolean) => {
     try {
-      const res = await fetch('/api/admin/coupons', {
+      const res = await adminFetch('/api/admin/coupons', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, isActive: !currentActive })
@@ -562,7 +580,7 @@ export default function AdminPage() {
   const handleDeleteCoupon = async (id: string) => {
     if (!confirm('Are you sure you want to delete this coupon?')) return;
     try {
-      const res = await fetch(`/api/admin/coupons?id=${id}`, { method: 'DELETE' });
+      const res = await adminFetch(`/api/admin/coupons?id=${id}`, { method: 'DELETE' });
       if (res.ok) fetchCoupons();
     } catch (err) {
       console.error(err);
@@ -571,7 +589,7 @@ export default function AdminPage() {
 
   const fetchPaymentSettings = async () => {
     try {
-      const res = await fetch('/api/admin/payment-settings');
+      const res = await adminFetch('/api/admin/payment-settings');
       if (res.ok) {
         const data = await res.json();
         if (data.settings) {
@@ -620,7 +638,7 @@ export default function AdminPage() {
       fd.append('file', file);
       fd.append('type', type);
 
-      const res = await fetch('/api/admin/payment-settings', {
+      const res = await adminFetch('/api/admin/payment-settings', {
         method: 'POST',
         body: fd
       });
@@ -662,7 +680,7 @@ export default function AdminPage() {
     e.preventDefault();
     setSavingPayConfig(true);
     try {
-      const res = await fetch('/api/admin/payment-settings', {
+      const res = await adminFetch('/api/admin/payment-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -801,9 +819,8 @@ export default function AdminPage() {
       setUploadingImage(true);
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('ownerUserId', ownerUserId || '719482630633947166');
 
-      const res = await fetch('/api/admin/products/upload-image', {
+      const res = await adminFetch('/api/admin/products/upload-image', {
         method: 'POST',
         body: formData,
       });
@@ -879,12 +896,12 @@ export default function AdminPage() {
         specAccessLevel: prodSpecAccessLevel.trim() || 'Full Unrestricted',
       };
 
-      const res = await fetch('/api/admin/products', {
+      const res = await adminFetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'save_product',
-          ownerUserId: ownerUserId || '719482630633947166',
+          ownerUserId: ownerUserId || '',
           product: payload,
         }),
       });
@@ -907,12 +924,12 @@ export default function AdminPage() {
 
   const handleToggleProductStatus = async (productId: string) => {
     try {
-      const res = await fetch('/api/admin/products', {
+      const res = await adminFetch('/api/admin/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'toggle_status',
-          ownerUserId: ownerUserId || '719482630633947166',
+          ownerUserId: ownerUserId || '',
           productId,
         }),
       });
@@ -930,10 +947,8 @@ export default function AdminPage() {
     if (!window.confirm(`Delete product "${title}"? This cannot be undone.`)) return;
 
     try {
-      const res = await fetch(
-        `/api/admin/products?id=${encodeURIComponent(productId)}&ownerUserId=${encodeURIComponent(
-          ownerUserId || '719482630633947166'
-        )}`,
+      const res = await adminFetch(
+        `/api/admin/products?id=${encodeURIComponent(productId)}`,
         { method: 'DELETE' }
       );
       if (res.ok) {
@@ -973,7 +988,7 @@ export default function AdminPage() {
     setActionError('');
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1001,7 +1016,7 @@ export default function AdminPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1034,7 +1049,7 @@ export default function AdminPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1071,7 +1086,7 @@ export default function AdminPage() {
     setActionError('');
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1100,7 +1115,7 @@ export default function AdminPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1132,7 +1147,7 @@ export default function AdminPage() {
     setActionError('');
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1160,7 +1175,7 @@ export default function AdminPage() {
     setActionError('');
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1186,7 +1201,7 @@ export default function AdminPage() {
     setActionError('');
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1222,7 +1237,7 @@ export default function AdminPage() {
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/admin/manage', {
+      const res = await adminFetch('/api/admin/manage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1264,7 +1279,7 @@ export default function AdminPage() {
       .filter((l) => l.length > 0);
 
     try {
-      const res = await fetch('/api/admin/restock', {
+      const res = await adminFetch('/api/admin/restock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1489,7 +1504,7 @@ export default function AdminPage() {
       id: tempId,
       channel: chatChannel,
       ticket_id: chatChannel === 'support' ? selectedTicketId : null,
-      sender_id: ownerUserId || '719482630633947166',
+      sender_id: ownerUserId || '',
       sender_name: 'Mark (Admin)',
       sender_avatar: user?.user_metadata?.avatar_url || null,
       content,
@@ -1506,7 +1521,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           channel: chatChannel,
           ticketId: chatChannel === 'support' ? selectedTicketId : null,
-          senderId: ownerUserId || '719482630633947166',
+          senderId: ownerUserId || '',
           senderName: 'Mark (Admin)',
           senderAvatar: user?.user_metadata?.avatar_url || null,
           content,

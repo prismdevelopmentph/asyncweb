@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireOwner } from '@/lib/auth';
 import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, ownerUserId, targetUserId, username, planType, duration, licenseKey, quota, plan } = body;
+    const auth = await requireOwner(request);
+    if (!auth.ok) return auth.response;
+    const ownerUserId = auth.data.discordId;
 
-    // Security Gate: Check if user is owner
-    const isOwner = ownerUserId === '719482630633947166' || ownerUserId === process.env.OWNER_USER_ID;
-    if (!isOwner) {
-      return NextResponse.json({ error: 'Unauthorized: Owner access required' }, { status: 403 });
-    }
+    const body = await request.json();
+    const { action, targetUserId, username, planType, duration, licenseKey, quota, plan } = body;
 
     if (action === 'assign_plan') {
       if (!targetUserId) {

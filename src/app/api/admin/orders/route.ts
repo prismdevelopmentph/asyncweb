@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireOwner } from '@/lib/auth';
 import { fulfillProductOrder } from '@/lib/fulfillment';
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
     const { data: orders, error } = await supabaseAdmin
       .from('orders')
       .select('*, products:product_id(title, category)')
@@ -21,6 +25,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireOwner(req);
+    if (!auth.ok) return auth.response;
+
     const body = await req.json();
     const { action, orderId } = body;
 
