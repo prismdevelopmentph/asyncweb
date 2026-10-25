@@ -1,16 +1,48 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+function getCookie(request: Request, name: string): string | null {
+  const cookieHeader = request.headers.get('cookie');
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
+  const stateParam = searchParams.get('state');
 
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.asyncdevph.xyz';
-  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  // Force HTTPS everywhere except localhost
+  const protocol = host.includes('localhost') ? 'http' : 'https';
   const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
 
+  // Parse state and validate CSRF nonce
+  const storedNonce = getCookie(request, 'discord_oauth_nonce');
+  let stateNonce: string | null = null;
+  let parsedState: any = null;
+
+  if (stateParam) {
+    try {
+      parsedState = JSON.parse(Buffer.from(stateParam, 'base64').toString('utf8'));
+      if (parsedState && typeof parsedState === 'object') {
+        stateNonce = parsedState.nonce || null;
+      }
+    } catch {}
+  }
+
+  if (!storedNonce || !stateNonce || storedNonce !== stateNonce) {
+    console.warn('[SECURITY] OAuth CSRF state mismatch or missing nonce.');
+    const errorRes = NextResponse.redirect(`${protocol}://${host}/generator?error=auth_csrf_mismatch`);
+    errorRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    return errorRes;
+  }
+
   if (!code) {
-    return NextResponse.redirect(`${protocol}://${host}/generator?error=missing_code`);
+    const errorRes = NextResponse.redirect(`${protocol}://${host}/generator?error=missing_code`);
+    errorRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    return errorRes;
   }
 
   const clientId = process.env.DISCORD_CLIENT_ID || process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '1535517291473797130';
@@ -223,25 +255,16 @@ export async function GET(request: Request) {
       'www.asyncdevph.xyz',
       'gen.asyncdevph.xyz',
       'admin.asyncdevph.xyz',
-      'localhost:3000',
-      'localhost:3001'
+      ...(process.env.NODE_ENV !== 'production' ? ['localhost:3000', 'localhost:3001'] : [])
     ];
 
     let targetHost = host;
-    let targetProtocol = protocol;
-
-    const stateParam = searchParams.get('state');
-    if (stateParam) {
-      try {
-        const parsed = JSON.parse(Buffer.from(stateParam, 'base64').toString('utf8'));
-        if (parsed.host && ALLOWED_REDIRECT_HOSTS.includes(String(parsed.host).toLowerCase())) {
-          targetHost = String(parsed.host).toLowerCase();
-        }
-        if (parsed.protocol === 'http' || parsed.protocol === 'https') {
-          targetProtocol = parsed.protocol;
-        }
-      } catch {}
+    if (parsedState?.host && ALLOWED_REDIRECT_HOSTS.includes(String(parsedState.host).toLowerCase())) {
+      targetHost = String(parsedState.host).toLowerCase();
     }
+
+    // Force HTTPS everywhere except localhost
+    const targetProtocol = targetHost.includes('localhost') ? 'http' : 'https';
 
     const isGenHost = targetHost.startsWith('gen.') || targetHost.includes('gen.asyncdevph.xyz');
     const isAdminHost = targetHost.startsWith('admin.') || targetHost.includes('admin.asyncdevph.xyz');
@@ -253,7 +276,9 @@ export async function GET(request: Request) {
     const sessionEmail = targetUser?.email;
     if (!sessionEmail) {
       console.error('[Discord Callback Critical Error]: Matched target account has no email address.');
-      return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_missing_account_email`);
+      const errRes = NextResponse.redirect(`${protocol}://${host}/generator?error=auth_missing_account_email`);
+      errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+      return errRes;
     }
 
     const { data: magicLink, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
@@ -268,13 +293,14 @@ export async function GET(request: Request) {
       console.error('[Discord Callback generateLink Error]:', linkErr);
     }
 
-    if (magicLink?.properties?.action_link) {
-      return NextResponse.redirect(magicLink.properties.action_link);
-    }
-
-    return NextResponse.redirect(redirectTarget);
+    const finalUrl = magicLink?.properties?.action_link || redirectTarget;
+    const finalRes = NextResponse.redirect(finalUrl);
+    finalRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    return finalRes;
   } catch (err: any) {
     console.error('[Discord OAuth Callback Error]:', err);
-    return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_error`);
+    const errRes = NextResponse.redirect(`${protocol}://${host}/generator?error=auth_error`);
+    errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    return errRes;
   }
 }

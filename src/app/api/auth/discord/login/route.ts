@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export async function GET(request: Request) {
   const clientId = process.env.DISCORD_CLIENT_ID || process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID || '1535517291473797130';
   
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.asyncdevph.xyz';
-  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  const isLocal = host.includes('localhost');
+  const protocol = isLocal ? 'http' : 'https';
   const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
 
-  // Preserve originating host through OAuth state parameter
-  const state = Buffer.from(JSON.stringify({ host, protocol })).toString('base64');
+  // Generate cryptographically random CSRF nonce
+  const nonce = crypto.randomBytes(16).toString('hex');
+
+  // Preserve originating host through OAuth state parameter tied to nonce
+  const state = Buffer.from(JSON.stringify({ host, protocol, nonce })).toString('base64');
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -19,5 +24,16 @@ export async function GET(request: Request) {
     state: state,
   });
 
-  return NextResponse.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
+  const response = NextResponse.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
+  
+  // Set host-only HttpOnly SameSite=Lax cookie with 10 minute expiration
+  response.cookies.set('discord_oauth_nonce', nonce, {
+    httpOnly: true,
+    secure: !isLocal,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 600,
+  });
+
+  return response;
 }
