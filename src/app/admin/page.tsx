@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -299,6 +299,8 @@ export default function AdminPage() {
   const [restockService, setRestockService] = useState('');
   const [restockContent, setRestockContent] = useState('');
   const [restockFileName, setRestockFileName] = useState('');
+  const [isRestockDragging, setIsRestockDragging] = useState(false);
+  const restockFileInputRef = useRef<HTMLInputElement>(null);
 
   // Bundle Modal State
   const [showCreateBundleModal, setShowCreateBundleModal] = useState(false);
@@ -1288,19 +1290,50 @@ export default function AdminPage() {
     }
   };
 
-  const handleRestockFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processRestockFiles = async (files: File[]) => {
+    const txtFiles = files.filter((f) => f.name.toLowerCase().endsWith('.txt') || f.type === 'text/plain' || f.type === '');
+    if (txtFiles.length === 0) return;
 
-    setRestockFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) {
-        setRestockContent(text);
+    try {
+      const fileContents = await Promise.all(
+        txtFiles.map(async (file) => {
+          return await file.text();
+        })
+      );
+
+      const combinedText = fileContents
+        .join('\n')
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0)
+        .join('\n');
+
+      setRestockContent((prev) => {
+        const existingLines = prev
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.length > 0);
+        const newLines = combinedText.split('\n');
+        const combinedUnique = Array.from(new Set([...existingLines, ...newLines]));
+        return combinedUnique.join('\n');
+      });
+
+      const totalLines = combinedText.split('\n').filter(Boolean).length;
+      if (txtFiles.length === 1) {
+        setRestockFileName(`${txtFiles[0].name} (${totalLines} accounts loaded)`);
+      } else {
+        const names = txtFiles.map((f) => f.name).join(', ');
+        setRestockFileName(`${txtFiles.length} files (${totalLines} total accounts): ${names}`);
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      console.error('Error reading restock files:', err);
+    }
+  };
+
+  const handleRestockFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length === 0) return;
+    processRestockFiles(files);
   };
 
   // ── ADMIN CHAT & SUPPORT FUNCTIONS ──
@@ -4688,20 +4721,84 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Upload Stock .txt File</label>
-                <input
-                  type="file"
-                  accept=".txt"
-                  onChange={handleRestockFileUpload}
-                  className="w-full text-xs text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer"
-                />
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">
+                  Stock Accounts Files (.txt)
+                </label>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsRestockDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsRestockDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsRestockDragging(false);
+                    const droppedFiles = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+                    if (droppedFiles.length > 0) {
+                      processRestockFiles(droppedFiles);
+                    }
+                  }}
+                  onClick={() => restockFileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
+                    isRestockDragging
+                      ? 'border-purple-500 bg-purple-500/10 scale-[0.99]'
+                      : 'border-zinc-800 hover:border-zinc-700 bg-zinc-950/60'
+                  }`}
+                >
+                  <input
+                    ref={restockFileInputRef}
+                    type="file"
+                    accept=".txt"
+                    multiple
+                    onChange={handleRestockFileUpload}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center justify-center gap-1.5">
+                    <Upload className={`w-5 h-5 ${isRestockDragging ? 'text-purple-400 animate-bounce' : 'text-zinc-400'}`} />
+                    <p className="text-xs text-zinc-300 font-medium">
+                      Drag and drop multiple <span className="font-mono text-purple-400">.txt</span> files here, or <span className="text-purple-400 underline underline-offset-2">browse</span>
+                    </p>
+                    <p className="text-[11px] text-zinc-500 font-mono">
+                      Multiple files will merge and deduplicate accounts automatically
+                    </p>
+                  </div>
+                </div>
                 {restockFileName && (
-                  <p className="text-[11px] text-purple-400 font-mono mt-1">Loaded: {restockFileName}</p>
+                  <div className="mt-2 p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between text-[11px] text-purple-300 font-mono">
+                    <span className="truncate mr-2 font-medium">Loaded: {restockFileName}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRestockFileName('');
+                        setRestockContent('');
+                        if (restockFileInputRef.current) restockFileInputRef.current.value = '';
+                      }}
+                      className="text-zinc-400 hover:text-white shrink-0 text-xs px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 )}
               </div>
 
               <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Or Paste Stock Lines (One account per line)</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-mono text-zinc-400 uppercase">
+                    Or Paste / Inspect Accounts
+                  </label>
+                  {restockContent.trim() && (
+                    <span className="text-[11px] font-mono text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      {restockContent.split(/\r?\n/).filter((l) => l.trim().length > 0).length} accounts queued
+                    </span>
+                  )}
+                </div>
                 <textarea
                   required
                   rows={6}
