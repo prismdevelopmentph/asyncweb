@@ -48,3 +48,4 @@ export function useDevToolsDetector({ onDetected }: UseDevToolsDetectorOptions):
     };
   }, []);
 }
+

@@ -154,6 +154,13 @@ export async function POST(request: Request) {
       const targetWebhookUrl = webhookUrl || configMap['log_security_webhook_url'];
       const targetChannelId = configMap['log_security_channel_id'] || configMap['log_restock_channel_id'] || configMap['log_license_channel_id'];
 
+      const isDiscordSnowflake = userId && /^\d{17,20}$/.test(String(userId));
+      const targetAccountDisplay = isDiscordSnowflake
+        ? `<@${userId}> (\`${userId}\`)`
+        : deviceId
+        ? `\`Guest (${deviceId})\``
+        : '`Guest Visitor`';
+
       const discordEmbed = {
         title: '🚨 DevTools Security Lockout Triggered',
         description: `A visitor triggered an active security lockout on **ASYNC Development Store**.\nAccess has been restricted.`,
@@ -161,7 +168,7 @@ export async function POST(request: Request) {
         fields: [
           { name: 'Reason', value: `\`${reason}\``, inline: true },
           { name: 'Visitor IP', value: `\`${ip}\``, inline: true },
-          { name: 'Account / Target', value: targetUserId ? `<@${targetUserId}> (\`${targetUserId}\`)` : '`Guest Visitor`', inline: true },
+          { name: 'Account / Target', value: targetAccountDisplay, inline: true },
           { name: 'Origin URL', value: `[${url}](${url})`, inline: false },
           { name: 'User Agent', value: `\`\`\`${resolvedUserAgent.slice(0, 180)}\`\`\``, inline: false },
         ],
@@ -169,10 +176,45 @@ export async function POST(request: Request) {
         timestamp: new Date().toISOString(),
       };
 
+      const components = [
+        {
+          type: 1, // ActionRow
+          components: [
+            {
+              type: 2, // Button
+              style: 3, // Success (Green)
+              label: 'Unban Visitor',
+              emoji: { name: '🔓' },
+              custom_id: `unban_sec:${savedRecord?.id || 'none'}:${ip}`
+            }
+          ]
+        }
+      ];
+
       let notifiedSuccessfully = false;
 
-      // Option A: Direct Webhook POST
-      if (targetWebhookUrl) {
+      // Option A: Discord Bot API to Channel (Full interactive component support)
+      if (botToken && targetChannelId) {
+        try {
+          const botRes = await fetch(`https://discord.com/api/v10/channels/${targetChannelId}/messages`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bot ${botToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              embeds: [discordEmbed],
+              components,
+            }),
+          });
+          if (botRes.ok) notifiedSuccessfully = true;
+        } catch (botErr) {
+          console.warn('[Security Lockout API] Bot API dispatch warning:', botErr);
+        }
+      }
+
+      // Option B: Direct Webhook POST Fallback
+      if (!notifiedSuccessfully && targetWebhookUrl) {
         const whRes = await fetch(targetWebhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -183,19 +225,6 @@ export async function POST(request: Request) {
           }),
         });
         if (whRes.ok) notifiedSuccessfully = true;
-      }
-
-      // Option B: Discord Bot API to Channel
-      if (!notifiedSuccessfully && botToken && targetChannelId) {
-        const botRes = await fetch(`https://discord.com/api/v10/channels/${targetChannelId}/messages`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bot ${botToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ embeds: [discordEmbed] }),
-        });
-        if (botRes.ok) notifiedSuccessfully = true;
       }
 
       // Update notified_discord status if message reached Discord
