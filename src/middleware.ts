@@ -67,6 +67,12 @@ function getClientIp(headers: Headers): string {
 }
 
 export async function middleware(req: NextRequest) {
+  // 0. Always bypass middleware security filters for external webhook endpoints
+  // Webhooks are cryptographically authenticated via HMAC-SHA256 signatures in route handlers.
+  if (req.nextUrl.pathname.startsWith('/api/webhooks')) {
+    return NextResponse.next();
+  }
+
   const userAgent = (req.headers.get('user-agent') || '').toLowerCase();
 
   // 1. Block missing or empty User-Agent
