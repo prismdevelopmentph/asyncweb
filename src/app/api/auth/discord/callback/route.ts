@@ -139,6 +139,10 @@ export async function GET(request: Request) {
           custom_claims: { global_name: discordUser.global_name || discordUser.username },
           discord_join_status: joinFeedback,
           discord_join_timestamp: new Date().toISOString()
+        },
+        app_metadata: {
+          discord_id: String(discordUser.id),
+          provider: 'discord'
         }
       });
 
@@ -157,6 +161,11 @@ export async function GET(request: Request) {
           avatar_url: avatarUrl,
           discord_join_status: joinFeedback,
           discord_join_timestamp: new Date().toISOString()
+        },
+        app_metadata: {
+          ...(targetUser.app_metadata || {}),
+          discord_id: String(discordUser.id),
+          provider: 'discord'
         }
       });
     }
