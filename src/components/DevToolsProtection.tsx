@@ -63,8 +63,14 @@ export default function DevToolsProtection() {
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = getDiscordId(user);
+      let userId: string | null = null;
+      try {
+        const authRes = await supabase.auth.getUser();
+        userId = getDiscordId(authRes?.data?.user);
+      } catch {
+        // Unauthenticated guest visitor
+      }
+
       const deviceId = getOrCreateDeviceId();
 
       if (userId && typeof document !== 'undefined') {
@@ -92,10 +98,8 @@ export default function DevToolsProtection() {
     }
   };
 
-  // 2. DevTools & Keystroke Interception Engine
+  // 2. Keystroke & Context Menu Interception Engine (0% False-Positive Policy)
   useEffect(() => {
-    let checkInterval: NodeJS.Timeout;
-
     // Ensure device token cookie is active on page load
     getOrCreateDeviceId();
 
@@ -112,7 +116,7 @@ export default function DevToolsProtection() {
       dispatchSecurityLockout(reason);
     };
 
-    // A. Keystroke Interception
+    // A. Explicit Keystroke Interception
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.isTrusted) return; // Ignore synthetic/extension key events
 
@@ -146,77 +150,12 @@ export default function DevToolsProtection() {
       e.preventDefault();
     };
 
-    // C. Hardened DevTools Dock & Resize Differential Polling
-    let consecutiveHits = 0;
-
-    const checkDimensions = () => {
-      if (typeof window === 'undefined' || typeof document === 'undefined') return;
-
-      // 1. Mobile devices dynamically shrink innerHeight for address bars/touch keyboards
-      if (isMobileDevice()) {
-        consecutiveHits = 0;
-        return;
-      }
-
-      // 2. Ignore when window is minimized, blurred, or tab is hidden
-      if (document.hidden || !document.hasFocus()) {
-        consecutiveHits = 0;
-        return;
-      }
-
-      // 3. Safeguard against collapsed layouts or initial unmeasured frames
-      if (
-        !window.outerWidth ||
-        !window.outerHeight ||
-        window.innerWidth < 250 ||
-        window.innerHeight < 250
-      ) {
-        consecutiveHits = 0;
-        return;
-      }
-
-      const dpr = window.devicePixelRatio && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
-
-      // Compensate inner dimensions with devicePixelRatio to account for browser zoom and OS DPI scaling (125%, 150%, 175%)
-      const effectiveInnerWidth = Math.round(window.innerWidth * dpr);
-      const effectiveInnerHeight = Math.round(window.innerHeight * dpr);
-
-      // Delta in physical/device pixels
-      const widthDiff = window.outerWidth - effectiveInnerWidth;
-      const heightDiff = window.outerHeight - effectiveInnerHeight;
-
-      // Baseline window chrome allowances (browser tabs, address bar, scrollbars, sidebars)
-      // Standard browser title + URL bar is ~80-120 physical pixels.
-      // Sidebars (Edge Copilot, Opera sidebar, Brave panel) consume up to 360 physical pixels.
-      // An open DevTools docked window consumes >= 350-400 physical pixels.
-      const isEdge = isEdgeBrowser();
-      const thresholdWidth = isEdge ? 460 : 420;
-      const thresholdHeight = 440;
-
-      if (widthDiff > thresholdWidth || heightDiff > thresholdHeight) {
-        consecutiveHits++;
-        // Require 3 consecutive sustained hits (4.5s) to eliminate transient window snapping / resize glitches
-        if (consecutiveHits >= 3) {
-          triggerLockout('DevTools Dock Differential Detected');
-        }
-      } else {
-        consecutiveHits = 0;
-      }
-    };
-
     window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('contextmenu', handleContextMenu, true);
-    window.addEventListener('resize', checkDimensions, true);
-
-    checkInterval = setInterval(() => {
-      checkDimensions();
-    }, 1500);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('contextmenu', handleContextMenu, true);
-      window.removeEventListener('resize', checkDimensions, true);
-      clearInterval(checkInterval);
     };
   }, []);
 

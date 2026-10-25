@@ -230,3 +230,4 @@ export async function createPayMongoCheckoutSession(
     paymentMethodTypes: session.attributes.payment_method_types
   };
 }
+
