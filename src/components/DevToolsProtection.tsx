@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ShieldAlert, RefreshCw, AlertOctagon, Terminal, MessageSquare } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useDevToolsDetector } from '@/hooks/useDevToolsDetector';
 
 export default function DevToolsProtection() {
   const [isTriggered, setIsTriggered] = useState(false);
@@ -45,21 +46,6 @@ export default function DevToolsProtection() {
     return devId;
   };
 
-  // Helper to detect mobile phone / tablet devices
-  const isMobileDevice = () => {
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-    const ua = navigator.userAgent || '';
-    const isTouch = 'ontouchstart' in window || (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-    const isMobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobi/i.test(ua);
-    return isMobileUa || (isTouch && window.innerWidth < 1024);
-  };
-
-  // Helper to detect Microsoft Edge browser (Edg / Edge)
-  const isEdgeBrowser = () => {
-    if (typeof navigator === 'undefined') return false;
-    return /Edg\/|EdgA|EdgiOS|Edge/i.test(navigator.userAgent || '');
-  };
-
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
     try {
@@ -98,25 +84,36 @@ export default function DevToolsProtection() {
     }
   };
 
+  // Core Enforcer: triggers lockout screen and dispatches security audit payload
+  const triggerLockout = useCallback((reason: string) => {
+    if (isLockedRef.current) return;
+    isLockedRef.current = true;
+
+    setTriggerReason(reason);
+    const timeStr = new Date().toUTCString();
+    setTriggerTime(timeStr);
+    setIsTriggered(true);
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = 'hidden';
+    }
+
+    dispatchSecurityLockout(reason);
+  }, []);
+
+  // Sensor Integration: Cleanly wired via decoupled useDevToolsDetector hook
+  useDevToolsDetector({
+    onDetected: (reason) => {
+      triggerLockout(reason);
+    }
+  });
+
   // 2. Keystroke & Context Menu Interception Engine (0% False-Positive Policy)
   useEffect(() => {
     // Ensure device token cookie is active on page load
     getOrCreateDeviceId();
 
-    const triggerLockout = (reason: string) => {
-      if (isLockedRef.current) return;
-      isLockedRef.current = true;
-
-      setTriggerReason(reason);
-      const timeStr = new Date().toUTCString();
-      setTriggerTime(timeStr);
-      setIsTriggered(true);
-      document.body.style.overflow = 'hidden';
-
-      dispatchSecurityLockout(reason);
-    };
-
-    // A. Explicit Keystroke Interception
+    // A. Explicit Keystroke Interception (F12, Ctrl+Shift+I/J/C, Ctrl+U)
+    // No Ctrl+S interception
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.isTrusted) return; // Ignore synthetic/extension key events
 
@@ -128,9 +125,8 @@ export default function DevToolsProtection() {
          e.key === 'J' || e.key === 'j' || e.keyCode === 74 ||
          e.key === 'C' || e.key === 'c' || e.keyCode === 67);
       const isViewSource = (e.ctrlKey || e.metaKey) && (e.key === 'U' || e.key === 'u' || e.keyCode === 85);
-      const isSavePage = (e.ctrlKey || e.metaKey) && (e.key === 'S' || e.key === 's' || e.keyCode === 83);
 
-      if (isF12 || isInspectKey || isViewSource || isSavePage) {
+      if (isF12 || isInspectKey || isViewSource) {
         e.preventDefault();
         e.stopPropagation();
         triggerLockout(
@@ -138,9 +134,7 @@ export default function DevToolsProtection() {
             ? 'F12 Developer Key Triggered'
             : isInspectKey
             ? 'Control+Shift Inspection Shortcut Triggered'
-            : isViewSource
-            ? 'View Page Source Shortcut Triggered'
-            : 'Page Save Shortcut Triggered'
+            : 'View Page Source Shortcut Triggered'
         );
       }
     };
@@ -157,7 +151,7 @@ export default function DevToolsProtection() {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('contextmenu', handleContextMenu, true);
     };
-  }, []);
+  }, [triggerLockout]);
 
   if (!isTriggered) return null;
 
