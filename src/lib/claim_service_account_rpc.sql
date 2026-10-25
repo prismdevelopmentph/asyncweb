@@ -135,6 +135,18 @@ BEGIN
     SET count = count + 1, updated_at = v_now
     WHERE discord_user_id = p_user_id AND license_id = v_candidate_license_id::text;
 
+    -- If no user_limits row exists for this new license, initialize it so counts never freeze
+    IF NOT FOUND THEN
+        BEGIN
+            INSERT INTO public.user_limits (discord_user_id, license_id, count, updated_at)
+            VALUES (p_user_id, v_candidate_license_id::text, 1, v_now);
+        EXCEPTION WHEN OTHERS THEN
+            UPDATE public.user_limits
+            SET count = count + 1, updated_at = v_now
+            WHERE discord_user_id = p_user_id AND license_id = v_candidate_license_id::text;
+        END;
+    END IF;
+
     -- Audit log
     BEGIN
         INSERT INTO public.website_claim_logs (service_name, account_id, raw_data, discord_user_id, claimed_at, notified_discord, source)

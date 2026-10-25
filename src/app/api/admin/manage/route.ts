@@ -203,16 +203,38 @@ export async function POST(request: NextRequest) {
       const scopeInput = (scope || '').trim();
 
       if (scopeInput && scopeInput.toLowerCase() !== 'all') {
-        // Try package first
-        const { data: pkgData } = await supabaseAdmin
-          .from('packages')
-          .select('id, name')
-          .ilike('name', scopeInput)
-          .limit(1);
+        let matchedPkg: { id: string; name: string } | null = null;
 
-        if (pkgData && pkgData.length > 0) {
-          package_id = pkgData[0].id;
-          scope_label = pkgData[0].name;
+        // Check if scope has 'pkg_' prefix (from admin select dropdown value)
+        if (scopeInput.toLowerCase().startsWith('pkg_')) {
+          const rawPkgId = scopeInput.replace(/^pkg_/i, '').trim();
+          const { data: pkgById } = await supabaseAdmin
+            .from('packages')
+            .select('id, name')
+            .eq('id', rawPkgId)
+            .limit(1);
+
+          if (pkgById && pkgById.length > 0) {
+            matchedPkg = pkgById[0];
+          }
+        }
+
+        // Try package name match if not matched by ID
+        if (!matchedPkg) {
+          const { data: pkgByName } = await supabaseAdmin
+            .from('packages')
+            .select('id, name')
+            .ilike('name', scopeInput)
+            .limit(1);
+
+          if (pkgByName && pkgByName.length > 0) {
+            matchedPkg = pkgByName[0];
+          }
+        }
+
+        if (matchedPkg) {
+          package_id = matchedPkg.id;
+          scope_label = matchedPkg.name;
 
           const { data: psData } = await supabaseAdmin
             .from('package_services')
@@ -304,6 +326,22 @@ export async function POST(request: NextRequest) {
         }));
 
         await supabaseAdmin.from('license_services').insert(junctionRows);
+      }
+
+      // 6b. If bound to a target user, ensure user_limits row is initialized with this license
+      if (targetUserId) {
+        try {
+          await supabaseAdmin
+            .from('user_limits')
+            .insert({
+              discord_user_id: targetUserId.trim(),
+              license_id: String(newLic.id),
+              count: 0,
+              updated_at: new Date().toISOString(),
+            });
+        } catch {
+          // Non-blocking if unique constraint or duplicate
+        }
       }
 
       // 7. Post to Discord license log channel if configured

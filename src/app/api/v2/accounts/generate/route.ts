@@ -174,6 +174,42 @@ export async function POST(request: Request) {
         notified_discord: false,
         source: 'App Generator',
       });
+
+      // Also ensure user_limits is synced in Node fallback
+      const { data: licRow } = await supabaseAdmin
+        .from('licenses')
+        .select('id')
+        .eq('redeemed_by', claimedBy)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (licRow) {
+        const { data: ulRow } = await supabaseAdmin
+          .from('user_limits')
+          .select('count')
+          .eq('discord_user_id', claimedBy)
+          .eq('license_id', String(licRow.id))
+          .maybeSingle();
+
+        if (ulRow) {
+          await supabaseAdmin
+            .from('user_limits')
+            .update({ count: (ulRow.count || 0) + 1, updated_at: nowStr })
+            .eq('discord_user_id', claimedBy)
+            .eq('license_id', String(licRow.id));
+        } else {
+          await supabaseAdmin
+            .from('user_limits')
+            .insert({
+              discord_user_id: claimedBy,
+              license_id: String(licRow.id),
+              count: 1,
+              updated_at: nowStr,
+            });
+        }
+      }
     } catch {
       // Non-critical fallback logging error
     }
