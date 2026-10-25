@@ -4,7 +4,6 @@ import {
   getPayMongoConfig,
   verifyPayMongoSignature,
   getPayMongoCheckoutSession,
-  getPayMongoPayment
 } from '@/lib/paymongo';
 import { fulfillProductOrder } from '@/lib/fulfillment';
 
@@ -20,7 +19,7 @@ export async function POST(req: NextRequest) {
     // 2. Fetch configured PayMongo keys
     const { secretKey, webhookSecret } = await getPayMongoConfig();
 
-    // 3. Parse JSON event payload first so fallback verifications can inspect it
+    // 3. Parse JSON event payload
     let event: any = null;
     try {
       event = JSON.parse(rawBody);
@@ -31,147 +30,134 @@ export async function POST(req: NextRequest) {
     const eventType = event?.data?.attributes?.type;
     const eventData = event?.data?.attributes?.data;
     const eventAttributes = eventData?.attributes || {};
-    const metadata = eventAttributes.metadata || {};
 
     console.log(`[PayMongo Webhook] Received incoming event: ${eventType} (ID: ${event?.data?.id})`);
 
-    // 4. Verify authenticity
-    let isAuthentic = false;
-
+    // 4. Cryptographic Signature Verification
     if (webhookSecret) {
       const verification = verifyPayMongoSignature(rawBody, signatureHeader, webhookSecret);
-      if (verification.isValid) {
-        isAuthentic = true;
-      } else {
-        console.warn('[PayMongo Webhook] Signature verification failed:', verification.error);
+      if (!verification.isValid) {
+        console.error('[PayMongo Webhook] Signature verification failed:', verification.error);
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
       }
-    }
-
-    // Direct TLS API fallback: If signature failed or secret wasn't configured,
-    // verify the event directly against PayMongo's authenticated API using secretKey
-    if (!isAuthentic && secretKey) {
-      try {
-        if (eventType === 'checkout_session.payment.paid' && eventData?.id) {
-          const remoteSession = await getPayMongoCheckoutSession(secretKey, eventData.id);
-          const payments = remoteSession?.attributes?.payments || [];
-          if (
-            remoteSession?.attributes?.status === 'paid' ||
-            payments.some((p: any) => p.attributes?.status === 'paid')
-          ) {
-            console.log('[PayMongo Webhook] Direct API verification confirmed checkout session is PAID.');
-            isAuthentic = true;
-          }
-        } else if (
-          (eventType === 'payment.paid' || eventType === 'qr.paid') &&
-          eventData?.id
-        ) {
-          const remotePayment = await getPayMongoPayment(secretKey, eventData.id);
-          if (remotePayment?.attributes?.status === 'paid') {
-            console.log('[PayMongo Webhook] Direct API verification confirmed payment is PAID.');
-            isAuthentic = true;
-          }
-        }
-      } catch (apiErr) {
-        console.warn('[PayMongo Webhook] Direct API fallback check error:', apiErr);
+    } else {
+      // In production, unsigned webhook requests are strictly forbidden
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[PayMongo Webhook] PAYMONGO_WEBHOOK_SECRET is not configured in production. Rejecting event.');
+        return NextResponse.json({ error: 'Webhook secret is not configured' }, { status: 500 });
       }
+      console.warn('[PayMongo Webhook] No PAYMONGO_WEBHOOK_SECRET configured. Proceeding in development mode.');
     }
 
-    // In test mode or when no webhook secret is set, log and proceed if we have valid event structure
-    if (!isAuthentic && !webhookSecret) {
-      console.warn('[PayMongo Webhook] No PAYMONGO_WEBHOOK_SECRET configured. Proceeding in unauthenticated dev mode.');
-      isAuthentic = true;
-    }
-
-    if (!isAuthentic) {
-      console.error('[PayMongo Webhook] Event rejected: unauthenticated signature and API fallback failed.');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
-    }
-
-    // Single-Authority Fulfillment: PayMongo standard for hosted Checkout Sessions
-    // is to listen exclusively to checkout_session.payment.paid. Child events like
-    // payment.paid and qr.paid are safely acknowledged (HTTP 200) without double-minting licenses.
+    // 5. Single-Authority Fulfillment:
+    // Only checkout_session.payment.paid triggers automated fulfillment.
+    // Child events (payment.paid, qr.paid) are acknowledged without double-processing.
     if (eventType !== 'checkout_session.payment.paid') {
-      console.log(`[PayMongo Webhook] Acknowledged child event: ${eventType} (Fulfillment handled by checkout_session.payment.paid).`);
+      console.log(`[PayMongo Webhook] Acknowledged non-fulfillment event: ${eventType}`);
       return NextResponse.json({ received: true, ignored: true, reason: 'Child event acknowledged' });
     }
 
-    // 5. Multi-Strategy Order ID Resolution:
-    // A) Metadata order_id / orderId
-    let orderId: string | null = metadata.order_id || metadata.orderId || null;
+    const sessionId = eventData?.id;
+    if (!sessionId) {
+      console.error('[PayMongo Webhook] Missing checkout session ID in event data.');
+      return NextResponse.json({ error: 'Missing session ID' }, { status: 400 });
+    }
+
+    // 6. Remote Verification with PayMongo API (Authoritative Server-to-Server Lookup)
+    let remoteSession: any = null;
+    if (secretKey) {
+      remoteSession = await getPayMongoCheckoutSession(secretKey, sessionId);
+      if (!remoteSession) {
+        console.error(`[PayMongo Webhook] Remote checkout session ${sessionId} not found via PayMongo API.`);
+        return NextResponse.json({ error: 'Remote checkout session not found' }, { status: 404 });
+      }
+
+      const remoteStatus = remoteSession.attributes?.status;
+      const remotePayments = Array.isArray(remoteSession.attributes?.payments) ? remoteSession.attributes.payments : [];
+      const hasPaidPayment = remotePayments.some((p: any) => p.attributes?.status === 'paid');
+
+      if (remoteStatus !== 'paid' && !hasPaidPayment) {
+        console.warn(`[PayMongo Webhook] Remote checkout session ${sessionId} status is '${remoteStatus}', not paid.`);
+        return NextResponse.json({ received: true, ignored: true, reason: 'Session not paid' });
+      }
+    }
+
+    // Authoritative attributes from remote session if available, falling back to verified signed event
+    const authoritativeSession = remoteSession || eventData;
+    const authoritativeAttrs = authoritativeSession.attributes || {};
+    const authoritativeMetadata = authoritativeAttrs.metadata || {};
+
+    // 7. Order Resolution & Session Binding Guard
     let order: any = null;
 
-    if (orderId) {
-      const { data } = await supabaseAdmin
-        .from('orders')
-        .select('*')
-        .eq('id', orderId)
-        .maybeSingle();
-      if (data) order = data;
+    // A) Match by Checkout Session ID recorded in order.payment_details
+    const { data: orderBySession } = await supabaseAdmin
+      .from('orders')
+      .select('*')
+      .contains('payment_details', { paymongo_checkout_session_id: sessionId })
+      .maybeSingle();
+
+    if (orderBySession) {
+      order = orderBySession;
     }
 
-    // B) Description regex prefix matching (e.g., "Order #075d0509 • ASYNC Development")
+    // B) Match by Order ID from authoritative metadata
     if (!order) {
-      const desc = String(eventAttributes.description || '');
-      const descMatch = desc.match(/(?:Order\s*#?|order_id=)([a-f0-9-]{8,36})/i);
-      if (descMatch && descMatch[1]) {
-        const prefix = descMatch[1].trim();
-        const { data } = await supabaseAdmin
+      const orderIdFromMeta = authoritativeMetadata.order_id || authoritativeMetadata.orderId;
+      if (orderIdFromMeta) {
+        const { data: orderByMeta } = await supabaseAdmin
           .from('orders')
           .select('*')
-          .ilike('id', `${prefix}%`)
+          .eq('id', orderIdFromMeta)
           .maybeSingle();
-        if (data) {
-          order = data;
-          orderId = data.id;
-        }
-      }
-    }
 
-    // C) Match by Checkout Session ID in payment_details
-    if (!order) {
-      const targetSessionId =
-        (eventType === 'checkout_session.payment.paid' ? eventData?.id : null) ||
-        eventAttributes.checkout_session_id ||
-        null;
-
-      if (targetSessionId) {
-        const { data } = await supabaseAdmin
-          .from('orders')
-          .select('*')
-          .contains('payment_details', { paymongo_checkout_session_id: targetSessionId })
-          .maybeSingle();
-        if (data) {
-          order = data;
-          orderId = data.id;
+        if (orderByMeta) {
+          order = orderByMeta;
         }
       }
     }
 
     if (!order) {
-      console.warn(`[PayMongo Webhook] Could not locate order for event ${eventType}. Description: "${eventAttributes.description}"`);
-      // Return 200 so PayMongo does not spam retries for unknown external orders
-      return NextResponse.json({ received: true, error: 'Order not found in database' });
+      console.warn(`[PayMongo Webhook] Could not locate order for session ${sessionId}.`);
+      return NextResponse.json({ received: true, error: 'Order not found' });
     }
 
-    // If order already reached terminal fulfillment or is currently fulfilling, exit cleanly
-    if (order.status === 'delivered' || order.status === 'processing' || order.license_key) {
-      console.log(`[PayMongo Webhook] Order ${order.id} is already fulfilled or processing. Acknowledging webhook.`);
+    // Session binding validation: if the order already recorded a session ID, it MUST match
+    if (
+      order.payment_details?.paymongo_checkout_session_id &&
+      order.payment_details.paymongo_checkout_session_id !== sessionId
+    ) {
+      console.error(
+        `[PayMongo Webhook] Session mismatch for order ${order.id}. Bound: ${order.payment_details.paymongo_checkout_session_id}, Received: ${sessionId}`
+      );
+      return NextResponse.json({ error: 'Session ID mismatch' }, { status: 400 });
+    }
+
+    // 8. Replay & Idempotency Guards
+    if (order.status === 'delivered' || order.status === 'processing') {
+      console.log(`[PayMongo Webhook] Order ${order.id} is already ${order.status}. Acknowledging.`);
       return NextResponse.json({ received: true, alreadyFulfilled: true });
     }
 
-    // 6. Extract payment transaction metadata
-    const payments = Array.isArray(eventAttributes.payments) ? eventAttributes.payments : [];
-    const primaryPayment = payments[0]?.attributes || (eventType === 'payment.paid' ? eventAttributes : null);
-    const paymentId = payments[0]?.id || (eventType === 'payment.paid' ? eventData?.id : null);
+    if (order.payment_details?.paymongo_event_id === event?.data?.id) {
+      console.log(`[PayMongo Webhook] Webhook event ${event?.data?.id} already processed for order ${order.id}.`);
+      return NextResponse.json({ received: true, alreadyProcessed: true });
+    }
+
+    // 9. Authoritative Amount Extraction & Underpayment Guard
+    const paymentsList = Array.isArray(authoritativeAttrs.payments) ? authoritativeAttrs.payments : [];
+    const primaryPayment = paymentsList[0]?.attributes || null;
+    const paymentId = paymentsList[0]?.id || null;
     const paymentSourceType = primaryPayment?.source?.type || 'paymongo_checkout';
 
-    // Strict amount verification: prevent underpayment fraud
     const paidCentavos = Number(primaryPayment?.amount);
     const expectedCentavos = Math.max(2000, Math.round(Number(order.amount) * 100));
 
     if (!Number.isFinite(paidCentavos) || paidCentavos < expectedCentavos) {
-      console.error(`[PayMongo Webhook] Underpayment detected for order ${order.id}. Expected: ${expectedCentavos} centavos, Received: ${paidCentavos} centavos.`);
-      
+      console.error(
+        `[PayMongo Webhook] Underpayment detected for order ${order.id}. Expected: ${expectedCentavos} centavos, Received: ${paidCentavos} centavos.`
+      );
+
       const mismatchNow = new Date().toISOString();
       await supabaseAdmin
         .from('orders')
@@ -180,32 +166,36 @@ export async function POST(req: NextRequest) {
           payment_details: {
             ...(order.payment_details || {}),
             mismatch_reason: `Expected ${expectedCentavos} centavos, received ${paidCentavos} centavos`,
+            paymongo_checkout_session_id: sessionId,
             paymongo_payment_id: paymentId,
             paymongo_event_id: event?.data?.id,
             mismatch_detected_at: mismatchNow
           }
         })
         .eq('id', order.id)
-        .in('status', ['awaiting_payment', 'cancelled']);
+        .in('status', ['awaiting_payment', 'pending', 'cancelled']);
 
       return NextResponse.json({ received: true, mismatch: true });
     }
 
     if (paidCentavos > expectedCentavos) {
-      console.warn(`[PayMongo Webhook] Overpayment noticed for order ${order.id}. Expected: ${expectedCentavos} centavos, Received: ${paidCentavos} centavos. Proceeding with fulfillment.`);
+      console.warn(
+        `[PayMongo Webhook] Overpayment noticed for order ${order.id}. Expected: ${expectedCentavos} centavos, Received: ${paidCentavos} centavos. Proceeding with fulfillment.`
+      );
     }
 
+    // 10. Atomic Order Claiming (Concurrency Lock)
     const nowIso = new Date().toISOString();
     const existingDetails = order.payment_details || {};
 
-    // 7. Update order to 'paid' status before fulfillment
-    await supabaseAdmin
+    const { data: claimedOrder, error: claimErr } = await supabaseAdmin
       .from('orders')
       .update({
         status: 'paid',
         paid_at: order.paid_at || nowIso,
         payment_details: {
           ...existingDetails,
+          paymongo_checkout_session_id: sessionId,
           paymongo_payment_id: paymentId,
           paymongo_event_id: event?.data?.id,
           paymongo_payment_type: paymentSourceType,
@@ -213,22 +203,102 @@ export async function POST(req: NextRequest) {
           paymongo_raw_event: eventType,
         }
       })
-      .eq('id', order.id);
+      .eq('id', order.id)
+      .in('status', ['awaiting_payment', 'pending'])
+      .select('id, order_type, discord_id, amount, payment_details')
+      .maybeSingle();
 
-    // 8. Trigger Automated Zero-Touch Fulfillment
-    const fulfillment = await fulfillProductOrder(order.id);
-
-    if (fulfillment.success) {
-      console.log(`[PayMongo Webhook] Order ${order.id} automatically fulfilled. License: ${fulfillment.licenseKey}`);
-    } else {
-      console.error(`[PayMongo Webhook] Automated fulfillment error for order ${order.id}:`, fulfillment.error);
+    if (claimErr || !claimedOrder) {
+      console.log(`[PayMongo Webhook] Order ${order.id} was already claimed by another worker or admin.`);
+      return NextResponse.json({ received: true, alreadyClaimed: true });
     }
 
-    return NextResponse.json({
-      received: true,
-      orderId: order.id,
-      fulfilled: fulfillment.success
-    });
+    // 11. Automated Zero-Touch Fulfillment
+    if (order.order_type === 'product_purchase') {
+      const fulfillment = await fulfillProductOrder(order.id);
+      if (fulfillment.success) {
+        console.log(`[PayMongo Webhook] Order ${order.id} automatically fulfilled. License: ${fulfillment.licenseKey}`);
+      } else {
+        console.error(`[PayMongo Webhook] Automated fulfillment error for order ${order.id}:`, fulfillment.error);
+      }
+
+      return NextResponse.json({
+        received: true,
+        orderId: order.id,
+        fulfilled: fulfillment.success
+      });
+    }
+
+    if (order.order_type === 'balance_topup') {
+      const creditAmount = Number(order.payment_details?.target_credit_php || order.amount || 0);
+      const discordId = order.discord_id;
+
+      if (discordId && creditAmount > 0) {
+        let credited = false;
+        let retries = 3;
+        while (retries > 0 && !credited) {
+          const { data: existing } = await supabaseAdmin
+            .from('user_balances')
+            .select('balance_php')
+            .eq('discord_id', discordId)
+            .maybeSingle();
+
+          if (!existing) {
+            const { error: insErr } = await supabaseAdmin
+              .from('user_balances')
+              .insert({
+                discord_id: discordId,
+                balance_php: creditAmount,
+                updated_at: nowIso
+              });
+            if (!insErr) {
+              credited = true;
+              break;
+            }
+          } else {
+            const current = Number(existing.balance_php || 0);
+            const newBal = current + creditAmount;
+
+            const { data: updateRes, error: updErr } = await supabaseAdmin
+              .from('user_balances')
+              .update({
+                balance_php: newBal,
+                updated_at: nowIso
+              })
+              .eq('discord_id', discordId)
+              .eq('balance_php', current)
+              .select('balance_php')
+              .maybeSingle();
+
+            if (!updErr && updateRes) {
+              credited = true;
+              break;
+            }
+          }
+          retries--;
+        }
+
+        if (!credited) {
+          console.error(`[PayMongo Webhook] [CRITICAL] Failed to credit balance for top-up order ${order.id} to user ${discordId}`);
+        }
+      }
+
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'delivered',
+          delivered_at: nowIso
+        })
+        .eq('id', order.id);
+
+      return NextResponse.json({
+        received: true,
+        orderId: order.id,
+        fulfilled: true
+      });
+    }
+
+    return NextResponse.json({ received: true, orderId: order.id });
   } catch (err: any) {
     console.error('[PayMongo Webhook Error]:', err);
     return NextResponse.json({ error: err.message || 'Server Error' }, { status: 500 });
