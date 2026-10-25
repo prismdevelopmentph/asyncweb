@@ -128,9 +128,25 @@ export async function POST(req: NextRequest) {
       order.payment_details.paymongo_checkout_session_id !== sessionId
     ) {
       console.error(
-        `[PayMongo Webhook] Session mismatch for order ${order.id}. Bound: ${order.payment_details.paymongo_checkout_session_id}, Received: ${sessionId}`
+        `[PayMongo Webhook] [REVIEW] Session mismatch for order ${order.id}. Bound: ${order.payment_details.paymongo_checkout_session_id}, Received: ${sessionId}`
       );
-      return NextResponse.json({ error: 'Session ID mismatch' }, { status: 400 });
+      const mismatchNow = new Date().toISOString();
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'payment_mismatch',
+          payment_details: {
+            ...(order.payment_details || {}),
+            mismatch_reason: `Session mismatch: order bound to ${order.payment_details.paymongo_checkout_session_id}, paid session was ${sessionId}`,
+            paymongo_checkout_session_id: sessionId,
+            paymongo_event_id: event?.data?.id,
+            mismatch_detected_at: mismatchNow
+          }
+        })
+        .eq('id', order.id)
+        .in('status', ['awaiting_payment', 'pending', 'cancelled']);
+
+      return NextResponse.json({ received: true, mismatch: true, reason: 'Session ID mismatch flagged for review' });
     }
 
     // 8. Replay & Idempotency Guards
@@ -146,8 +162,9 @@ export async function POST(req: NextRequest) {
 
     // 9. Authoritative Amount Extraction & Underpayment Guard
     const paymentsList = Array.isArray(authoritativeAttrs.payments) ? authoritativeAttrs.payments : [];
-    const primaryPayment = paymentsList[0]?.attributes || null;
-    const paymentId = paymentsList[0]?.id || null;
+    const paidPaymentObj = paymentsList.find((p: any) => p.attributes?.status === 'paid') || paymentsList[0];
+    const primaryPayment = paidPaymentObj?.attributes || null;
+    const paymentId = paidPaymentObj?.id || null;
     const paymentSourceType = primaryPayment?.source?.type || 'paymongo_checkout';
 
     const paidCentavos = Number(primaryPayment?.amount);
@@ -204,13 +221,41 @@ export async function POST(req: NextRequest) {
         }
       })
       .eq('id', order.id)
-      .in('status', ['awaiting_payment', 'pending'])
+      .in('status', ['awaiting_payment', 'pending', 'cancelled'])
       .select('id, order_type, discord_id, amount, payment_details')
       .maybeSingle();
 
     if (claimErr || !claimedOrder) {
-      console.log(`[PayMongo Webhook] Order ${order.id} was already claimed by another worker or admin.`);
-      return NextResponse.json({ received: true, alreadyClaimed: true });
+      const { data: latestOrder } = await supabaseAdmin
+        .from('orders')
+        .select('status, payment_details')
+        .eq('id', order.id)
+        .maybeSingle();
+
+      if (latestOrder?.status === 'delivered' || latestOrder?.status === 'processing') {
+        console.log(`[PayMongo Webhook] Order ${order.id} was already claimed by another worker or admin.`);
+        return NextResponse.json({ received: true, alreadyClaimed: true });
+      }
+
+      console.error(`[PayMongo Webhook] [CRITICAL] Payment captured for unfulfillable order ${order.id} (status: ${latestOrder?.status}). Flagging for review.`);
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'payment_mismatch',
+          payment_details: {
+            ...(latestOrder?.payment_details || existingDetails),
+            mismatch_reason: `Payment captured by PayMongo but order could not be claimed (status: ${latestOrder?.status})`,
+            paymongo_checkout_session_id: sessionId,
+            paymongo_payment_id: paymentId,
+            paymongo_event_id: event?.data?.id,
+            mismatch_detected_at: nowIso
+          }
+        })
+        .eq('id', order.id)
+        .neq('status', 'delivered')
+        .neq('status', 'processing');
+
+      return NextResponse.json({ received: true, mismatch: true, reason: 'Order could not be claimed; flagged for manual review' });
     }
 
     // 11. Automated Zero-Touch Fulfillment
@@ -233,54 +278,82 @@ export async function POST(req: NextRequest) {
       const creditAmount = Number(order.payment_details?.target_credit_php || order.amount || 0);
       const discordId = order.discord_id;
 
-      if (discordId && creditAmount > 0) {
-        let credited = false;
-        let retries = 3;
-        while (retries > 0 && !credited) {
-          const { data: existing } = await supabaseAdmin
+      if (!discordId || creditAmount <= 0) {
+        console.error(`[PayMongo Webhook] [CRITICAL] Cannot credit top-up order ${order.id}: missing discord_id or invalid amount.`);
+        await supabaseAdmin
+          .from('orders')
+          .update({
+            status: 'payment_mismatch',
+            payment_details: {
+              ...(order.payment_details || {}),
+              mismatch_reason: 'Top-up payment received but order has no discord_id or creditAmount <= 0',
+              mismatch_detected_at: nowIso
+            }
+          })
+          .eq('id', order.id);
+
+        return NextResponse.json({ received: true, mismatch: true, error: 'Missing discord_id for top-up' });
+      }
+
+      let credited = false;
+      let retries = 3;
+      while (retries > 0 && !credited) {
+        const { data: existing } = await supabaseAdmin
+          .from('user_balances')
+          .select('balance_php')
+          .eq('discord_id', discordId)
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: insErr } = await supabaseAdmin
             .from('user_balances')
-            .select('balance_php')
+            .insert({
+              discord_id: discordId,
+              balance_php: creditAmount,
+              updated_at: nowIso
+            });
+          if (!insErr) {
+            credited = true;
+            break;
+          }
+        } else {
+          const current = Number(existing.balance_php || 0);
+          const newBal = current + creditAmount;
+
+          const { data: updateRes, error: updErr } = await supabaseAdmin
+            .from('user_balances')
+            .update({
+              balance_php: newBal,
+              updated_at: nowIso
+            })
             .eq('discord_id', discordId)
+            .eq('balance_php', current)
+            .select('balance_php')
             .maybeSingle();
 
-          if (!existing) {
-            const { error: insErr } = await supabaseAdmin
-              .from('user_balances')
-              .insert({
-                discord_id: discordId,
-                balance_php: creditAmount,
-                updated_at: nowIso
-              });
-            if (!insErr) {
-              credited = true;
-              break;
-            }
-          } else {
-            const current = Number(existing.balance_php || 0);
-            const newBal = current + creditAmount;
-
-            const { data: updateRes, error: updErr } = await supabaseAdmin
-              .from('user_balances')
-              .update({
-                balance_php: newBal,
-                updated_at: nowIso
-              })
-              .eq('discord_id', discordId)
-              .eq('balance_php', current)
-              .select('balance_php')
-              .maybeSingle();
-
-            if (!updErr && updateRes) {
-              credited = true;
-              break;
-            }
+          if (!updErr && updateRes) {
+            credited = true;
+            break;
           }
-          retries--;
         }
+        retries--;
+      }
 
-        if (!credited) {
-          console.error(`[PayMongo Webhook] [CRITICAL] Failed to credit balance for top-up order ${order.id} to user ${discordId}`);
-        }
+      if (!credited) {
+        console.error(`[PayMongo Webhook] [CRITICAL] Failed to credit balance for top-up order ${order.id} to user ${discordId}`);
+        await supabaseAdmin
+          .from('orders')
+          .update({
+            status: 'payment_mismatch',
+            payment_details: {
+              ...(order.payment_details || {}),
+              mismatch_reason: 'Failed to credit user balance due to concurrency contention after 3 retries',
+              mismatch_detected_at: nowIso
+            }
+          })
+          .eq('id', order.id);
+
+        return NextResponse.json({ received: true, mismatch: true, error: 'Balance credit failed' });
       }
 
       await supabaseAdmin

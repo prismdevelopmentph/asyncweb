@@ -22,10 +22,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 });
     }
 
-    if (order.status === 'delivered') {
+    const details = order.payment_details || {};
+
+    // If order already has an active PayMongo session, return existing URL to prevent session overwrites
+    if (details.paymongo_checkout_session_id && details.paymongo_checkout_url) {
+      return NextResponse.json({
+        ok: true,
+        checkoutUrl: details.paymongo_checkout_url,
+        sessionId: details.paymongo_checkout_session_id
+      });
+    }
+
+    // Only allow initiating new checkout sessions for orders awaiting payment
+    if (order.status !== 'awaiting_payment') {
       return NextResponse.json({
         ok: false,
-        error: 'Order has already been fulfilled and delivered.'
+        error: `Cannot create checkout session for order with status '${order.status}'.`
       }, { status: 400 });
     }
 
@@ -45,7 +57,6 @@ export async function POST(req: NextRequest) {
     const originUrl = `${proto}://${host}`;
 
     // 4. Format line items from cart items or order product
-    const details = order.payment_details || {};
     const cartItems = details.cart_items;
     let lineItems: Array<{ name: string; quantity: number; amountPHP: number }> | undefined;
 

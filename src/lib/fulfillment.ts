@@ -190,29 +190,31 @@ async function createLicenseForProduct(
  * 4. Updates order row to status: 'delivered'
  */
 export async function fulfillProductOrder(orderId: string): Promise<FulfillmentResult> {
+  let order: any = null;
   try {
     // 1. Fetch order record
-    const { data: order, error: orderErr } = await supabaseAdmin
+    const { data: orderData, error: orderErr } = await supabaseAdmin
       .from('orders')
       .select('*')
       .eq('id', orderId)
       .single();
 
-    if (orderErr || !order) {
+    if (orderErr || !orderData) {
       return { success: false, error: 'Order not found' };
     }
+    order = orderData;
 
     if (order.status === 'delivered' && order.license_key) {
       return { success: true, licenseKey: order.license_key };
     }
 
     // Atomic idempotency lock: Claim order transition to 'processing'.
-    // Only ONE concurrent execution will match status in ['awaiting_payment', 'paid'] and null license_key.
+    // Only ONE concurrent execution will match status in ['awaiting_payment', 'paid', 'fulfillment_failed'] and null license_key.
     const { data: lockedOrder } = await supabaseAdmin
       .from('orders')
       .update({ status: 'processing' })
       .eq('id', orderId)
-      .in('status', ['awaiting_payment', 'paid'])
+      .in('status', ['awaiting_payment', 'paid', 'fulfillment_failed'])
       .is('license_key', null)
       .select('id, status, license_key')
       .maybeSingle();
@@ -326,6 +328,22 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
     return { success: true, licenseKey: finalKeyString };
   } catch (err: any) {
     console.error('[Fulfillment] Critical error in fulfillProductOrder:', err);
+    try {
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'fulfillment_failed',
+          payment_details: {
+            ...(order?.payment_details || {}),
+            fulfillment_error: err?.message || 'Fulfillment error',
+            fulfillment_failed_at: new Date().toISOString()
+          }
+        })
+        .eq('id', orderId)
+        .eq('status', 'processing');
+    } catch (statusErr) {
+      console.error('[Fulfillment] Failed to mark order fulfillment_failed:', statusErr);
+    }
     return { success: false, error: err?.message || 'Fulfillment error' };
   }
 }

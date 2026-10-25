@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
       // If product purchase: unblock to 'paid' and fulfill
       if (order.order_type === 'product_purchase') {
-        // Move pending / payment_mismatch / awaiting_payment to 'paid' before fulfillment
+        // Move pending / payment_mismatch / awaiting_payment / fulfillment_failed to 'paid' before fulfillment
         await supabaseAdmin
           .from('orders')
           .update({
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
             paid_at: order.paid_at || nowIso
           })
           .eq('id', order.id)
-          .in('status', ['pending', 'payment_mismatch', 'awaiting_payment']);
+          .in('status', ['pending', 'payment_mismatch', 'awaiting_payment', 'fulfillment_failed']);
 
         const result = await fulfillProductOrder(order.id);
         if (!result.success || !result.licenseKey) {
@@ -74,6 +74,16 @@ export async function POST(req: NextRequest) {
 
       // If balance top-up: atomic lock to 'processing' to prevent double-crediting
       if (order.order_type === 'balance_topup') {
+        const creditAmount = Number(order.payment_details?.target_credit_php || order.amount || 0);
+        const discordId = order.discord_id;
+
+        if (!discordId) {
+          return NextResponse.json({ ok: false, error: 'Cannot approve top-up: order has no associated Discord ID.' }, { status: 400 });
+        }
+        if (creditAmount <= 0) {
+          return NextResponse.json({ ok: false, error: 'Cannot approve top-up: invalid credit amount.' }, { status: 400 });
+        }
+
         const { data: claim, error: claimErr } = await supabaseAdmin
           .from('orders')
           .update({
@@ -81,18 +91,13 @@ export async function POST(req: NextRequest) {
             paid_at: order.paid_at || nowIso
           })
           .eq('id', order.id)
-          .in('status', ['pending', 'payment_mismatch', 'awaiting_payment'])
+          .in('status', ['pending', 'payment_mismatch', 'awaiting_payment', 'fulfillment_failed'])
           .select('id')
           .maybeSingle();
 
         if (claimErr || !claim) {
           return NextResponse.json({ ok: false, error: 'Order is already being processed or has already been fulfilled.' }, { status: 409 });
         }
-
-        const creditAmount = Number(order.payment_details?.target_credit_php || order.amount || 0);
-        const discordId = order.discord_id;
-
-        if (discordId && creditAmount > 0) {
           let credited = false;
           let retries = 3;
           while (retries > 0 && !credited) {
@@ -146,7 +151,6 @@ export async function POST(req: NextRequest) {
               .eq('id', order.id);
             return NextResponse.json({ ok: false, error: 'Failed to credit balance due to concurrency conflict. Please retry.' }, { status: 500 });
           }
-        }
 
         await supabaseAdmin
           .from('orders')
