@@ -145,65 +145,17 @@ export default function DevToolsProtection() {
       }
     };
 
-    // B. Context Menu Interception
+    // B. Context Menu Interception (Right-click disabled)
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-    };
-
-    // C. Engine-Level Traps (Catches Chrome Menu -> More Tools -> Developer Tools)
-    const runEngineDetectors = () => {
-      if (typeof window === 'undefined' || typeof document === 'undefined') return;
-      // Guard against background / minimized tab throttled timers
-      if (document.hidden || !document.hasFocus()) return;
-
-      // Trap 1: Chromium / V8 Console Serializer Getter Trap
-      try {
-        let isConsoleOpen = false;
-        const reg = / /;
-        reg.toString = () => {
-          isConsoleOpen = true;
-          return 'async-probe';
-        };
-
-        const div = document.createElement('div');
-        Object.defineProperty(div, 'id', {
-          get() {
-            isConsoleOpen = true;
-            return 'async-dom-probe';
-          },
-          configurable: true,
-        });
-
-        console.log(reg, div);
-        console.clear();
-
-        if (isConsoleOpen) {
-          triggerLockout('DevTools Console Inspection Trap');
-          return;
-        }
-      } catch {}
-
-      // Trap 2: Active Debugger Execution Micro-Benchmark
-      try {
-        const t0 = performance.now();
-        (function() {}.constructor('debugger')());
-        const delta = performance.now() - t0;
-        if (delta > 100) {
-          triggerLockout('Active Debugger Engine Detected');
-          return;
-        }
-      } catch {}
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('contextmenu', handleContextMenu, true);
 
-    const intervalId = setInterval(runEngineDetectors, 1000);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('contextmenu', handleContextMenu, true);
-      clearInterval(intervalId);
     };
   }, []);
 
