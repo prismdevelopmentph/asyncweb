@@ -269,6 +269,10 @@ export default function AdminPage() {
   const [prodBadge, setProdBadge] = useState('');
   const [prodIsActive, setProdIsActive] = useState(true);
   const [prodHighlight, setProdHighlight] = useState(false);
+  const [prodSpecDeliveryLabel, setProdSpecDeliveryLabel] = useState('');
+  const [prodSpecPlatform, setProdSpecPlatform] = useState('Windows 10 / 11');
+  const [prodSpecQuotaLabel, setProdSpecQuotaLabel] = useState('');
+  const [prodSpecAccessLevel, setProdSpecAccessLevel] = useState('Full Unrestricted');
 
   // Form Inputs: Manual Ban
   const [banIpAddress, setBanIpAddress] = useState('');
@@ -722,6 +726,10 @@ export default function AdminPage() {
       setProdBadge(product.badge || '');
       setProdIsActive(product.isActive !== undefined ? Boolean(product.isActive) : true);
       setProdHighlight(Boolean(product.highlight));
+      setProdSpecDeliveryLabel(product.specDeliveryLabel || product.specs?.deliveryLabel || '');
+      setProdSpecPlatform(product.specPlatform || product.specs?.platform || 'Windows 10 / 11');
+      setProdSpecQuotaLabel(product.specQuotaLabel || product.specs?.quotaLabel || '');
+      setProdSpecAccessLevel(product.specAccessLevel || product.specs?.accessLevel || 'Full Unrestricted');
 
       setProdDetails(product.details || '');
       setProdDiscountPercent(product.discountPercent !== undefined ? String(product.discountPercent) : '0');
@@ -767,6 +775,10 @@ export default function AdminPage() {
       setProdBadge('');
       setProdIsActive(true);
       setProdHighlight(false);
+      setProdSpecDeliveryLabel('');
+      setProdSpecPlatform('Windows 10 / 11');
+      setProdSpecQuotaLabel('');
+      setProdSpecAccessLevel('Full Unrestricted');
       setProdTierOptions([
         { id: 'opt_daily', tierKey: 'daily', name: '1 Day', pricePHP: '50.00', discountPercent: '0', dailyLimit: '15' },
         { id: 'opt_weekly', tierKey: 'weekly', name: '7 Days', pricePHP: '250.00', discountPercent: '0', dailyLimit: '15' },
@@ -857,6 +869,10 @@ export default function AdminPage() {
         badge: prodBadge.trim(),
         isActive: prodIsActive,
         highlight: prodHighlight,
+        specDeliveryLabel: prodSpecDeliveryLabel.trim(),
+        specPlatform: prodSpecPlatform.trim() || 'Windows 10 / 11',
+        specQuotaLabel: prodSpecQuotaLabel.trim(),
+        specAccessLevel: prodSpecAccessLevel.trim() || 'Full Unrestricted',
       };
 
       const res = await fetch('/api/admin/products', {
@@ -2924,7 +2940,7 @@ export default function AdminPage() {
 
               <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] font-mono text-zinc-400">Stock Pools (Mode B)</div>
+                  <div className="text-[11px] font-mono text-zinc-400">Manual Stocks (Mode B)</div>
                   <div className="text-xl sm:text-2xl font-bold font-mono text-blue-400 mt-0.5">
                     {productsList
                       .filter((p) => p.deliveryMode === 'stock_pool')
@@ -5150,7 +5166,7 @@ export default function AdminPage() {
                   >
                     <div className="flex items-center gap-2 font-bold text-xs mb-1">
                       <Database className="w-4 h-4 text-blue-400" />
-                      <span>Mode B: Manual Stock Pool</span>
+                      <span>Mode B: Manual Stock</span>
                     </div>
                     <p className="text-[11px] leading-relaxed text-zinc-400">
                       Pops items from your pasted stock list. Flat pricing per single item.
@@ -5395,10 +5411,10 @@ export default function AdminPage() {
                   <div className="pt-2">
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-[11px] font-mono text-zinc-400">
-                        Stock Pool Items (One item per line: keys, credentials, or links)
+                        Available Stocks (One item per line: accounts, keys, or links)
                       </label>
                       <span className="text-[11px] font-mono text-blue-400 font-bold">
-                        {prodStockPool.split('\n').filter((s) => s.trim()).length} Items in Pool
+                        {prodStockPool.split('\n').filter((s) => s.trim()).length} In Stock
                       </span>
                     </div>
                     <textarea
@@ -5410,6 +5426,76 @@ export default function AdminPage() {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Storefront Specification Badges (4-Card Matrix) */}
+              <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-mono text-purple-400 font-semibold uppercase">
+                    Storefront Specification Badges (4-Card Matrix)
+                  </div>
+                  <div className="text-[10px] font-mono text-zinc-500">
+                    Shown directly below the product hero visual
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">
+                      Delivery Mode Label
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={prodDeliveryMode === 'stock_pool' ? 'Instant Delivery' : 'Instant License'}
+                      value={prodSpecDeliveryLabel}
+                      onChange={(e) => setProdSpecDeliveryLabel(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <span className="text-[10px] text-zinc-500 font-mono">e.g. Instant Delivery, Direct Stock, Instant License</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">
+                      Platform
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Windows 10 / 11"
+                      value={prodSpecPlatform}
+                      onChange={(e) => setProdSpecPlatform(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <span className="text-[10px] text-zinc-500 font-mono">e.g. Windows 10 / 11, All Platforms, Browser / Web, Android / iOS</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">
+                      {prodDeliveryMode === 'stock_pool' ? 'Stock Unit Label' : 'Daily Quota Label'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={prodDeliveryMode === 'stock_pool' ? '1 Item per Unit' : '15 Accounts / Day'}
+                      value={prodSpecQuotaLabel}
+                      onChange={(e) => setProdSpecQuotaLabel(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <span className="text-[10px] text-zinc-500 font-mono">e.g. 1 Item per Unit, Instant Dispatch, 25 gens/day</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-mono text-zinc-400 block mb-1">
+                      Access Level Label
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Full Unrestricted"
+                      value={prodSpecAccessLevel}
+                      onChange={(e) => setProdSpecAccessLevel(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <span className="text-[10px] text-zinc-500 font-mono">e.g. Full Unrestricted, Private Account, Lifetime Access</span>
+                  </div>
+                </div>
               </div>
 
               {/* Row 5: Badge, Features, Description */}

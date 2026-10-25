@@ -386,7 +386,7 @@ export default function StorefrontClient({
             </div>
             <div>
               <div className="text-sm font-bold font-mono text-white mb-0.5">Automated Stock Sync</div>
-              <div className="text-xs text-zinc-400 leading-snug">Real-time inventory pool with daily zero-downtime resets</div>
+              <div className="text-xs text-zinc-400 leading-snug">Real-time inventory stock with daily zero-downtime resets</div>
             </div>
           </div>
 

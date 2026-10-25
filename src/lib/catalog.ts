@@ -37,6 +37,12 @@ export interface CatalogProduct {
     hasDiscount?: boolean;
     dailyLimit?: number;
   }>;
+  specs?: {
+    platform?: string;
+    deliveryLabel?: string;
+    quotaLabel?: string;
+    accessLevel?: string;
+  };
 }
 
 export function slugifyCategory(cat: string): string {
@@ -106,10 +112,22 @@ export async function getStoreCatalog(): Promise<{
       };
     });
 
+    let parsedSpecs: any = null;
+    if (p.delivery_type && typeof p.delivery_type === 'string' && p.delivery_type.startsWith('{')) {
+      try { parsedSpecs = JSON.parse(p.delivery_type); } catch { parsedSpecs = null; }
+    } else if (p.specs && typeof p.specs === 'object') {
+      parsedSpecs = p.specs;
+    }
+
     const defaultTier = computedTiers[0];
     const flatPhp = Number(p.price_php ?? p.pricePHP ?? (defaultTier ? defaultTier.pricePHP : 0));
     const flatDiscount = Number(p.discount_percent ?? p.discountPercent ?? (defaultTier ? defaultTier.discountPercent : 0));
     const primaryPricing = defaultTier || computePricing(flatPhp, flatDiscount, liveRate);
+
+    const deliveryLabel = parsedSpecs?.deliveryLabel || (isStockPool ? 'Instant Delivery' : 'Instant License');
+    const platform = parsedSpecs?.platform || 'Windows 10 / 11';
+    const quotaLabel = parsedSpecs?.quotaLabel || (isStockPool ? '1 Item per Unit' : (defaultTier?.dailyLimit ? `${defaultTier.dailyLimit} Accounts / Day` : 'Standard Quota'));
+    const accessLevel = parsedSpecs?.accessLevel || 'Full Unrestricted';
 
     return {
       id: p.id,
@@ -127,7 +145,7 @@ export async function getStoreCatalog(): Promise<{
       description: p.description || '',
       details: p.details || '',
       features: Array.isArray(p.features) ? p.features : [],
-      deliveryType: p.delivery_type || p.deliveryType || (isStockPool ? 'Instant Credential Dispatch' : 'Instant Cryptographic Key'),
+      deliveryType: deliveryLabel,
       deliveryTime: 'Instant Delivery',
       gradient: p.highlight
         ? 'from-purple-600/20 via-zinc-900/80 to-black'
@@ -137,7 +155,13 @@ export async function getStoreCatalog(): Promise<{
       deliveryMode: isStockPool ? 'stock_pool' : 'automated_license',
       stockCount: currentStock,
       isOutOfStock: isStockPool && currentStock <= 0,
-      tierOptions: computedTiers
+      tierOptions: computedTiers,
+      specs: {
+        platform,
+        deliveryLabel,
+        quotaLabel,
+        accessLevel,
+      }
     };
   });
 

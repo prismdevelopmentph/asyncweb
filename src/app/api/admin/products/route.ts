@@ -99,11 +99,28 @@ export async function GET() {
       const flatDiscount = Number(p.discount_percent ?? p.discountPercent ?? (defaultTier ? defaultTier.discount_percent : 0));
       const primaryPricing = defaultTier || computePricing(flatPhp, flatDiscount, liveRate);
 
+      let parsedSpecs: any = null;
+      if (p.delivery_type && typeof p.delivery_type === 'string' && p.delivery_type.startsWith('{')) {
+        try { parsedSpecs = JSON.parse(p.delivery_type); } catch { parsedSpecs = null; }
+      } else if (p.specs && typeof p.specs === 'object') {
+        parsedSpecs = p.specs;
+      }
+
       return {
         ...p,
         imageUrl: p.image_url || p.imageUrl || '',
         deliveryMode: p.delivery_mode || p.deliveryMode || 'automated_license',
-        deliveryType: p.delivery_type || p.deliveryType || 'Instant Cryptographic Key',
+        deliveryType: parsedSpecs?.deliveryLabel || p.delivery_type || p.deliveryType || 'Instant Cryptographic Key',
+        specPlatform: parsedSpecs?.platform || 'Windows 10 / 11',
+        specDeliveryLabel: parsedSpecs?.deliveryLabel || '',
+        specQuotaLabel: parsedSpecs?.quotaLabel || '',
+        specAccessLevel: parsedSpecs?.accessLevel || 'Full Unrestricted',
+        specs: parsedSpecs || {
+          platform: 'Windows 10 / 11',
+          deliveryLabel: (p.delivery_mode === 'stock_pool' ? 'Instant Delivery' : 'Instant License'),
+          quotaLabel: (p.delivery_mode === 'stock_pool' ? '1 Item per Unit' : ''),
+          accessLevel: 'Full Unrestricted',
+        },
         serviceScope: p.service_scope || p.serviceScope || 'all',
         stockPool: Array.isArray(p.stock_pool) ? p.stock_pool : (Array.isArray(p.stockPool) ? p.stockPool : []),
         isActive: p.is_active !== undefined ? Boolean(p.is_active) : (p.isActive !== undefined ? Boolean(p.isActive) : true),
@@ -212,7 +229,12 @@ export async function POST(request: NextRequest) {
         badge: product.badge?.trim() || '',
         image_url: product.imageUrl?.trim() || product.image_url?.trim() || '',
         delivery_mode: product.deliveryMode === 'stock_pool' ? 'stock_pool' : 'automated_license',
-        delivery_type: product.deliveryType?.trim() || (product.deliveryMode === 'stock_pool' ? 'Instant Credential Dispatch' : 'Instant Cryptographic Key'),
+        delivery_type: JSON.stringify({
+          deliveryLabel: product.specDeliveryLabel?.trim() || (product.deliveryMode === 'stock_pool' ? 'Instant Delivery' : 'Instant License'),
+          platform: product.specPlatform?.trim() || 'Windows 10 / 11',
+          quotaLabel: product.specQuotaLabel?.trim() || (product.deliveryMode === 'stock_pool' ? '1 Item per Unit' : ''),
+          accessLevel: product.specAccessLevel?.trim() || 'Full Unrestricted',
+        }),
         service_scope: product.serviceScope || 'all',
         tiers: cleanTiers,
         stock_pool: cleanStockPool,

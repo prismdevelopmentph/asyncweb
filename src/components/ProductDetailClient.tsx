@@ -228,7 +228,7 @@ export default function ProductDetailClient({
                   Delivery Mode
                 </div>
                 <div className="font-bold text-zinc-200 truncate">
-                  {product.deliveryMode === 'stock_pool' ? 'Credential Pool' : 'Instant License'}
+                  {(product as any).specs?.deliveryLabel || (product.deliveryMode === 'stock_pool' ? 'Instant Delivery' : 'Instant License')}
                 </div>
               </div>
 
@@ -236,17 +236,21 @@ export default function ProductDetailClient({
                 <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">
                   Platform
                 </div>
-                <div className="font-bold text-zinc-200">Windows 10 / 11</div>
+                <div className="font-bold text-zinc-200 truncate">
+                  {(product as any).specs?.platform || 'Windows 10 / 11'}
+                </div>
               </div>
 
               <div className="p-3.5 rounded-2xl bg-zinc-900/50 border border-zinc-800/80">
                 <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">
-                  Daily Quota
+                  {product.deliveryMode === 'stock_pool' ? 'Stock Unit' : 'Daily Quota'}
                 </div>
-                <div className="font-bold text-purple-400">
-                  {product.deliveryMode === 'stock_pool'
-                    ? '1 Item per Unit'
-                    : (activeTier?.dailyLimit ? `${activeTier.dailyLimit} Accounts / Day` : 'Custom Quota')}
+                <div className="font-bold text-purple-400 truncate">
+                  {(product as any).specs?.quotaLabel || (
+                    product.deliveryMode === 'stock_pool'
+                      ? '1 Item per Unit'
+                      : (activeTier?.dailyLimit ? `${activeTier.dailyLimit} Accounts / Day` : 'Standard Quota')
+                  )}
                 </div>
               </div>
 
@@ -254,7 +258,9 @@ export default function ProductDetailClient({
                 <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">
                   Access Level
                 </div>
-                <div className="font-bold text-emerald-400">Full Unrestricted</div>
+                <div className="font-bold text-emerald-400 truncate">
+                  {(product as any).specs?.accessLevel || 'Full Unrestricted'}
+                </div>
               </div>
             </div>
 
@@ -332,7 +338,7 @@ export default function ProductDetailClient({
                       {product.deliveryMode === 'stock_pool'
                         ? product.isOutOfStock
                           ? 'Sold Out'
-                          : `${product.stockCount} Available in Pool`
+                          : `${product.stockCount} in Stock`
                         : 'In Stock · Instant Delivery'}
                     </span>
                   </div>
