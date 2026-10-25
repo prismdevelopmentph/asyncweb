@@ -1,13 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser } from '@/lib/auth';
 
-export async function POST(request: Request) {
+export const dynamic = 'force-dynamic';
+
+export async function POST(request: NextRequest) {
   try {
-    const { userId, key } = await request.json();
+    const auth = await requireUser(request);
+    if (!auth.ok) return auth.response;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'User is not authenticated.' }, { status: 401 });
-    }
+    const callerDiscordId = auth.data.discordId;
+    const body = await request.json().catch(() => ({}));
+    const key = body.key || body.license_key;
 
     if (!key || typeof key !== 'string' || !key.trim()) {
       return NextResponse.json({ error: 'Please enter a valid license key.' }, { status: 400 });
@@ -15,7 +19,7 @@ export async function POST(request: Request) {
 
     const trimmedKey = key.trim().toUpperCase();
 
-    // Mirror accountgenerator.py prefix check
+    // Key format prefix check
     if (!trimmedKey.startsWith('LIC-')) {
       return NextResponse.json({
         error: 'Invalid license key format. Key must start with LIC- (e.g. LIC-XXXX-XXXX-XXXX).'
@@ -23,76 +27,80 @@ export async function POST(request: Request) {
     }
 
     // 1. Query licenses table by column 'license_key'
-    const { data: licenseData, error: fetchErr } = await supabaseAdmin
+    const { data: license, error: fetchErr } = await supabaseAdmin
       .from('licenses')
       .select('*')
       .eq('license_key', trimmedKey)
-      .limit(1);
+      .limit(1)
+      .maybeSingle();
 
     if (fetchErr) {
       console.error('[Redeem Key Fetch Error]:', fetchErr);
       return NextResponse.json({ error: 'Database query failed.' }, { status: 500 });
     }
 
-    if (!licenseData || licenseData.length === 0) {
+    if (!license) {
       return NextResponse.json({ error: 'Invalid license key. Please check and try again.' }, { status: 404 });
     }
 
-    const license = licenseData[0];
-
-    // Mirror accountgenerator.py: Reject reseller licenses
+    // Reject reseller licenses
     if (license.license_type === 'reseller') {
       return NextResponse.json({
         error: 'This is a reseller license. Please use the reseller activation panel.'
       }, { status: 400 });
     }
 
-    // Mirror accountgenerator.py: Check revoked licenses
-    if (license.is_active === false && !license.redeemed_by) {
+    // Audit H13: Revoked license protection
+    // If an admin deactivates a license (is_active === false), it must NOT be reactivatable by anyone
+    if (license.is_active === false) {
       return NextResponse.json({
-        error: 'This license has been revoked. Contact an admin.'
-      }, { status: 400 });
+        error: 'This license has been revoked or suspended. Contact an administrator.'
+      }, { status: 403 });
     }
 
-    // Check if redeemed by another user
-    if (license.redeemed_by && String(license.redeemed_by) !== String(userId)) {
+    // Check if already redeemed
+    if (license.redeemed_by) {
+      if (String(license.redeemed_by) === callerDiscordId) {
+        return NextResponse.json({
+          success: true,
+          message: 'You have already activated this license key.',
+          license
+        });
+      }
       return NextResponse.json({
         error: 'This license key has already been redeemed by another user.'
       }, { status: 400 });
     }
 
-    // Already redeemed by this user
-    if (license.is_active && String(license.redeemed_by) === String(userId)) {
-      return NextResponse.json({
-        success: true,
-        message: 'You have already activated this license key.',
-        license
-      });
-    }
-
-    // 2. Redeem license for user
+    // 2. Atomically redeem license for caller (prevents concurrent race conditions)
     const { data: updatedLic, error: updateErr } = await supabaseAdmin
       .from('licenses')
       .update({
-        redeemed_by: String(userId),
-        is_active: true,
+        redeemed_by: callerDiscordId,
         redeemed_at: new Date().toISOString()
       })
       .eq('id', license.id)
-      .select();
+      .is('redeemed_by', null)
+      .select('*')
+      .maybeSingle();
 
     if (updateErr) {
       console.error('[Redeem Key Update Error]:', updateErr);
       return NextResponse.json({ error: 'Failed to redeem license key.' }, { status: 500 });
     }
 
-    const activeLic = updatedLic?.[0] || license;
-    const tierName = activeLic.tier ? activeLic.tier.toUpperCase() : 'STANDARD';
+    if (!updatedLic) {
+      return NextResponse.json({
+        error: 'This license key has already been redeemed by another user.'
+      }, { status: 409 });
+    }
+
+    const tierName = updatedLic.tier ? updatedLic.tier.toUpperCase() : 'STANDARD';
 
     return NextResponse.json({
       success: true,
       message: `License activated successfully! ${tierName} access granted.`,
-      license: activeLic
+      license: updatedLic
     });
   } catch (error: any) {
     console.error('[Redeem Key Error]:', error);

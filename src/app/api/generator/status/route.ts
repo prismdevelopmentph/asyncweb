@@ -1,15 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 function getServiceTableName(svcName: string): string {
   const normalized = svcName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   return `accounts_${normalized}`;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    let userId: string | null = null;
+    const authHeader = request.headers.get('authorization');
+
+    if (authHeader) {
+      const auth = await requireUser(request);
+      if (!auth.ok) return auth.response;
+      userId = auth.data.discordId;
+    }
 
     const response = {
       userPlan: {

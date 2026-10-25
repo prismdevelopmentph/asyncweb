@@ -318,11 +318,14 @@ export default function AccountGeneratorPage() {
   };
 
   // Fast Parallel Status Fetcher
-  const fetchStatus = useCallback(async (uid: string | null) => {
+  const fetchStatus = useCallback(async (_uid?: string | null) => {
     setLoadingStatus(true);
     try {
-      const url = uid ? `/api/generator/status?userId=${encodeURIComponent(uid)}` : '/api/generator/status';
-      const res = await fetch(url);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/generator/status', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.userPlan) setUserPlan(data.userPlan);
@@ -361,11 +364,15 @@ export default function AccountGeneratorPage() {
     setActivationSuccess(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       const res = await fetch('/api/generator/redeem', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
-          userId: discordUserId,
           key: cleanKey,
         }),
       });
@@ -530,11 +537,15 @@ export default function AccountGeneratorPage() {
     triggerToast(`Generating ${serviceName} account...`);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       const res = await fetch('/api/generator/claim', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
-          userId: discordUserId,
           serviceName
         })
       });

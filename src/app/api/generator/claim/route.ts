@@ -1,27 +1,30 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser } from '@/lib/auth';
 
-export async function POST(request: Request) {
+export const dynamic = 'force-dynamic';
+
+export async function POST(request: NextRequest) {
   try {
-    const { userId, serviceName } = await request.json();
+    const auth = await requireUser(request);
+    if (!auth.ok) return auth.response;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Authentication required to generate accounts.' }, { status: 401 });
-    }
+    const body = await request.json().catch(() => ({}));
+    const serviceName = body.serviceName || body.service;
 
-    if (!serviceName) {
+    if (!serviceName || typeof serviceName !== 'string') {
       return NextResponse.json({ error: 'Service name is required.' }, { status: 400 });
     }
 
-    // Single Atomic PostgreSQL Transaction RPC (Sub-200ms with row-level SKIP LOCKED)
+    // Single Atomic PostgreSQL Transaction RPC (row-level SKIP LOCKED)
     const { data, error } = await supabaseAdmin.rpc('claim_service_account', {
-      p_user_id: String(userId).trim(),
+      p_user_id: auth.data.discordId,
       p_service_name: String(serviceName).trim()
     });
 
     if (error) {
       console.error('[claim_service_account RPC Error]:', error);
-      return NextResponse.json({ error: error.message || 'Failed to claim account.' }, { status: 500 });
+      return NextResponse.json({ error: 'Generator temporarily unavailable. Please try again later.' }, { status: 503 });
     }
 
     if (!data || !data.success) {

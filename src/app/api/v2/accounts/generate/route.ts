@@ -4,70 +4,78 @@ import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-function getServiceTableName(svcName: string): string {
-  const normalized = svcName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  return `accounts_${normalized}`;
-}
-
-async function resolveDiscordUserId(request: Request, body: any): Promise<string> {
+async function verifySessionToken(request: Request): Promise<{ claimedBy: string; licenseId: string } | null> {
   try {
-    // 1. Direct explicit Discord user ID passed in body or headers
-    const directId = body.userId || body.discord_user_id || body.discordUserId || request.headers.get('x-user-id');
-    if (directId && typeof directId === 'string' && directId.trim()) {
-      return directId.trim();
-    }
-
-    // 2. Resolve via Authorization Bearer token (session token issued by /api/v2/auth/verify)
     const authHeader = request.headers.get('authorization') || request.headers.get('x-session-token');
-    let tokenLicenseId: string | null = null;
+    if (!authHeader) return null;
 
-    if (authHeader) {
-      const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
-      try {
-        const secret = process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'async-v2-production-key';
-        const decoded = JSON.parse(Buffer.from(rawToken, 'base64url').toString('utf8'));
-        const { payload, signature } = decoded;
-        const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-        if (signature === expectedSig) {
-          const [licId] = payload.split(':');
-          if (licId) tokenLicenseId = licId;
-        }
-      } catch {
-        // Ignored, proceed to next resolver
-      }
+    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+    if (!rawToken) return null;
+
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) {
+      console.error('[/api/v2/accounts/generate] SESSION_SECRET is not configured in server environment.');
+      return null;
     }
 
-    // 3. Resolve via License Key passed in body or headers
-    const rawKey = body.key || body.license_key || request.headers.get('x-license-key');
-    const licenseKey = typeof rawKey === 'string' && rawKey.trim() ? rawKey.trim() : null;
+    const decoded = JSON.parse(Buffer.from(rawToken, 'base64url').toString('utf8'));
+    const { payload, signature } = decoded;
+    if (!payload || !signature) return null;
 
-    if (tokenLicenseId || licenseKey) {
-      let query = supabaseAdmin.from('licenses').select('id, redeemed_by, license_key');
-      if (tokenLicenseId) {
-        query = query.eq('id', tokenLicenseId);
-      } else if (licenseKey) {
-        query = query.eq('license_key', licenseKey);
-      }
-
-      const { data: licenseRow } = await query.limit(1).maybeSingle();
-      if (licenseRow) {
-        if (licenseRow.redeemed_by) {
-          return String(licenseRow.redeemed_by);
-        }
-        // If unredeemed on website, record the license key so logs show which license generated it
-        return String(licenseRow.license_key);
-      }
+    const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    const sigBuffer = Buffer.from(signature, 'utf8');
+    const expBuffer = Buffer.from(expectedSig, 'utf8');
+    if (sigBuffer.length !== expBuffer.length || !crypto.timingSafeEqual(sigBuffer, expBuffer)) {
+      return null;
     }
+
+    const [licId, hwid, timestampStr] = payload.split(':');
+    if (!licId) return null;
+
+    const tokenTime = Number(timestampStr);
+    // Reject tokens older than 24 hours
+    if (!tokenTime || Date.now() - tokenTime > 24 * 60 * 60 * 1000) {
+      return null;
+    }
+
+    // Re-verify that the license is still active, not revoked, not expired, and HWID matches
+    const { data: license, error: licErr } = await supabaseAdmin
+      .from('licenses')
+      .select('id, is_active, expires_at, redeemed_by, license_key, hwid')
+      .eq('id', licId)
+      .limit(1)
+      .maybeSingle();
+
+    if (licErr || !license || !license.is_active) {
+      return null;
+    }
+
+    if (license.expires_at && new Date(license.expires_at) <= new Date()) {
+      return null;
+    }
+
+    if (hwid && license.hwid && String(license.hwid).trim().toUpperCase() !== hwid.trim().toUpperCase()) {
+      return null;
+    }
+
+    const claimedBy = license.redeemed_by ? String(license.redeemed_by) : String(license.license_key);
+    return { claimedBy, licenseId: license.id };
   } catch (err) {
-    console.warn('[/api/v2/accounts/generate] User resolution warning:', err);
+    console.warn('[/api/v2/accounts/generate] Session token verification error:', err);
+    return null;
   }
-
-  // 4. Default fallback if anonymous
-  return 'ASYNC-V2';
 }
 
 export async function POST(request: Request) {
   try {
+    const verified = await verifySessionToken(request);
+    if (!verified) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: valid v2 desktop session token required.' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const service = body.service || body.serviceName;
 
@@ -80,145 +88,32 @@ export async function POST(request: Request) {
 
     const serviceName = service.trim();
 
-    // Resolve User Identity (Discord ID from session token, license key, or body)
-    const claimedBy = await resolveDiscordUserId(request, body);
-
-    // 1. Attempt Atomic PostgreSQL RPC claim with SKIP LOCKED
+    // Single Atomic PostgreSQL Transaction RPC (row-level SKIP LOCKED)
     const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('claim_service_account', {
-      p_user_id: claimedBy,
+      p_user_id: verified.claimedBy,
       p_service_name: serviceName,
     });
 
-    if (!rpcError && rpcData) {
-      if (!rpcData.success) {
-        return NextResponse.json(
-          { success: false, error: rpcData.error || `${serviceName} is out of stock.` },
-          { status: rpcData.status || 404 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        service: rpcData.service || serviceName,
-        account: rpcData.account || rpcData.accountData || '',
-        claimedBy,
-        message: 'Account generated successfully.',
-      });
-    }
-
-    // 2. Node Fallback if RPC function is not yet created
-    const { data: serviceData } = await supabaseAdmin
-      .from('services')
-      .select('id, name')
-      .ilike('name', serviceName)
-      .limit(1);
-
-    if (!serviceData || serviceData.length === 0) {
+    if (rpcError) {
+      console.error('[/api/v2/accounts/generate RPC Error]:', rpcError);
       return NextResponse.json(
-        { success: false, error: `Service "${serviceName}" not found or out of stock.` },
-        { status: 404 }
+        { success: false, error: 'Generator temporarily unavailable. Please try again later.' },
+        { status: 503 }
       );
     }
 
-    const matchedSvcName = serviceData[0].name;
-    const tableName = getServiceTableName(matchedSvcName);
-
-    // Select 1 unused account
-    const { data: accountData, error: findErr } = await supabaseAdmin
-      .from(tableName)
-      .select('id, data')
-      .eq('is_used', false)
-      .limit(1);
-
-    if (findErr || !accountData || accountData.length === 0) {
+    if (!rpcData || !rpcData.success) {
       return NextResponse.json(
-        { success: false, error: `${matchedSvcName} is currently out of stock.` },
-        { status: 404 }
+        { success: false, error: rpcData?.error || `${serviceName} is out of stock.` },
+        { status: rpcData?.status || 404 }
       );
-    }
-
-    const account = accountData[0];
-    const nowStr = new Date().toISOString();
-
-    // Mark account as used with the resolved user ID
-    await supabaseAdmin
-      .from(tableName)
-      .update({
-        is_used: true,
-        claimed_by: claimedBy,
-        claimed_at: nowStr,
-      })
-      .eq('id', account.id);
-
-    // Extract raw string from data JSON
-    let accountText = '';
-    if (account.data && typeof account.data === 'object') {
-      accountText = account.data.raw || account.data.data || JSON.stringify(account.data);
-    } else if (typeof account.data === 'string') {
-      try {
-        const parsed = JSON.parse(account.data);
-        accountText = parsed.raw || parsed.data || account.data;
-      } catch {
-        accountText = account.data;
-      }
-    }
-
-    // Log to website_claim_logs for admin tracking in Node fallback
-    try {
-      await supabaseAdmin.from('website_claim_logs').insert({
-        service_name: matchedSvcName,
-        account_id: String(account.id),
-        raw_data: accountText,
-        discord_user_id: claimedBy,
-        claimed_at: nowStr,
-        notified_discord: false,
-        source: 'App Generator',
-      });
-
-      // Also ensure user_limits is synced in Node fallback
-      const { data: licRow } = await supabaseAdmin
-        .from('licenses')
-        .select('id')
-        .eq('redeemed_by', claimedBy)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (licRow) {
-        const { data: ulRow } = await supabaseAdmin
-          .from('user_limits')
-          .select('count')
-          .eq('discord_user_id', claimedBy)
-          .eq('license_id', String(licRow.id))
-          .maybeSingle();
-
-        if (ulRow) {
-          await supabaseAdmin
-            .from('user_limits')
-            .update({ count: (ulRow.count || 0) + 1, updated_at: nowStr })
-            .eq('discord_user_id', claimedBy)
-            .eq('license_id', String(licRow.id));
-        } else {
-          await supabaseAdmin
-            .from('user_limits')
-            .insert({
-              discord_user_id: claimedBy,
-              license_id: String(licRow.id),
-              count: 1,
-              updated_at: nowStr,
-            });
-        }
-      }
-    } catch {
-      // Non-critical fallback logging error
     }
 
     return NextResponse.json({
       success: true,
-      service: matchedSvcName,
-      account: accountText,
-      claimedBy,
+      service: rpcData.service || serviceName,
+      account: rpcData.account || rpcData.accountData || '',
+      claimedBy: verified.claimedBy,
       message: 'Account generated successfully.',
     });
   } catch (err: any) {

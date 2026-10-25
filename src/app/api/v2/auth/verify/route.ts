@@ -7,7 +7,10 @@ export const dynamic = 'force-dynamic';
 const HWID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 
 function generateSessionToken(licenseId: string, hwid: string): string {
-  const secret = process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'async-v2-production-key';
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error('SESSION_SECRET is not configured in server environment.');
+  }
   const timestamp = Date.now();
   const payload = `${licenseId}:${hwid}:${timestamp}`;
   const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
