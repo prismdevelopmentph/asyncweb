@@ -131,7 +131,12 @@ export async function GET(request: Request) {
 
     while (true) {
       const { data: pageData, error: pageErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
-      if (pageErr || !pageData?.users || pageData.users.length === 0) break;
+      if (pageErr) {
+        console.error(`[Discord Callback listUsers Error on page ${page}]:`, pageErr.message);
+        return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_lookup_failed`);
+      }
+
+      if (!pageData?.users || pageData.users.length === 0) break;
 
       for (const u of pageData.users) {
         // 1. Primary match: trusted server-managed app_metadata.discord_id ONLY
@@ -191,7 +196,7 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_identity_collision`);
       }
 
-      await supabaseAdmin.auth.admin.updateUserById(targetUser.id, {
+      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(targetUser.id, {
         user_metadata: {
           ...targetUser.user_metadata,
           provider_id: discordUser.id,
@@ -206,9 +211,22 @@ export async function GET(request: Request) {
           discord_id: String(discordUser.id)
         }
       });
+
+      if (updateErr) {
+        console.error('[Discord Callback updateUserById Error]:', updateErr);
+      }
     }
 
-    // Determine target host from state parameter or fallback to request host
+    // Determine target host from state parameter with strict domain allowlist
+    const ALLOWED_REDIRECT_HOSTS = [
+      'asyncdevph.xyz',
+      'www.asyncdevph.xyz',
+      'gen.asyncdevph.xyz',
+      'admin.asyncdevph.xyz',
+      'localhost:3000',
+      'localhost:3001'
+    ];
+
     let targetHost = host;
     let targetProtocol = protocol;
 
@@ -216,8 +234,12 @@ export async function GET(request: Request) {
     if (stateParam) {
       try {
         const parsed = JSON.parse(Buffer.from(stateParam, 'base64').toString('utf8'));
-        if (parsed.host) targetHost = parsed.host;
-        if (parsed.protocol) targetProtocol = parsed.protocol;
+        if (parsed.host && ALLOWED_REDIRECT_HOSTS.includes(String(parsed.host).toLowerCase())) {
+          targetHost = String(parsed.host).toLowerCase();
+        }
+        if (parsed.protocol === 'http' || parsed.protocol === 'https') {
+          targetProtocol = parsed.protocol;
+        }
       } catch {}
     }
 
@@ -227,13 +249,24 @@ export async function GET(request: Request) {
       ? `${targetProtocol}://${targetHost}/`
       : `${targetProtocol}://${targetHost}/generator`;
 
-    const { data: magicLink } = await supabaseAdmin.auth.admin.generateLink({
+    // Security Fix: Always generate magic link for the target account's authoritative email, NEVER the incoming untrusted discordUser.email
+    const sessionEmail = targetUser?.email;
+    if (!sessionEmail) {
+      console.error('[Discord Callback Critical Error]: Matched target account has no email address.');
+      return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_missing_account_email`);
+    }
+
+    const { data: magicLink, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email: userEmail,
+      email: sessionEmail,
       options: {
         redirectTo: redirectTarget
       }
     });
+
+    if (linkErr) {
+      console.error('[Discord Callback generateLink Error]:', linkErr);
+    }
 
     if (magicLink?.properties?.action_link) {
       return NextResponse.redirect(magicLink.properties.action_link);
