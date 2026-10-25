@@ -211,13 +211,8 @@ export async function POST(request: Request) {
         if (whRes.ok) notifiedSuccessfully = true;
       }
 
-      // Update notified_discord status if message reached Discord
-      if (notifiedSuccessfully && savedRecord?.id) {
-        await supabaseAdmin
-          .from('security_lockouts')
-          .update({ notified_discord: true })
-          .eq('id', savedRecord.id);
-      }
+      // Keep notified_discord = false in Supabase so accountgenerator.py's
+      // task loop also picks it up and dispatches the interactive [Unban IP] button container.
     } catch (discErr) {
       console.warn('[Security Lockout API] Discord notification error:', discErr);
     }
