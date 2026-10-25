@@ -234,7 +234,8 @@ export default function CartDrawer() {
                         </span>
                         <button
                           onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
-                          className="px-2 py-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-r-lg transition-colors cursor-pointer"
+                          disabled={item.quantity >= 20}
+                          className="px-2 py-1 text-zinc-400 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-400 disabled:cursor-not-allowed rounded-r-lg transition-colors cursor-pointer"
                         >
                           <Plus className="w-3 h-3" />
                         </button>

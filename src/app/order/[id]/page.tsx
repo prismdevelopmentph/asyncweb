@@ -32,7 +32,7 @@ interface OrderItem {
 interface OrderData {
   ok: boolean;
   id: string;
-  status: 'awaiting_payment' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'rejected';
+  status: 'awaiting_payment' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'rejected' | 'payment_mismatch';
   provider: 'balance' | 'qrph' | 'paypal' | 'paymongo_qrph' | 'gcash' | 'maya' | 'crypto';
   providerLabel: string;
   email: string;
@@ -158,7 +158,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     if (!order) return;
     // Halt live polling if order has reached terminal status
-    if (order.status === 'delivered' || order.status === 'cancelled') return;
+    if (order.status === 'delivered' || order.status === 'cancelled' || order.status === 'payment_mismatch') return;
 
     const interval = setInterval(() => {
       fetchOrder();
@@ -299,10 +299,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const isDelivered = order.status === 'delivered';
   const isRejected = order.status === 'rejected';
   const isCancelled = order.status === 'cancelled';
-  const isPaymentSubmitted = !isRejected && !isCancelled && Boolean(order.paidAt || order.hasSubmittedRef || order.customerRef || refSuccess || order.status === 'pending');
-  const isPaid = !isRejected && !isCancelled && (order.status === 'paid' || isPaymentSubmitted || isDelivered);
-  const isPending = !isCancelled && (order.status === 'pending' || order.status === 'awaiting_payment');
-  const canCancel = !isDelivered && !isCancelled && order.status !== 'paid';
+  const isMismatch = order.status === 'payment_mismatch';
+  const isPaymentSubmitted = !isRejected && !isCancelled && !isMismatch && Boolean(order.paidAt || order.hasSubmittedRef || order.customerRef || refSuccess || order.status === 'pending');
+  const isPaid = !isRejected && !isCancelled && !isMismatch && (order.status === 'paid' || isPaymentSubmitted || isDelivered);
+  const isPending = !isCancelled && !isMismatch && (order.status === 'pending' || order.status === 'awaiting_payment');
+  const canCancel = !isDelivered && !isCancelled && !isMismatch && order.status !== 'paid';
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col relative selection:bg-purple-600 selection:text-white overflow-hidden dev-grid-bg">
@@ -319,7 +320,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                   : isCancelled
                   ? 'bg-zinc-900 border-zinc-800 text-zinc-500'
-                  : isRejected
+                  : isRejected || isMismatch
                   ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                   : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
               }`}>
@@ -327,7 +328,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   <CheckCircle2 className="w-6 h-6" />
                 ) : isCancelled ? (
                   <XCircle className="w-6 h-6" />
-                ) : isRejected ? (
+                ) : isRejected || isMismatch ? (
                   <AlertCircle className="w-6 h-6" />
                 ) : (
                   <Clock className="w-6 h-6 animate-pulse" />
@@ -342,6 +343,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     ? 'Order Cancelled'
                     : isRejected
                     ? 'Payment Verification Rejected'
+                    : isMismatch
+                    ? 'Payment Under Review'
                     : isPaymentSubmitted
                     ? 'Payment Submitted // Pending Staff Approval'
                     : order.provider === 'balance'
@@ -355,6 +358,8 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     ? 'This order has been cancelled. No payment was captured and no license keys will be generated.'
                     : isRejected
                     ? 'Staff could not verify the submitted payment. Please check the reason below and submit the correct reference.'
+                    : isMismatch
+                    ? 'Payment discrepancy detected: The received amount does not match the invoice. Your order is under manual administrative review. Please contact support on Discord.'
                     : isPaymentSubmitted
                     ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your license key will unlock here automatically.'
                     : 'Follow the steps below. Once we confirm your payment, your items unlock here automatically.'}

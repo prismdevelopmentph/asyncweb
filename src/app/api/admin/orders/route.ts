@@ -51,11 +51,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: 'Order has already been fulfilled' }, { status: 400 });
       }
 
+      // Move pending / payment_mismatch / awaiting_payment to 'paid' before fulfillment
+      const nowIso = new Date().toISOString();
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'paid',
+          paid_at: order.paid_at || nowIso
+        })
+        .eq('id', order.id)
+        .in('status', ['pending', 'payment_mismatch', 'awaiting_payment']);
+
       // If product purchase: generate key & deliver
       if (order.order_type === 'product_purchase') {
         const result = await fulfillProductOrder(order.id);
-        if (!result.success) {
-          return NextResponse.json({ ok: false, error: result.error || 'Failed to fulfill license' }, { status: 500 });
+        if (!result.success || !result.licenseKey) {
+          return NextResponse.json({ ok: false, error: result.error || 'Failed to fulfill license key' }, { status: 500 });
         }
         return NextResponse.json({ ok: true, message: 'License key successfully issued and delivered.', licenseKey: result.licenseKey });
       }
@@ -81,7 +92,7 @@ export async function POST(req: NextRequest) {
             .upsert({
               discord_id: discordId,
               balance_php: newBal,
-              updated_at: new Date().toISOString()
+              updated_at: nowIso
             });
         }
 
@@ -89,8 +100,8 @@ export async function POST(req: NextRequest) {
           .from('orders')
           .update({
             status: 'delivered',
-            paid_at: new Date().toISOString(),
-            delivered_at: new Date().toISOString()
+            paid_at: order.paid_at || nowIso,
+            delivered_at: nowIso
           })
           .eq('id', order.id);
 

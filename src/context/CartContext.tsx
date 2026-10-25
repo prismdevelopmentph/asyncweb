@@ -103,18 +103,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = useCallback(
     (item: Omit<CartItem, 'quantity' | 'cartItemId'>, quantity = 1) => {
-      const safeQty = Math.max(1, quantity);
+      const safeQty = Math.min(20, Math.max(1, Math.floor(quantity) || 1));
       const cartItemId = `${item.productId}__${item.tierKey}`;
 
       setItems((prev) => {
         const existingIndex = prev.findIndex((i) => i.cartItemId === cartItemId);
+        if (existingIndex === -1 && prev.length >= 20) {
+          return prev; // Maximum 20 distinct cart lines
+        }
+
         let updated: CartItem[];
 
         if (existingIndex > -1) {
           updated = [...prev];
+          const newQty = Math.min(20, updated[existingIndex].quantity + safeQty);
           updated[existingIndex] = {
             ...updated[existingIndex],
-            quantity: updated[existingIndex].quantity + safeQty,
+            quantity: newQty,
             pricePHP: item.pricePHP,
             priceUSD: item.priceUSD
           };
@@ -156,7 +161,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateQuantity = useCallback((cartItemId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
+    const safeQty = Math.floor(newQuantity);
+    if (safeQty <= 0) {
       setItems((prev) => {
         const updated = prev.filter((i) => i.cartItemId !== cartItemId);
         try {
@@ -170,9 +176,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const clampedQty = Math.min(20, safeQty);
     setItems((prev) => {
       const updated = prev.map((item) =>
-        item.cartItemId === cartItemId ? { ...item, quantity: newQuantity } : item
+        item.cartItemId === cartItemId ? { ...item, quantity: clampedQty } : item
       );
       try {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(updated));

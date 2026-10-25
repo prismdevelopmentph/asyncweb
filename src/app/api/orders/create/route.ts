@@ -15,16 +15,28 @@ export async function POST(req: NextRequest) {
       tierKey = 'daily',
       provider = 'paymongo_qrph', // 'paymongo_qrph' | 'gcash' | 'maya' | 'paypal' | 'crypto' | 'balance' | 'qrph'
       email,
-      discordId,
       orderType = 'product_purchase', // 'product_purchase' | 'balance_topup'
       topupAmount,
       cartItems,
       couponCode
     } = body;
 
+    // Explicit Bearer token authentication:
+    let verifiedDiscordId: string | null = null;
+    const authHeader = req.headers.get('authorization');
+    if (authHeader) {
+      const auth = await requireUser(req);
+      if (!auth.ok) return auth.response;
+      verifiedDiscordId = auth.data.discordId;
+    }
+
+    if (orderType === 'balance_topup' && !verifiedDiscordId) {
+      return NextResponse.json({ ok: false, error: 'Authentication required for balance top-up' }, { status: 401 });
+    }
+
     const cleanEmail = (email || '').trim().toLowerCase();
-    if (!cleanEmail && !discordId) {
-      return NextResponse.json({ ok: false, error: 'Customer email or Discord ID is required' }, { status: 400 });
+    if (!cleanEmail && !verifiedDiscordId) {
+      return NextResponse.json({ ok: false, error: 'Customer email or Discord authentication is required' }, { status: 400 });
     }
 
     const settings = await getPaymentSettings();
@@ -39,6 +51,10 @@ export async function POST(req: NextRequest) {
       let verifiedCartItems: any[] = [];
 
       if (isCartOrder) {
+        if (cartItems.length > 20) {
+          return NextResponse.json({ ok: false, error: 'Maximum 20 distinct cart line items allowed' }, { status: 400 });
+        }
+
         const productIds = Array.from(new Set(cartItems.map((c: any) => c.productId).filter(Boolean)));
         if (productIds.length === 0) {
           return NextResponse.json({ ok: false, error: 'No valid products in cart' }, { status: 400 });
@@ -65,20 +81,49 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ ok: false, error: `Product "${item.title || item.productId}" is unavailable or inactive` }, { status: 400 });
           }
 
+          const rawQty = Number(item.quantity);
+          if (!Number.isInteger(rawQty) || rawQty < 1 || rawQty > 20) {
+            return NextResponse.json({
+              ok: false,
+              error: `Invalid quantity for item "${item.title || product.title}". Quantity must be an integer between 1 and 20.`
+            }, { status: 400 });
+          }
+          const qty = rawQty;
+
           const rawTiers = Array.isArray(product.tiers) ? product.tiers : [];
-          const matchedTier = rawTiers.find((t: any) => (t.tier_key || t.tierKey) === item.tierKey) || rawTiers[0];
+          let itemTierKey = 'flat';
+          let itemTierName = 'Direct Access';
+          let rawBase = 0;
+          let discountPct = 0;
 
-          const rawBase = Number(matchedTier?.price_php ?? matchedTier?.pricePHP ?? product.price_php ?? 0);
-          const discountPct = Number(matchedTier?.discount_percent ?? matchedTier?.discountPercent ?? product.discount_percent ?? 0);
+          if (rawTiers.length > 0) {
+            const reqKey = (item.tierKey || '').toLowerCase().trim();
+            const matchedTier = rawTiers.find((t: any) => ((t.tier_key || t.tierKey || '').toLowerCase().trim()) === reqKey);
+            if (!matchedTier) {
+              return NextResponse.json({ ok: false, error: `Invalid tier "${item.tierKey}" for product "${product.title}"` }, { status: 400 });
+            }
+            itemTierKey = (matchedTier.tier_key || matchedTier.tierKey).toLowerCase();
+            itemTierName = matchedTier.name || 'Standard';
+            rawBase = Number(matchedTier.price_php ?? matchedTier.pricePHP ?? 0);
+            discountPct = Number(matchedTier.discount_percent ?? matchedTier.discountPercent ?? 0);
+          } else {
+            const reqKey = (item.tierKey || 'flat').toLowerCase().trim();
+            if (reqKey !== 'flat') {
+              return NextResponse.json({ ok: false, error: `Product "${product.title}" only supports flat pricing` }, { status: 400 });
+            }
+            itemTierKey = 'flat';
+            itemTierName = 'Direct Access';
+            rawBase = Number(product.price_php ?? 0);
+            discountPct = Number(product.discount_percent ?? 0);
+          }
+
           const itemPricePhp = discountPct > 0 ? Math.round(rawBase * (1 - discountPct / 100)) : rawBase;
-          const qty = Math.max(1, Number(item.quantity) || 1);
-
           basePhp += itemPricePhp * qty;
 
           verifiedCartItems.push({
             productId: product.id,
-            tierKey: matchedTier?.tier_key || matchedTier?.tierKey || item.tierKey || 'daily',
-            tierName: matchedTier?.name || item.tierName || 'Standard',
+            tierKey: itemTierKey,
+            tierName: itemTierName,
             title: product.title,
             pricePHP: itemPricePhp,
             quantity: qty,
@@ -91,7 +136,7 @@ export async function POST(req: NextRequest) {
 
         basePhp = Math.round(basePhp);
         orderProductId = verifiedCartItems[0]?.productId || null;
-        orderTierKey = verifiedCartItems[0]?.tierKey || 'daily';
+        orderTierKey = verifiedCartItems[0]?.tierKey || 'flat';
       } else {
         if (!productId) {
           return NextResponse.json({ ok: false, error: 'Product ID required' }, { status: 400 });
@@ -110,13 +155,32 @@ export async function POST(req: NextRequest) {
         }
 
         const rawTiers = Array.isArray(product.tiers) ? product.tiers : [];
-        const matchedTier = rawTiers.find((t: any) => (t.tier_key || t.tierKey) === tierKey) || rawTiers[0];
+        let chosenTierKey = 'flat';
+        let rawBase = 0;
+        let discountPct = 0;
 
-        const rawBase = Number(matchedTier?.price_php ?? matchedTier?.pricePHP ?? product.price_php ?? 0);
-        const discountPct = Number(matchedTier?.discount_percent ?? matchedTier?.discountPercent ?? product.discount_percent ?? 0);
+        if (rawTiers.length > 0) {
+          const reqKey = (tierKey || '').toLowerCase().trim();
+          const matchedTier = rawTiers.find((t: any) => ((t.tier_key || t.tierKey || '').toLowerCase().trim()) === reqKey);
+          if (!matchedTier) {
+            return NextResponse.json({ ok: false, error: `Invalid tier "${tierKey}" for product "${product.title}"` }, { status: 400 });
+          }
+          chosenTierKey = (matchedTier.tier_key || matchedTier.tierKey).toLowerCase();
+          rawBase = Number(matchedTier.price_php ?? matchedTier.pricePHP ?? 0);
+          discountPct = Number(matchedTier.discount_percent ?? matchedTier.discountPercent ?? 0);
+        } else {
+          const reqKey = (tierKey || 'flat').toLowerCase().trim();
+          if (reqKey !== 'flat') {
+            return NextResponse.json({ ok: false, error: `Product "${product.title}" only supports flat pricing` }, { status: 400 });
+          }
+          chosenTierKey = 'flat';
+          rawBase = Number(product.price_php ?? 0);
+          discountPct = Number(product.discount_percent ?? 0);
+        }
+
         basePhp = discountPct > 0 ? Math.round(rawBase * (1 - discountPct / 100)) : rawBase;
         orderProductId = productId;
-        orderTierKey = tierKey;
+        orderTierKey = chosenTierKey;
       }
 
       // ── NON-STACKING PROMO / COUPON CODE ENGINE ──
@@ -186,12 +250,11 @@ export async function POST(req: NextRequest) {
 
       // ── SUB-ROUTE: WEB BALANCE (Instant - 0% fee) ──
       if (provider === 'balance') {
-        const auth = await requireUser(req);
-        if (!auth.ok) {
+        if (!verifiedDiscordId) {
           return NextResponse.json({ ok: false, error: 'You must be logged in with Discord to pay with Web Balance' }, { status: 401 });
         }
 
-        const buyerDiscordId = auth.data.discordId;
+        const buyerDiscordId = verifiedDiscordId;
 
         const { data: userBal, error: balErr } = await supabaseAdmin
           .from('user_balances')
@@ -232,35 +295,74 @@ export async function POST(req: NextRequest) {
           }, { status: 409 });
         }
 
-        const { data: newOrder, error: orderErr } = await supabaseAdmin
-          .from('orders')
-          .insert({
-            discord_id: buyerDiscordId,
-            email: cleanEmail || `${buyerDiscordId}@discord.asyncdevph.xyz`,
-            order_type: 'product_purchase',
-            product_id: orderProductId,
-            tier_key: orderTierKey,
-            amount: basePhp,
-            currency: 'PHP',
-            provider: 'balance',
-            provider_label: 'Web Balance',
-            payment_details: {
-              base_amount: basePhp,
-              fee_percent: 0,
-              fee_amount: 0,
-              deducted_php: basePhp,
-              remaining_balance: newBalance,
-              coupon_code: appliedCouponCode,
-              discount_amount: appliedDiscountAmount,
-              ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
-            },
-            status: 'paid',
-            paid_at: new Date().toISOString()
-          })
-          .select()
-          .single();
+        let newOrder: any = null;
+        try {
+          const { data, error: orderErr } = await supabaseAdmin
+            .from('orders')
+            .insert({
+              discord_id: buyerDiscordId,
+              email: cleanEmail || `${buyerDiscordId}@discord.asyncdevph.xyz`,
+              order_type: 'product_purchase',
+              product_id: orderProductId,
+              tier_key: orderTierKey,
+              amount: basePhp,
+              currency: 'PHP',
+              provider: 'balance',
+              provider_label: 'Web Balance',
+              payment_details: {
+                base_amount: basePhp,
+                fee_percent: 0,
+                fee_amount: 0,
+                deducted_php: basePhp,
+                remaining_balance: newBalance,
+                coupon_code: appliedCouponCode,
+                discount_amount: appliedDiscountAmount,
+                ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
+              },
+              status: 'paid',
+              paid_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-        if (orderErr || !newOrder) throw orderErr || new Error('Failed to create order record');
+          if (orderErr || !data) throw orderErr || new Error('Failed to create order record');
+          newOrder = data;
+        } catch (orderInsertErr) {
+          console.error('[Orders Create] Order insert failed after balance deduction. Initiating refund compensation:', orderInsertErr);
+
+          let refunded = false;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            const { data: latestBal } = await supabaseAdmin
+              .from('user_balances')
+              .select('balance_php')
+              .eq('discord_id', buyerDiscordId)
+              .maybeSingle();
+
+            if (latestBal) {
+              const readBal = Number(latestBal.balance_php || 0);
+              const restoredBal = Math.round((readBal + basePhp) * 100) / 100;
+              const { data: restored, error: restErr } = await supabaseAdmin
+                .from('user_balances')
+                .update({ balance_php: restoredBal, updated_at: new Date().toISOString() })
+                .eq('discord_id', buyerDiscordId)
+                .eq('balance_php', readBal)
+                .select()
+                .maybeSingle();
+
+              if (!restErr && restored) {
+                refunded = true;
+                console.log(`[Orders Create] Refund compensation successful on attempt ${attempt} for ${buyerDiscordId}. Restored: ₱${restoredBal}`);
+                break;
+              }
+            }
+          }
+
+          if (!refunded) {
+            console.error(`[CRITICAL] Balance refund compensation failed for ${buyerDiscordId}. Amount to restore: ₱${basePhp}`);
+          }
+
+          throw orderInsertErr;
+        }
 
         const fulfillment = await fulfillProductOrder(newOrder.id);
         return NextResponse.json({
@@ -281,7 +383,7 @@ export async function POST(req: NextRequest) {
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId || null,
+            discord_id: verifiedDiscordId || null,
             email: cleanEmail,
             order_type: 'product_purchase',
             product_id: orderProductId,
@@ -329,7 +431,7 @@ export async function POST(req: NextRequest) {
               amountPHP: finalChargedPhp,
               productName: isCartOrder ? `ASYNC Order (${verifiedCartItems.length} items)` : 'ASYNC Product License',
               customerEmail: cleanEmail,
-              customerDiscordId: discordId || null,
+              customerDiscordId: verifiedDiscordId || null,
               originUrl,
             });
 
@@ -369,7 +471,7 @@ export async function POST(req: NextRequest) {
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId || null,
+            discord_id: verifiedDiscordId || null,
             email: cleanEmail,
             order_type: 'product_purchase',
             product_id: orderProductId,
@@ -409,7 +511,7 @@ export async function POST(req: NextRequest) {
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId || null,
+            discord_id: verifiedDiscordId || null,
             email: cleanEmail,
             order_type: 'product_purchase',
             product_id: orderProductId,
@@ -449,7 +551,7 @@ export async function POST(req: NextRequest) {
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId || null,
+            discord_id: verifiedDiscordId || null,
             email: cleanEmail,
             order_type: 'product_purchase',
             product_id: orderProductId,
@@ -488,7 +590,7 @@ export async function POST(req: NextRequest) {
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId || null,
+            discord_id: verifiedDiscordId || null,
             email: cleanEmail,
             order_type: 'product_purchase',
             product_id: orderProductId,
@@ -529,8 +631,8 @@ export async function POST(req: NextRequest) {
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId || null,
-            email: cleanEmail,
+            discord_id: verifiedDiscordId,
+            email: cleanEmail || `${verifiedDiscordId}@discord.asyncdevph.xyz`,
             order_type: 'balance_topup',
             amount: topupUsd,
             currency: 'USD',
@@ -555,8 +657,8 @@ export async function POST(req: NextRequest) {
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId || null,
-            email: cleanEmail,
+            discord_id: verifiedDiscordId,
+            email: cleanEmail || `${verifiedDiscordId}@discord.asyncdevph.xyz`,
             order_type: 'balance_topup',
             amount: topupPhp,
             currency: 'PHP',

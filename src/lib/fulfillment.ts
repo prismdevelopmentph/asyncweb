@@ -11,7 +11,8 @@ const TIER_DURATIONS: Record<string, number | null> = {
   daily: 1,
   weekly: 7,
   monthly: 30,
-  lifetime: null
+  lifetime: null,
+  flat: null
 };
 
 export function generateCryptoLicenseKey(): string {
@@ -35,7 +36,7 @@ async function createLicenseForProduct(
   }
 
   const cleanTierKey = (tierKey || 'daily').toLowerCase();
-  const durationDays = TIER_DURATIONS[cleanTierKey] ?? 1;
+  const durationDays = cleanTierKey === 'lifetime' || cleanTierKey === 'flat' ? null : (TIER_DURATIONS[cleanTierKey] ?? 1);
   let expiresAt: string | null = null;
   if (durationDays !== null) {
     expiresAt = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
@@ -217,14 +218,18 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
       .maybeSingle();
 
     if (!lockedOrder) {
-      // Another concurrent process has already claimed or completed fulfillment
-      console.log(`[Fulfillment] Order ${orderId} already locked or fulfilled by another thread. Skipping duplicate.`);
       const { data: currentOrder } = await supabaseAdmin
         .from('orders')
         .select('license_key')
         .eq('id', orderId)
         .maybeSingle();
-      return { success: true, licenseKey: currentOrder?.license_key || undefined };
+
+      if (currentOrder?.license_key) {
+        return { success: true, licenseKey: currentOrder.license_key };
+      }
+
+      console.warn(`[Fulfillment] Order ${orderId} could not be claimed for fulfillment and has no license key.`);
+      return { success: false, error: 'Order could not be claimed for fulfillment' };
     }
 
     const details = order.payment_details || {};

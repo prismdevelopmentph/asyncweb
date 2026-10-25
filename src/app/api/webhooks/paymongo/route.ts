@@ -166,11 +166,33 @@ export async function POST(req: NextRequest) {
     const paymentSourceType = primaryPayment?.source?.type || 'paymongo_checkout';
 
     // Strict amount verification: prevent underpayment fraud
-    const paidCentavos = Number(primaryPayment?.amount || 0);
+    const paidCentavos = Number(primaryPayment?.amount);
     const expectedCentavos = Math.max(2000, Math.round(Number(order.amount) * 100));
-    if (paidCentavos > 0 && paidCentavos < expectedCentavos) {
+
+    if (!Number.isFinite(paidCentavos) || paidCentavos < expectedCentavos) {
       console.error(`[PayMongo Webhook] Underpayment detected for order ${order.id}. Expected: ${expectedCentavos} centavos, Received: ${paidCentavos} centavos.`);
-      return NextResponse.json({ error: 'Underpayment detected' }, { status: 400 });
+      
+      const mismatchNow = new Date().toISOString();
+      await supabaseAdmin
+        .from('orders')
+        .update({
+          status: 'payment_mismatch',
+          payment_details: {
+            ...(order.payment_details || {}),
+            mismatch_reason: `Expected ${expectedCentavos} centavos, received ${paidCentavos} centavos`,
+            paymongo_payment_id: paymentId,
+            paymongo_event_id: event?.data?.id,
+            mismatch_detected_at: mismatchNow
+          }
+        })
+        .eq('id', order.id)
+        .in('status', ['awaiting_payment', 'cancelled']);
+
+      return NextResponse.json({ received: true, mismatch: true });
+    }
+
+    if (paidCentavos > expectedCentavos) {
+      console.warn(`[PayMongo Webhook] Overpayment noticed for order ${order.id}. Expected: ${expectedCentavos} centavos, Received: ${paidCentavos} centavos. Proceeding with fulfillment.`);
     }
 
     const nowIso = new Date().toISOString();
