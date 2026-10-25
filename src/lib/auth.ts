@@ -98,6 +98,17 @@ export async function requireUser(request: Request): Promise<AuthResult> {
   };
 }
 
+export async function getVerifiedDiscordIdFromToken(token: string | null): Promise<string | null> {
+  if (!token) return null;
+  try {
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data?.user) return null;
+    return resolveVerifiedDiscordId(data.user);
+  } catch {
+    return null;
+  }
+}
+
 export function isOwnerDiscordId(discordId: string | null | undefined): boolean {
   if (!discordId) return false;
   const rawOwnerIds = process.env.OWNER_DISCORD_IDS || process.env.OWNER_USER_ID || '';

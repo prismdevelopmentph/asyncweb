@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getVerifiedDiscordIdFromToken, isOwnerDiscordId } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 function getClientIp(headers: Headers): string {
   // 1. Cloudflare real visitor IP header (Highest priority)
@@ -10,7 +13,7 @@ function getClientIp(headers: Headers): string {
   const forwarded = headers.get('x-forwarded-for');
   if (forwarded) {
     const ips = forwarded.split(',').map((i) => i.trim());
-    // Filter out Cloudflare proxy IP ranges (172.68.x.x - 172.71.x.x, 108.162.x.x)
+    // Filter out Cloudflare proxy IP ranges
     const realVisitorIp = ips.find(
       (i) =>
         !i.startsWith('172.68.') &&
@@ -30,6 +33,13 @@ function getClientIp(headers: Headers): string {
   return '127.0.0.1';
 }
 
+function extractBearerToken(request: Request): string | null {
+  const authHeader = request.headers.get('authorization') || request.headers.get('Authorization');
+  if (!authHeader) return null;
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : null;
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -37,19 +47,33 @@ export async function POST(request: Request) {
       reason = 'DevTools Inspection Detected',
       url = 'https://asyncdevph.xyz',
       userAgent = '',
-      userId = null,
       deviceId = null,
     } = body;
 
+    // Resolve verified Discord identity strictly from server-validated session token
+    // (Client-supplied userId in body is completely ignored to prevent spoofing)
+    const token = extractBearerToken(request);
+    const verifiedDiscordId = await getVerifiedDiscordIdFromToken(token);
+
+    // Safeguard: Never ban IDs listed in OWNER_DISCORD_IDS
+    if (verifiedDiscordId && isOwnerDiscordId(verifiedDiscordId)) {
+      return NextResponse.json({
+        success: true,
+        ignored: true,
+        message: 'Owner action bypassed from security lockout recording.'
+      });
+    }
+
     // Resolve visitor IP address using Cloudflare & Vercel headers
     let ip = getClientIp(request.headers);
-
     if (ip === '::1' || ip === '127.0.0.1') {
       ip = '112.204.180.1'; // fallback development IP
     }
 
-    const targetUserId = userId || deviceId || null;
-    const resolvedUserAgent = userAgent || request.headers.get('user-agent') || 'Unknown';
+    // Prioritize Discord ID first, then persistent guest device token
+    const sanitizedDeviceId = typeof deviceId === 'string' ? deviceId.trim().slice(0, 64) : null;
+    const targetUserId = verifiedDiscordId || sanitizedDeviceId || null;
+    const resolvedUserAgent = (userAgent || request.headers.get('user-agent') || 'Unknown').slice(0, 255);
     const nowIso = new Date().toISOString();
 
     let savedRecord: any = null;
@@ -60,9 +84,9 @@ export async function POST(request: Request) {
       .upsert(
         {
           ip_address: ip,
-          reason,
+          reason: String(reason).slice(0, 150),
           user_agent: resolvedUserAgent,
-          url,
+          url: String(url).slice(0, 255),
           discord_user_id: targetUserId,
           is_banned: true,
           notified_discord: false,
@@ -75,9 +99,8 @@ export async function POST(request: Request) {
     if (!upsertErr && upsertData && upsertData.length > 0) {
       savedRecord = upsertData[0];
     } else {
-      // 2. Resilient Fallback: If upsert failed due to missing UNIQUE constraint on ip_address
       if (upsertErr) {
-        console.warn('[Security Lockout API] Upsert failed, executing resilient fallback:', upsertErr.message);
+        console.warn('[Security Lockout API] Upsert fallback:', upsertErr.message);
       }
 
       const { data: existingRows } = await supabaseAdmin
@@ -90,9 +113,9 @@ export async function POST(request: Request) {
         const { data: updateData, error: updateErr } = await supabaseAdmin
           .from('security_lockouts')
           .update({
-            reason,
+            reason: String(reason).slice(0, 150),
             user_agent: resolvedUserAgent,
-            url,
+            url: String(url).slice(0, 255),
             discord_user_id: targetUserId,
             is_banned: true,
             notified_discord: false,
@@ -109,9 +132,9 @@ export async function POST(request: Request) {
           .from('security_lockouts')
           .insert({
             ip_address: ip,
-            reason,
+            reason: String(reason).slice(0, 150),
             user_agent: resolvedUserAgent,
-            url,
+            url: String(url).slice(0, 255),
             discord_user_id: targetUserId,
             is_banned: true,
             notified_discord: false,
@@ -121,13 +144,11 @@ export async function POST(request: Request) {
 
         if (!insertErr && insertData && insertData.length > 0) {
           savedRecord = insertData[0];
-        } else if (insertErr) {
-          console.error('[Security Lockout API] Fallback insert error:', insertErr);
         }
       }
     }
 
-    // 3. Dispatch Live Discord Security Notification
+    // 2. Dispatch Live Discord Security Notification
     try {
       const botToken = (
         process.env.DISCORD_BOT_TOKEN ||
@@ -141,7 +162,6 @@ export async function POST(request: Request) {
         process.env.DISCORD_WEBHOOK_URL
       )?.trim();
 
-      // Retrieve security log channel from config table
       const { data: configRows } = await supabaseAdmin
         .from('config')
         .select('key, value')
@@ -155,19 +175,18 @@ export async function POST(request: Request) {
       const targetWebhookUrl = webhookUrl || configMap['log_security_webhook_url'];
       const targetChannelId = configMap['log_security_channel_id'] || configMap['log_restock_channel_id'] || configMap['log_license_channel_id'];
 
-      const isDiscordSnowflake = userId && /^\d{17,20}$/.test(String(userId));
-      const targetAccountDisplay = isDiscordSnowflake
-        ? `<@${userId}> (\`${userId}\`)`
-        : deviceId
-        ? `\`Guest (${deviceId})\``
+      const targetAccountDisplay = verifiedDiscordId
+        ? `<@${verifiedDiscordId}> (\`${verifiedDiscordId}\`)`
+        : sanitizedDeviceId
+        ? `\`Guest (${sanitizedDeviceId})\``
         : '`Guest Visitor`';
 
       const discordEmbed = {
         title: '🚨 DevTools Security Lockout Triggered',
         description: `A visitor triggered an active security lockout on **ASYNC Development Store**.\nAccess has been restricted.`,
-        color: 0xef4444, // Red
+        color: 0xef4444,
         fields: [
-          { name: 'Reason', value: `\`${reason}\``, inline: true },
+          { name: 'Reason', value: `\`${String(reason).slice(0, 100)}\``, inline: true },
           { name: 'Visitor IP', value: `\`${ip}\``, inline: true },
           { name: 'Account / Target', value: targetAccountDisplay, inline: true },
           { name: 'Origin URL', value: `[${url}](${url})`, inline: false },
@@ -179,7 +198,6 @@ export async function POST(request: Request) {
 
       let notifiedSuccessfully = false;
 
-      // Option A: Discord Bot API to Channel
       if (botToken && targetChannelId) {
         try {
           const botRes = await fetch(`https://discord.com/api/v10/channels/${targetChannelId}/messages`, {
@@ -198,7 +216,6 @@ export async function POST(request: Request) {
         }
       }
 
-      // Option B: Direct Webhook POST Fallback
       if (!notifiedSuccessfully && targetWebhookUrl) {
         const whRes = await fetch(targetWebhookUrl, {
           method: 'POST',
@@ -211,18 +228,25 @@ export async function POST(request: Request) {
         });
         if (whRes.ok) notifiedSuccessfully = true;
       }
-
-      // Keep notified_discord = false in Supabase so accountgenerator.py's
-      // task loop also picks it up and dispatches the interactive [Unban IP] button container.
     } catch (discErr) {
       console.warn('[Security Lockout API] Discord notification error:', discErr);
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       ip,
       record: savedRecord,
     });
+
+    // Set cookie on client response so subsequent page navigations recognize the ban
+    if (verifiedDiscordId) {
+      response.cookies.set('async_security_uid', verifiedDiscordId, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+    }
+    if (sanitizedDeviceId) {
+      response.cookies.set('async_device_id', sanitizedDeviceId, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+    }
+
+    return response;
   } catch (err: any) {
     console.error('[Security Lockout API] Error:', err);
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });

@@ -49,28 +49,28 @@ export default function DevToolsProtection() {
   // 1. Send Security Audit Payload to API Route
   const dispatchSecurityLockout = async (reason: string) => {
     try {
-      let userId: string | null = null;
+      let sessionToken: string | null = null;
       try {
-        const authRes = await supabase.auth.getUser();
-        userId = getDiscordId(authRes?.data?.user);
+        const { data: { session } } = await supabase.auth.getSession();
+        sessionToken = session?.access_token || null;
       } catch {
         // Unauthenticated guest visitor
       }
 
       const deviceId = getOrCreateDeviceId();
 
-      if (userId && typeof document !== 'undefined') {
-        document.cookie = `async_security_uid=${userId}; Path=/; Max-Age=31536000; SameSite=Lax`;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
       }
 
       const res = await fetch('/api/security/log-lockout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           reason,
           url: typeof window !== 'undefined' ? window.location.href : 'https://asyncdevph.xyz',
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
-          userId,
           deviceId,
         }),
       });
