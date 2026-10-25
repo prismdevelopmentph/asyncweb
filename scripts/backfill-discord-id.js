@@ -1,4 +1,4 @@
-// web/scripts/backfill-discord-id.js
+// scripts/backfill-discord-id.js
 // One-time backfill script to populate app_metadata.discord_id from user_metadata.provider_id
 
 const { createClient } = require('@supabase/supabase-js');
@@ -77,7 +77,6 @@ async function runBackfill() {
           app_metadata: {
             ...(u.app_metadata || {}),
             discord_id: cleanDiscordId,
-            provider: 'discord',
           },
         });
 
@@ -109,3 +108,4 @@ runBackfill().catch((err) => {
   console.error('[BACKFILL FATAL]:', err);
   process.exit(1);
 });
+

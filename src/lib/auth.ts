@@ -1,3 +1,4 @@
+import 'server-only';
 import { NextResponse } from 'next/server';
 import { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -145,3 +146,4 @@ export async function requireOwner(request: Request): Promise<AuthResult> {
     },
   };
 }
+

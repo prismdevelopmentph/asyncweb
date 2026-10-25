@@ -118,16 +118,49 @@ export async function GET(request: Request) {
     }
 
     const userEmail = discordUser.email || `${discordUser.id}@discord.user`;
+    const isEmailVerified = Boolean(discordUser.verified && discordUser.email);
     const avatarUrl = discordUser.avatar
       ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
       : null;
 
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    let targetUser = existingUsers?.users?.find(
-      (u: any) => u.user_metadata?.provider_id === discordUser.id || u.user_metadata?.sub === discordUser.id || u.email === userEmail
-    );
+    // Paginate through Supabase auth users to find the account securely
+    let targetUser: any = null;
+    let page = 1;
+    const perPage = 100;
+    let fallbackEmailUser: any = null;
+
+    while (true) {
+      const { data: pageData, error: pageErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+      if (pageErr || !pageData?.users || pageData.users.length === 0) break;
+
+      for (const u of pageData.users) {
+        // 1. Primary match: trusted server-managed app_metadata.discord_id ONLY
+        if (u.app_metadata?.discord_id === String(discordUser.id)) {
+          targetUser = u;
+          break;
+        }
+
+        // 2. Secondary fallback: unlinked account with verified Discord email
+        if (
+          isEmailVerified &&
+          u.email &&
+          u.email.toLowerCase() === userEmail.toLowerCase() &&
+          !u.app_metadata?.discord_id
+        ) {
+          fallbackEmailUser = u;
+        }
+      }
+
+      if (targetUser || pageData.users.length < perPage) break;
+      page++;
+    }
+
+    if (!targetUser && fallbackEmailUser) {
+      targetUser = fallbackEmailUser;
+    }
 
     if (!targetUser) {
+      // Create new user record with verified app_metadata
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email: userEmail,
         email_confirm: true,
@@ -141,8 +174,7 @@ export async function GET(request: Request) {
           discord_join_timestamp: new Date().toISOString()
         },
         app_metadata: {
-          discord_id: String(discordUser.id),
-          provider: 'discord'
+          discord_id: String(discordUser.id)
         }
       });
 
@@ -152,6 +184,13 @@ export async function GET(request: Request) {
       }
       targetUser = newUser.user;
     } else {
+      // Security Check: Never overwrite an existing discord_id with a different Discord ID
+      const boundDiscordId = targetUser.app_metadata?.discord_id;
+      if (boundDiscordId && boundDiscordId !== String(discordUser.id)) {
+        console.error(`[SECURITY COLLISION] Discord ID conflict: Account ${targetUser.id} (${targetUser.email}) is bound to ${boundDiscordId}, attempted login with ${discordUser.id}`);
+        return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_identity_collision`);
+      }
+
       await supabaseAdmin.auth.admin.updateUserById(targetUser.id, {
         user_metadata: {
           ...targetUser.user_metadata,
@@ -164,8 +203,7 @@ export async function GET(request: Request) {
         },
         app_metadata: {
           ...(targetUser.app_metadata || {}),
-          discord_id: String(discordUser.id),
-          provider: 'discord'
+          discord_id: String(discordUser.id)
         }
       });
     }
