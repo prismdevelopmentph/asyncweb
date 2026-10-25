@@ -299,7 +299,7 @@ export default function AccountGeneratorPage() {
     };
   }, [totpSecret]);
 
-  const handleDownloadApp = () => {
+  const handleDownloadApp = async () => {
     if (authLoading) {
       triggerToast('Initializing account session, please wait...');
       return;
@@ -312,9 +312,43 @@ export default function AccountGeneratorPage() {
       triggerToast('Active license plan required to download the desktop app.');
       return;
     }
+
     setDownloadingClient(true);
-    window.location.href = `/api/download/client?userId=${encodeURIComponent(discordUserId)}`;
-    setTimeout(() => setDownloadingClient(false), 3000);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        triggerToast('Session expired. Please log in again.');
+        setDownloadingClient(false);
+        return;
+      }
+
+      const res = await fetch('/api/download/ticket', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        triggerToast(errJson.error || 'Failed to generate download ticket.');
+        setDownloadingClient(false);
+        return;
+      }
+
+      const data = await res.json();
+      if (data.downloadUrl) {
+        window.location.href = data.downloadUrl;
+      } else {
+        triggerToast('Could not resolve download ticket.');
+      }
+    } catch (err) {
+      console.error('[Download App Error]:', err);
+      triggerToast('Failed to start download. Please try again.');
+    } finally {
+      setTimeout(() => setDownloadingClient(false), 3000);
+    }
   };
 
   // Fast Parallel Status Fetcher

@@ -22,14 +22,14 @@ export function generateCryptoLicenseKey(): string {
 
 /**
  * Claims a single credential item from product's stock_pool array.
- * Uses optimistic concurrency retry loop to ensure atomicity.
+ * Uses optimistic concurrency check on updated_at to ensure atomicity.
  */
 async function claimStockPoolCredential(productId: string): Promise<string> {
-  const maxRetries = 5;
+  const maxRetries = 10;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     const { data: prod, error } = await supabaseAdmin
       .from('products')
-      .select('id, title, stock_pool')
+      .select('id, title, stock_pool, updated_at')
       .eq('id', productId)
       .single();
 
@@ -44,15 +44,25 @@ async function claimStockPoolCredential(productId: string): Promise<string> {
 
     const poppedItem = pool[0];
     const remainingPool = pool.slice(1);
+    const originalUpdatedAt = prod.updated_at;
+    const nextUpdatedAt = new Date().toISOString();
 
-    // Optimistic concurrency check: update only if stock_pool hasn't changed concurrently
-    const { data: updated, error: updateErr } = await supabaseAdmin
+    // Optimistic concurrency check: update only if updated_at has NOT changed since read
+    let updateQuery = supabaseAdmin
       .from('products')
       .update({
         stock_pool: remainingPool,
-        updated_at: new Date().toISOString()
+        updated_at: nextUpdatedAt
       })
-      .eq('id', productId)
+      .eq('id', productId);
+
+    if (originalUpdatedAt) {
+      updateQuery = updateQuery.eq('updated_at', originalUpdatedAt);
+    } else {
+      updateQuery = updateQuery.is('updated_at', null);
+    }
+
+    const { data: updated, error: updateErr } = await updateQuery
       .select('id')
       .maybeSingle();
 
@@ -65,8 +75,9 @@ async function claimStockPoolCredential(productId: string): Promise<string> {
       return String(poppedItem);
     }
 
-    // Small jitter backoff before retry
-    await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+    // Jittered backoff before retry to prevent thundering herd
+    const backoff = 50 + Math.floor(Math.random() * 50) * (attempt + 1);
+    await new Promise((r) => setTimeout(r, backoff));
   }
 
   throw new Error(`Failed to claim stock item for product ${productId} due to high concurrency`);
