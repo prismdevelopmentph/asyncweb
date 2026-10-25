@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -253,12 +254,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const { userId, licenseId, rating, comment, serviceName, avatarUrl } = body;
+    const auth = await requireUser(request);
+    if (!auth.ok) return auth.response;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Authentication required to submit review.' }, { status: 401 });
-    }
+    const callerDiscordId = auth.data.discordId;
+
+    const body = await request.json().catch(() => ({}));
+    const { licenseId, rating, comment, serviceName } = body;
 
     const parsedRating = parseInt(rating, 10);
     if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
@@ -270,22 +272,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Please enter a valid review comment.' }, { status: 400 });
     }
 
-    // 1. Update Supabase license vouch_given = true
+    // 1. Verify user holds an active or historical license
+    let licQuery = supabaseAdmin
+      .from('licenses')
+      .select('id, redeemed_by')
+      .eq('redeemed_by', callerDiscordId);
+
     if (licenseId) {
-      await supabaseAdmin
-        .from('licenses')
-        .update({ vouch_given: true })
-        .eq('id', licenseId);
-    } else {
-      await supabaseAdmin
-        .from('licenses')
-        .update({ vouch_given: true })
-        .eq('redeemed_by', String(userId));
+      licQuery = licQuery.eq('id', licenseId);
     }
 
-    // 2. Dispatch embed to Discord vouch channel (same format as bot)
+    const { data: userLics, error: licErr } = await licQuery.limit(1);
+    if (licErr || !userLics || userLics.length === 0) {
+      return NextResponse.json({ error: 'You must own a redeemed license to submit a verified vouch.' }, { status: 403 });
+    }
+
+    // 2. Mark license vouch_given = true
+    const targetLicId = userLics[0].id;
+    await supabaseAdmin
+      .from('licenses')
+      .update({ vouch_given: true })
+      .eq('id', targetLicId);
+
+    // 3. Resolve user profile for avatar
+    const { data: dbUser } = await supabaseAdmin
+      .from('discord_users')
+      .select('display_name, username, avatar_url')
+      .eq('discord_user_id', callerDiscordId)
+      .maybeSingle();
+
+    const resolvedAvatar = dbUser?.avatar_url || auth.data.user.user_metadata?.avatar_url || `https://cdn.discordapp.com/embed/avatars/${parseInt(callerDiscordId.slice(-2) || '0', 10) % 5}.png`;
+
+    // 4. Dispatch embed to Discord vouch channel (same format as bot)
     const stars = '⭐'.repeat(parsedRating) + '☆'.repeat(5 - parsedRating);
-    const resolvedAvatar = avatarUrl || `https://cdn.discordapp.com/embed/avatars/${parseInt(userId.slice(-2) || '0', 10) % 5}.png`;
 
     const discordPayload = {
       embeds: [
@@ -297,10 +316,10 @@ export async function POST(request: Request) {
           fields: [
             { name: 'Rating', value: stars, inline: true },
             { name: 'Service', value: serviceName || 'Acc Gen', inline: true },
-            { name: 'From', value: `<@${userId}>`, inline: true }
+            { name: 'From', value: `<@${callerDiscordId}>`, inline: true }
           ],
           thumbnail: { url: resolvedAvatar },
-          footer: { text: `User ID: ${userId}` }
+          footer: { text: `User ID: ${callerDiscordId}` }
         }
       ]
     };

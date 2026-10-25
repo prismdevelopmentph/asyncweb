@@ -244,12 +244,6 @@ export async function POST(req: NextRequest) {
 
               // Apply discount to basePhp
               basePhp = Math.max(0, Math.round((basePhp - appliedDiscountAmount) * 100) / 100);
-
-              // Increment coupon usage
-              await supabaseAdmin
-                .from('coupons')
-                .update({ times_used: Number(couponRow.times_used || 0) + 1 })
-                .eq('id', couponRow.id);
             }
           }
         }

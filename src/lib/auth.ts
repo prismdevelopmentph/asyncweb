@@ -98,6 +98,17 @@ export async function requireUser(request: Request): Promise<AuthResult> {
   };
 }
 
+export function isOwnerDiscordId(discordId: string | null | undefined): boolean {
+  if (!discordId) return false;
+  const rawOwnerIds = process.env.OWNER_DISCORD_IDS || process.env.OWNER_USER_ID || '';
+  if (!rawOwnerIds.trim()) return false;
+  const allowedOwnerIds = rawOwnerIds
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return allowedOwnerIds.includes(discordId.trim());
+}
+
 /**
  * Validates the caller's session token and verifies that their Discord ID
  * is present in the OWNER_DISCORD_IDS environment variable allowlist.

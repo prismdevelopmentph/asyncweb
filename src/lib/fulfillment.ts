@@ -20,6 +20,58 @@ export function generateCryptoLicenseKey(): string {
   return `LIC-${seg()}-${seg()}-${seg()}`;
 }
 
+/**
+ * Claims a single credential item from product's stock_pool array.
+ * Uses optimistic concurrency retry loop to ensure atomicity.
+ */
+async function claimStockPoolCredential(productId: string): Promise<string> {
+  const maxRetries = 5;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const { data: prod, error } = await supabaseAdmin
+      .from('products')
+      .select('id, title, stock_pool')
+      .eq('id', productId)
+      .single();
+
+    if (error || !prod) {
+      throw new Error(`Product ${productId} not found during stock allocation`);
+    }
+
+    const pool: any[] = Array.isArray(prod.stock_pool) ? prod.stock_pool : [];
+    if (pool.length === 0) {
+      throw new Error(`Product "${prod.title || productId}" is out of stock`);
+    }
+
+    const poppedItem = pool[0];
+    const remainingPool = pool.slice(1);
+
+    // Optimistic concurrency check: update only if stock_pool hasn't changed concurrently
+    const { data: updated, error: updateErr } = await supabaseAdmin
+      .from('products')
+      .update({
+        stock_pool: remainingPool,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', productId)
+      .select('id')
+      .maybeSingle();
+
+    if (!updateErr && updated) {
+      // Extract string representation of credential
+      if (typeof poppedItem === 'string') return poppedItem;
+      if (poppedItem && typeof poppedItem === 'object') {
+        return poppedItem.credential || poppedItem.account || poppedItem.key || JSON.stringify(poppedItem);
+      }
+      return String(poppedItem);
+    }
+
+    // Small jitter backoff before retry
+    await new Promise((r) => setTimeout(r, 50 * (attempt + 1)));
+  }
+
+  throw new Error(`Failed to claim stock item for product ${productId} due to high concurrency`);
+}
+
 async function createLicenseForProduct(
   productId: string | null,
   tierKey: string,
@@ -261,24 +313,46 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
       });
     }
 
-    // Inspect licenses already minted during previous attempt(s)
+    // Inspect licenses/credentials already allocated during previous attempt(s)
     const existingLicenses: string[] = Array.isArray(details.delivered_licenses)
       ? [...details.delivered_licenses]
       : [];
 
     const generatedKeys: string[] = [...existingLicenses];
 
-    // Only mint remaining required licenses (resumes seamlessly on retry)
+    // Fetch product details for delivery_mode check
+    const itemProductIds = Array.from(new Set(requiredItems.map((r) => r.productId).filter(Boolean))) as string[];
+    const productModeMap = new Map<string, string>();
+    if (itemProductIds.length > 0) {
+      const { data: prods } = await supabaseAdmin
+        .from('products')
+        .select('id, delivery_mode')
+        .in('id', itemProductIds);
+      (prods || []).forEach((p: any) => {
+        productModeMap.set(p.id, p.delivery_mode || 'automated_license');
+      });
+    }
+
+    // Only allocate remaining required items (resumes seamlessly on retry)
     for (let i = existingLicenses.length; i < requiredItems.length; i++) {
       const item = requiredItems[i];
-      const lic = await createLicenseForProduct(
-        item.productId,
-        item.tierKey,
-        order.discord_id
-      );
-      generatedKeys.push(lic.licenseKey);
+      const deliveryMode = item.productId ? (productModeMap.get(item.productId) || 'automated_license') : 'automated_license';
 
-      // Persist partial progress immediately so retries never duplicate keys
+      let deliveredVal = '';
+      if (deliveryMode === 'stock_pool' && item.productId) {
+        deliveredVal = await claimStockPoolCredential(item.productId);
+      } else {
+        const lic = await createLicenseForProduct(
+          item.productId,
+          item.tierKey,
+          order.discord_id
+        );
+        deliveredVal = lic.licenseKey;
+      }
+
+      generatedKeys.push(deliveredVal);
+
+      // Persist partial progress immediately so retries never duplicate keys/accounts
       await supabaseAdmin
         .from('orders')
         .update({
@@ -292,6 +366,32 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
     }
 
     const finalKeyString = generatedKeys.join(', ');
+
+    // Atomic coupon usage consumption upon successful payment delivery
+    const appliedCoupon = details.coupon_code;
+    if (appliedCoupon && typeof appliedCoupon === 'string' && appliedCoupon.trim()) {
+      try {
+        const { data: cRow } = await supabaseAdmin
+          .from('coupons')
+          .select('id, times_used, max_uses')
+          .ilike('code', appliedCoupon.trim())
+          .maybeSingle();
+
+        if (cRow) {
+          const currentTimes = Number(cRow.times_used || 0);
+          await supabaseAdmin
+            .from('coupons')
+            .update({
+              times_used: currentTimes + 1,
+              updated_at: nowIso
+            })
+            .eq('id', cRow.id)
+            .eq('times_used', currentTimes);
+        }
+      } catch (couponErr) {
+        console.warn(`[Fulfillment] Error consuming coupon ${appliedCoupon}:`, couponErr);
+      }
+    }
 
     // Update order to status: 'delivered'
     await supabaseAdmin

@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser, isOwnerDiscordId } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const channel = searchParams.get('channel') || 'general';
-  const ticketId = searchParams.get('ticketId'); // Required for support tickets if not admin
+  const ticketId = searchParams.get('ticketId');
   const limitParam = parseInt(searchParams.get('limit') || '50', 10);
   const limit = Math.min(Math.max(limitParam, 10), 100);
-
-  const before = searchParams.get('before'); // ISO timestamp to fetch older messages
+  const before = searchParams.get('before');
 
   try {
     let query = supabaseAdmin
@@ -17,8 +19,20 @@ export async function GET(request: NextRequest) {
       .eq('channel', channel);
 
     if (channel === 'support') {
-      if (ticketId) {
-        query = query.eq('ticket_id', ticketId);
+      const auth = await requireUser(request);
+      if (!auth.ok) return auth.response;
+
+      const callerDiscordId = auth.data.discordId;
+      const isOwner = isOwnerDiscordId(callerDiscordId);
+
+      if (!isOwner) {
+        // Regular users can only see their own support ticket
+        query = query.eq('ticket_id', callerDiscordId);
+      } else {
+        // Admin/owner can view a specific ticket or all tickets if none specified
+        if (ticketId) {
+          query = query.eq('ticket_id', ticketId);
+        }
       }
     }
 
@@ -26,7 +40,6 @@ export async function GET(request: NextRequest) {
       query = query.lt('created_at', before);
     }
 
-    // Always fetch latest descending, then reverse so bottom is most recent
     query = query.order('created_at', { ascending: false }).limit(limit);
 
     const { data, error } = await query;
@@ -35,9 +48,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Reverse so oldest appears first in feed, newest at bottom (like iMessage/WhatsApp)
     const messages = (data || []).reverse();
-
     return NextResponse.json({ success: true, messages });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
@@ -46,36 +57,45 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { channel, ticketId, senderId, senderName, senderAvatar, content, isAdmin } = body;
+    const auth = await requireUser(request);
+    if (!auth.ok) return auth.response;
+
+    const callerDiscordId = auth.data.discordId;
+    const isOwner = isOwnerDiscordId(callerDiscordId);
+
+    const body = await request.json().catch(() => ({}));
+    const { channel, ticketId, content } = body;
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return NextResponse.json({ error: 'Message content cannot be empty' }, { status: 400 });
     }
 
-    if (!senderId || !senderName) {
-      return NextResponse.json({ error: 'Sender information is required' }, { status: 400 });
-    }
+    const trimmedContent = content.trim().slice(0, 500);
 
-    const trimmedContent = content.trim().slice(0, 500); // 500 char limit
+    // Fetch user profile from discord_users or auth metadata for trustworthy display name and avatar
+    const { data: dbUser } = await supabaseAdmin
+      .from('discord_users')
+      .select('display_name, username, avatar_url')
+      .eq('discord_user_id', callerDiscordId)
+      .maybeSingle();
 
-    const isOwner = senderId === '719482630633947166' || senderId === process.env.OWNER_USER_ID;
+    const senderName = dbUser?.display_name || dbUser?.username || auth.data.user.user_metadata?.custom_claims?.global_name || auth.data.user.user_metadata?.full_name || 'Member';
+    const senderAvatar = dbUser?.avatar_url || auth.data.user.user_metadata?.avatar_url || null;
 
-    // Support Channel: Any authenticated/logged-in user can message (unlicensed allowed).
-    // General Channel: Must hold an active license or VIP subscription.
-    if (!isOwner && !isAdmin && channel === 'general') {
+    // General Channel gating: Must hold active license or VIP plan unless owner
+    if (!isOwner && channel !== 'support') {
       const nowStr = new Date().toISOString();
       const [genLicenseRes, planRes] = await Promise.all([
         supabaseAdmin
           .from('licenses')
           .select('id, expires_at, is_active')
-          .eq('redeemed_by', senderId)
+          .eq('redeemed_by', callerDiscordId)
           .eq('is_active', true)
           .limit(1),
         supabaseAdmin
           .from('plan_subscriptions')
           .select('id, expires_at, active')
-          .eq('user_id', senderId)
+          .eq('user_id', callerDiscordId)
           .eq('active', 1)
           .limit(1)
       ]);
@@ -93,13 +113,13 @@ export async function POST(request: NextRequest) {
     // Determine target ticket ID for support channel
     let effectiveTicketId: string | null = null;
     if (channel === 'support') {
-      if (isAdmin || isOwner) {
+      if (isOwner) {
         if (!ticketId) {
           return NextResponse.json({ error: 'Ticket ID is required for admin replies' }, { status: 400 });
         }
         effectiveTicketId = String(ticketId);
       } else {
-        effectiveTicketId = String(senderId); // For user, their ticket ID is their own discord ID
+        effectiveTicketId = callerDiscordId;
       }
     }
 
@@ -108,11 +128,11 @@ export async function POST(request: NextRequest) {
       .insert({
         channel: channel === 'support' ? 'support' : 'general',
         ticket_id: effectiveTicketId,
-        sender_id: String(senderId),
+        sender_id: callerDiscordId,
         sender_name: String(senderName).slice(0, 50),
-        sender_avatar: senderAvatar || null,
+        sender_avatar: senderAvatar,
         content: trimmedContent,
-        is_admin: Boolean(isAdmin || isOwner),
+        is_admin: isOwner,
       })
       .select()
       .single();
@@ -128,4 +148,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
   }
 }
-

@@ -109,11 +109,17 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     }
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const url = channel === 'support'
         ? `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`
         : `/api/chat?channel=general&limit=30`;
 
-      const res = await fetch(url);
+      const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();
         const incoming: ChatMessage[] = data.messages || [];
@@ -145,9 +151,15 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
         const lastReadGen = localStorage.getItem(`chat_last_read_general_${discordUserId}`);
         const lastReadSup = localStorage.getItem(`chat_last_read_support_${discordUserId}`);
 
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {};
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
         const [genRes, supRes] = await Promise.all([
-          fetch('/api/chat?channel=general&limit=30'),
-          fetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`),
+          fetch('/api/chat?channel=general&limit=30', { headers }),
+          fetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`, { headers }),
         ]);
 
         if (genRes.ok) {
@@ -208,11 +220,17 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
       const prevScrollHeight = target.scrollHeight;
 
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {};
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
         const url = activeChannel === 'support'
           ? `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=25&before=${encodeURIComponent(oldestMsg.created_at)}`
           : `/api/chat?channel=general&limit=25&before=${encodeURIComponent(oldestMsg.created_at)}`;
 
-        const res = await fetch(url);
+        const res = await fetch(url, { headers });
         if (res.ok) {
           const data = await res.json();
           const older: ChatMessage[] = data.messages || [];
@@ -343,17 +361,19 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     setTimeout(() => scrollToBottom(false), 50);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           channel: activeChannel,
           ticketId: activeChannel === 'support' ? discordUserId : null,
-          senderId: discordUserId,
-          senderName: displayName,
-          senderAvatar: avatarUrl,
           content: textToSend,
-          isAdmin: isOwner,
         }),
       });
 

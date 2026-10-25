@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser, isOwnerDiscordId } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,6 @@ const GOFILE_CODE = 'VPIerGbC';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId') || searchParams.get('discordUserId');
     const licenseKey = searchParams.get('key') || searchParams.get('licenseKey');
 
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -17,13 +17,22 @@ export async function GET(request: Request) {
                '127.0.0.1';
     const userAgent = request.headers.get('user-agent') || 'Unknown';
 
-    // 1. Authenticate & Verify Active License Gate
-    const isOwner = userId === '719482630633947166' || userId === process.env.OWNER_USER_ID;
+    // 1. Authenticate caller (Bearer session token OR valid unredeemed/redeemed license key)
+    let verifiedDiscordId: string | null = null;
+    let isOwner = false;
+
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) {
+      const auth = await requireUser(request);
+      if (!auth.ok) return auth.response;
+      verifiedDiscordId = auth.data.discordId;
+      isOwner = isOwnerDiscordId(verifiedDiscordId);
+    }
 
     let authorizedLicense: any = null;
 
     if (!isOwner) {
-      if (!userId && !licenseKey) {
+      if (!verifiedDiscordId && !licenseKey) {
         return NextResponse.json(
           {
             success: false,
@@ -33,12 +42,12 @@ export async function GET(request: Request) {
         );
       }
 
-      // Query licenses by redeemed_by (Discord user ID) or explicit license_key
+      // Query active licenses bound to caller's verified Discord ID or matching key
       let query = supabaseAdmin.from('licenses').select('*').eq('is_active', true);
-      if (userId && licenseKey) {
-        query = query.or(`redeemed_by.eq.${userId},license_key.eq.${licenseKey}`);
-      } else if (userId) {
-        query = query.eq('redeemed_by', userId);
+      if (verifiedDiscordId && licenseKey) {
+        query = query.or(`redeemed_by.eq.${verifiedDiscordId},license_key.eq.${licenseKey}`);
+      } else if (verifiedDiscordId) {
+        query = query.eq('redeemed_by', verifiedDiscordId);
       } else if (licenseKey) {
         query = query.eq('license_key', licenseKey);
       }
@@ -78,14 +87,13 @@ export async function GET(request: Request) {
     // 2. Audit Log the Authorized Download
     try {
       await supabaseAdmin.from('client_download_logs').insert({
-        discord_user_id: isOwner ? (userId || '719482630633947166') : (authorizedLicense?.redeemed_by || userId || 'Unknown'),
+        discord_user_id: isOwner ? (verifiedDiscordId || 'OWNER') : (authorizedLicense?.redeemed_by || verifiedDiscordId || 'Key-Holder'),
         license_key: isOwner ? 'OWNER-ACCESS' : (authorizedLicense?.license_key || 'Direct-Key'),
         ip_address: ip,
         user_agent: userAgent,
         downloaded_at: new Date().toISOString(),
       });
     } catch (logErr) {
-      // Non-fatal if table not yet created
       console.warn('[Download Audit Log Warning]:', logErr);
     }
 
