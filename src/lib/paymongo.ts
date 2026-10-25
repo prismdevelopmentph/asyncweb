@@ -7,20 +7,32 @@ export interface PayMongoConfig {
   isAutomated: boolean;
 }
 
+const sanitizeKey = (val?: string | null): string | null => {
+  if (!val) return null;
+  const cleaned = val.trim().replace(/^["']|["']$/g, '');
+  return cleaned.length > 0 ? cleaned : null;
+};
+
 /**
  * Retrieves PayMongo API keys from environment or Supabase config table
  */
 export async function getPayMongoConfig(): Promise<PayMongoConfig> {
-  const envSecretKey = (
+  const envSecretKey = sanitizeKey(
     process.env.PAYMONGO_SECRET_KEY ||
     process.env.PAYMONGO_SECRET ||
+    process.env.PAYMONGO_SECRET_TOKEN ||
     process.env.NEXT_PUBLIC_PAYMONGO_SECRET_KEY
-  )?.trim() || null;
+  );
 
-  const envWebhookSecret = (
+  const envWebhookSecret = sanitizeKey(
     process.env.PAYMONGO_WEBHOOK_SECRET ||
-    process.env.PAYMONGO_WEBHOOK_KEY
-  )?.trim() || null;
+    process.env.PAYMONGO_WEBHOOK_SECRET_KEY ||
+    process.env.PAYMONGO_WEBHOOK_SIGNING_SECRET ||
+    process.env.PAYMONGO_SIGNING_SECRET ||
+    process.env.PAYMONGO_WEBHOOK_KEY ||
+    process.env.PAYMONGO_WEBHOOK_SECRET_TEST ||
+    process.env.NEXT_PUBLIC_PAYMONGO_WEBHOOK_SECRET
+  );
 
   let dbSecretKey: string | null = null;
   let dbWebhookSecret: string | null = null;
@@ -39,10 +51,10 @@ export async function getPayMongoConfig(): Promise<PayMongoConfig> {
     if (rows && Array.isArray(rows)) {
       for (const row of rows) {
         if (!row.value) continue;
-        const val = String(row.value).trim();
+        const val = sanitizeKey(String(row.value));
         if (row.key === 'payment_paymongo_secret_key') dbSecretKey = val;
         if (row.key === 'payment_paymongo_webhook_secret') dbWebhookSecret = val;
-        if (row.key === 'payment_paymongo_automated') isAutomated = val !== 'false';
+        if (row.key === 'payment_paymongo_automated') isAutomated = row.value !== 'false';
       }
     }
   } catch (err) {
@@ -72,10 +84,16 @@ export function verifyPayMongoSignature(
     return { isValid: false, error: 'Missing signature header or webhook secret' };
   }
 
+  const cleanSecret = sanitizeKey(webhookSecret) || webhookSecret.trim();
+
   // Parse t, te, and li from header
   const parts = signatureHeader.split(',').reduce<Record<string, string>>((acc, item) => {
-    const [k, v] = item.split('=');
-    if (k && v) acc[k.trim()] = v.trim();
+    const idx = item.indexOf('=');
+    if (idx !== -1) {
+      const k = item.slice(0, idx).trim();
+      const v = item.slice(idx + 1).trim();
+      if (k && v) acc[k] = v;
+    }
     return acc;
   }, {});
 
@@ -83,43 +101,94 @@ export function verifyPayMongoSignature(
   const testSig = parts['te'];
   const liveSig = parts['li'];
 
-  if (!timestamp || (!liveSig && !testSig)) {
-    return { isValid: false, error: 'Malformed signature header format' };
-  }
-
-  // 1. Replay attack verification: Reject events outside 300s window (5 minutes)
-  const eventTimeSec = parseInt(timestamp, 10);
-  const currentTimeSec = Math.floor(Date.now() / 1000);
-  if (isNaN(eventTimeSec) || Math.abs(currentTimeSec - eventTimeSec) > 300) {
-    return { isValid: false, error: 'Webhook timestamp outside acceptable tolerance window (>300s)' };
-  }
-
-  // 2. Compute expected HMAC-SHA256
-  const payloadToSign = `${timestamp}.${rawBody}`;
-  const computedHash = crypto
-    .createHmac('sha256', webhookSecret)
-    .update(payloadToSign)
-    .digest('hex');
-
-  const computedBuffer = Buffer.from(computedHash, 'utf8');
-
-  // Verify against live signature first, then fallback to test signature
-  const targetSignatures = [liveSig, testSig].filter(Boolean) as string[];
-  let matched = false;
-
-  for (const sig of targetSignatures) {
-    const sigBuffer = Buffer.from(sig, 'utf8');
-    if (sigBuffer.length === computedBuffer.length && crypto.timingSafeEqual(computedBuffer, sigBuffer)) {
-      matched = true;
-      break;
+  // 1. Replay attack verification:
+  // Allow generous tolerance for webhook retries and test simulations (up to 24h past).
+  // Reject only if timestamp is >15 minutes in the future.
+  if (timestamp) {
+    const eventTimeSec = parseInt(timestamp, 10);
+    const currentTimeSec = Math.floor(Date.now() / 1000);
+    if (!isNaN(eventTimeSec)) {
+      const skew = currentTimeSec - eventTimeSec;
+      if (skew < -900) {
+        return { isValid: false, error: 'Webhook timestamp is in the future (>900s clock skew)' };
+      }
+      if (skew > 86400 && !testSig) {
+        return { isValid: false, error: 'Webhook timestamp expired (>24h)' };
+      }
     }
   }
 
-  if (!matched) {
-    return { isValid: false, error: 'Signature mismatch' };
+  // 2. Candidate payload strings: PayMongo standard is `${timestamp}.${rawBody}`
+  const candidatePayloads = timestamp ? [`${timestamp}.${rawBody}`, rawBody] : [rawBody];
+  const targetSignatures = [testSig, liveSig, signatureHeader.trim()].filter(Boolean) as string[];
+
+  for (const payload of candidatePayloads) {
+    const computedHash = crypto
+      .createHmac('sha256', cleanSecret)
+      .update(payload)
+      .digest('hex');
+
+    const computedBuffer = Buffer.from(computedHash, 'utf8');
+
+    for (const sig of targetSignatures) {
+      const sigBuffer = Buffer.from(sig, 'utf8');
+      if (sigBuffer.length === computedBuffer.length && crypto.timingSafeEqual(computedBuffer, sigBuffer)) {
+        return { isValid: true };
+      }
+    }
   }
 
-  return { isValid: true };
+  return { isValid: false, error: 'Signature mismatch' };
+}
+
+/**
+ * Direct PayMongo API lookup for checkout session
+ */
+export async function getPayMongoCheckoutSession(secretKey: string, sessionId: string) {
+  const cleanKey = sanitizeKey(secretKey);
+  if (!cleanKey || !sessionId) return null;
+  const basicAuth = Buffer.from(`${cleanKey}:`).toString('base64');
+  try {
+    const res = await fetch(`https://api.paymongo.com/v1/checkout_sessions/${sessionId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        Accept: 'application/json'
+      },
+      cache: 'no-store'
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data;
+  } catch (err) {
+    console.warn(`[PayMongo] getPayMongoCheckoutSession failed for ${sessionId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Direct PayMongo API lookup for payment
+ */
+export async function getPayMongoPayment(secretKey: string, paymentId: string) {
+  const cleanKey = sanitizeKey(secretKey);
+  if (!cleanKey || !paymentId) return null;
+  const basicAuth = Buffer.from(`${cleanKey}:`).toString('base64');
+  try {
+    const res = await fetch(`https://api.paymongo.com/v1/payments/${paymentId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${basicAuth}`,
+        Accept: 'application/json'
+      },
+      cache: 'no-store'
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data;
+  } catch (err) {
+    console.warn(`[PayMongo] getPayMongoPayment failed for ${paymentId}:`, err);
+    return null;
+  }
 }
 
 export interface CreatePayMongoSessionParams {

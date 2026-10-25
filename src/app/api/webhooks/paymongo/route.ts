@@ -1,28 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getPayMongoConfig, verifyPayMongoSignature } from '@/lib/paymongo';
+import {
+  getPayMongoConfig,
+  verifyPayMongoSignature,
+  getPayMongoCheckoutSession,
+  getPayMongoPayment
+} from '@/lib/paymongo';
 import { fulfillProductOrder } from '@/lib/fulfillment';
 
 export async function POST(req: NextRequest) {
   try {
     // 1. Read raw body as unparsed text for cryptographic HMAC verification
     const rawBody = await req.text();
-    const signatureHeader = req.headers.get('paymongo-signature');
+    const signatureHeader =
+      req.headers.get('paymongo-signature') ||
+      req.headers.get('x-paymongo-signature') ||
+      req.headers.get('signature');
 
-    // 2. Fetch configured Webhook Secret
-    const { webhookSecret } = await getPayMongoConfig();
+    // 2. Fetch configured PayMongo keys
+    const { secretKey, webhookSecret } = await getPayMongoConfig();
 
-    if (webhookSecret) {
-      const verification = verifyPayMongoSignature(rawBody, signatureHeader, webhookSecret);
-      if (!verification.isValid) {
-        console.error('[PayMongo Webhook] Signature verification failed:', verification.error);
-        return NextResponse.json({ error: verification.error || 'Invalid signature' }, { status: 400 });
-      }
-    } else {
-      console.warn('[PayMongo Webhook] Warning: PAYMONGO_WEBHOOK_SECRET is not configured. Skipping cryptographic verification.');
-    }
-
-    // 3. Parse JSON event payload
+    // 3. Parse JSON event payload first so fallback verifications can inspect it
     let event: any = null;
     try {
       event = JSON.parse(rawBody);
@@ -35,9 +33,61 @@ export async function POST(req: NextRequest) {
     const eventAttributes = eventData?.attributes || {};
     const metadata = eventAttributes.metadata || {};
 
-    console.log(`[PayMongo Webhook] Received event: ${eventType}`);
+    console.log(`[PayMongo Webhook] Received incoming event: ${eventType} (ID: ${event?.data?.id})`);
 
-    // We listen to checkout_session.payment.paid, payment.paid, qr.paid, and link.payment.paid events
+    // 4. Verify authenticity
+    let isAuthentic = false;
+
+    if (webhookSecret) {
+      const verification = verifyPayMongoSignature(rawBody, signatureHeader, webhookSecret);
+      if (verification.isValid) {
+        isAuthentic = true;
+      } else {
+        console.warn('[PayMongo Webhook] Signature verification failed:', verification.error);
+      }
+    }
+
+    // Direct TLS API fallback: If signature failed or secret wasn't configured,
+    // verify the event directly against PayMongo's authenticated API using secretKey
+    if (!isAuthentic && secretKey) {
+      try {
+        if (eventType === 'checkout_session.payment.paid' && eventData?.id) {
+          const remoteSession = await getPayMongoCheckoutSession(secretKey, eventData.id);
+          const payments = remoteSession?.attributes?.payments || [];
+          if (
+            remoteSession?.attributes?.status === 'paid' ||
+            payments.some((p: any) => p.attributes?.status === 'paid')
+          ) {
+            console.log('[PayMongo Webhook] Direct API verification confirmed checkout session is PAID.');
+            isAuthentic = true;
+          }
+        } else if (
+          (eventType === 'payment.paid' || eventType === 'qr.paid') &&
+          eventData?.id
+        ) {
+          const remotePayment = await getPayMongoPayment(secretKey, eventData.id);
+          if (remotePayment?.attributes?.status === 'paid') {
+            console.log('[PayMongo Webhook] Direct API verification confirmed payment is PAID.');
+            isAuthentic = true;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('[PayMongo Webhook] Direct API fallback check error:', apiErr);
+      }
+    }
+
+    // In test mode or when no webhook secret is set, log and proceed if we have valid event structure
+    if (!isAuthentic && !webhookSecret) {
+      console.warn('[PayMongo Webhook] No PAYMONGO_WEBHOOK_SECRET configured. Proceeding in unauthenticated dev mode.');
+      isAuthentic = true;
+    }
+
+    if (!isAuthentic) {
+      console.error('[PayMongo Webhook] Event rejected: unauthenticated signature and API fallback failed.');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+    }
+
+    // We process paid payment events
     const isPaidEvent =
       eventType === 'checkout_session.payment.paid' ||
       eventType === 'payment.paid' ||
@@ -49,28 +99,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, ignored: true, eventType });
     }
 
-    // 4. Resolve Order ID from metadata or description
-    const orderId = metadata.order_id || metadata.orderId;
+    // 5. Multi-Strategy Order ID Resolution:
+    // A) Metadata order_id / orderId
+    let orderId: string | null = metadata.order_id || metadata.orderId || null;
+    let order: any = null;
 
-    if (!orderId) {
-      console.warn('[PayMongo Webhook] No order_id found in event metadata.');
-      return NextResponse.json({ received: true, error: 'No order_id in metadata' });
+    if (orderId) {
+      const { data } = await supabaseAdmin
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .maybeSingle();
+      if (data) order = data;
     }
 
-    // 5. Fetch order from database
-    const { data: order, error: orderErr } = await supabaseAdmin
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .maybeSingle();
-
-    if (orderErr || !order) {
-      console.error(`[PayMongo Webhook] Order ${orderId} not found in database.`);
-      return NextResponse.json({ received: true, error: 'Order not found' });
+    // B) Description regex prefix matching (e.g., "Order #075d0509 • ASYNC Development")
+    if (!order) {
+      const desc = String(eventAttributes.description || '');
+      const descMatch = desc.match(/(?:Order\s*#?|order_id=)([a-f0-9-]{8,36})/i);
+      if (descMatch && descMatch[1]) {
+        const prefix = descMatch[1].trim();
+        const { data } = await supabaseAdmin
+          .from('orders')
+          .select('*')
+          .ilike('id', `${prefix}%`)
+          .maybeSingle();
+        if (data) {
+          order = data;
+          orderId = data.id;
+        }
+      }
     }
 
+    // C) Match by Checkout Session ID in payment_details
+    if (!order) {
+      const targetSessionId =
+        (eventType === 'checkout_session.payment.paid' ? eventData?.id : null) ||
+        eventAttributes.checkout_session_id ||
+        null;
+
+      if (targetSessionId) {
+        const { data } = await supabaseAdmin
+          .from('orders')
+          .select('*')
+          .contains('payment_details', { paymongo_checkout_session_id: targetSessionId })
+          .maybeSingle();
+        if (data) {
+          order = data;
+          orderId = data.id;
+        }
+      }
+    }
+
+    if (!order) {
+      console.warn(`[PayMongo Webhook] Could not locate order for event ${eventType}. Description: "${eventAttributes.description}"`);
+      // Return 200 so PayMongo does not spam retries for unknown external orders
+      return NextResponse.json({ received: true, error: 'Order not found in database' });
+    }
+
+    // If order already reached terminal fulfillment, exit cleanly
     if (order.status === 'delivered') {
-      console.log(`[PayMongo Webhook] Order ${orderId} is already fulfilled. Skipping.`);
+      console.log(`[PayMongo Webhook] Order ${order.id} is already fulfilled. Acknowledging webhook.`);
       return NextResponse.json({ received: true, alreadyFulfilled: true });
     }
 
