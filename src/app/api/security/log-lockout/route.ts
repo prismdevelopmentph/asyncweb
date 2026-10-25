@@ -176,24 +176,9 @@ export async function POST(request: Request) {
         timestamp: new Date().toISOString(),
       };
 
-      const components = [
-        {
-          type: 1, // ActionRow
-          components: [
-            {
-              type: 2, // Button
-              style: 3, // Success (Green)
-              label: 'Unban Visitor',
-              emoji: { name: '🔓' },
-              custom_id: `sec_unban_btn_${ip}`
-            }
-          ]
-        }
-      ];
-
       let notifiedSuccessfully = false;
 
-      // Option A: Discord Bot API to Channel (Full interactive component support)
+      // Option A: Discord Bot API to Channel
       if (botToken && targetChannelId) {
         try {
           const botRes = await fetch(`https://discord.com/api/v10/channels/${targetChannelId}/messages`, {
@@ -204,7 +189,6 @@ export async function POST(request: Request) {
             },
             body: JSON.stringify({
               embeds: [discordEmbed],
-              components,
             }),
           });
           if (botRes.ok) notifiedSuccessfully = true;
