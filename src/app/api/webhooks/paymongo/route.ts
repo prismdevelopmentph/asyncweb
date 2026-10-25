@@ -165,6 +165,14 @@ export async function POST(req: NextRequest) {
     const paymentId = payments[0]?.id || (eventType === 'payment.paid' ? eventData?.id : null);
     const paymentSourceType = primaryPayment?.source?.type || 'paymongo_checkout';
 
+    // Strict amount verification: prevent underpayment fraud
+    const paidCentavos = Number(primaryPayment?.amount || 0);
+    const expectedCentavos = Math.max(2000, Math.round(Number(order.amount) * 100));
+    if (paidCentavos > 0 && paidCentavos < expectedCentavos) {
+      console.error(`[PayMongo Webhook] Underpayment detected for order ${order.id}. Expected: ${expectedCentavos} centavos, Received: ${paidCentavos} centavos.`);
+      return NextResponse.json({ error: 'Underpayment detected' }, { status: 400 });
+    }
+
     const nowIso = new Date().toISOString();
     const existingDetails = order.payment_details || {};
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import {
   X,
   CreditCard,
@@ -103,12 +104,20 @@ export default function CheckoutModal({
   // Fetch live web balance
   useEffect(() => {
     if (discordId) {
-      fetch(`/api/user/balance?discordId=${discordId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.ok) setBalancePHP(Number(data.balancePHP || 0));
-        })
-        .catch((e) => console.warn('[CheckoutModal] Balance error:', e));
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const headers: Record<string, string> = {};
+        if (session?.access_token) {
+          headers.Authorization = `Bearer ${session.access_token}`;
+        } else {
+          return;
+        }
+        fetch('/api/user/balance', { headers })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.ok) setBalancePHP(Number(data.balancePHP || 0));
+          })
+          .catch((e) => console.warn('[CheckoutModal] Balance error:', e));
+      });
     }
   }, [discordId]);
 
@@ -192,9 +201,15 @@ export default function CheckoutModal({
 
     setSubmitting(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+      };
+
       const res = await fetch('/api/orders/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           productId: product.id,
           tierKey: tier.tierKey,

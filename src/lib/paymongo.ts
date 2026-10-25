@@ -227,25 +227,15 @@ export async function createPayMongoCheckoutSession(
   // Convert amount to centavos (PHP 1 = 100 centavos). Minimum PayMongo checkout is PHP 20.00 (2000 centavos)
   const totalCentavos = Math.max(2000, Math.round(amountPHP * 100));
 
-  let formattedLineItems: any[] = [];
-
-  if (Array.isArray(lineItems) && lineItems.length > 0) {
-    formattedLineItems = lineItems.map((item) => ({
+  // Single consolidated line item matching exact server-calculated total
+  const formattedLineItems = [
+    {
       currency: 'PHP',
-      amount: Math.max(2000, Math.round(item.amountPHP * 100)),
-      name: item.name || productName || 'ASYNC Product',
-      quantity: Math.max(1, item.quantity || 1)
-    }));
-  } else {
-    formattedLineItems = [
-      {
-        currency: 'PHP',
-        amount: totalCentavos,
-        name: productName || 'ASYNC Product License',
-        quantity: 1
-      }
-    ];
-  }
+      amount: totalCentavos,
+      name: productName || 'ASYNC Product License',
+      quantity: 1
+    }
+  ];
 
   const cancelUrl = `${originUrl}/order/${orderId}?canceled=true`;
   const successUrl = `${originUrl}/order/${orderId}?success=true`;

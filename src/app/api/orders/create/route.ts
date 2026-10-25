@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { requireUser } from '@/lib/auth';
 import { getUniquePayPalMemo } from '@/lib/paypal-memos';
 import { getPaymentSettings } from '@/lib/payment-settings';
 import { fulfillProductOrder } from '@/lib/fulfillment';
@@ -35,14 +36,62 @@ export async function POST(req: NextRequest) {
       let basePhp = 0;
       let orderProductId = productId || null;
       let orderTierKey = tierKey || 'daily';
+      let verifiedCartItems: any[] = [];
 
       if (isCartOrder) {
-        for (const item of cartItems) {
-          basePhp += Number(item.pricePHP || 0) * (Number(item.quantity) || 1);
+        const productIds = Array.from(new Set(cartItems.map((c: any) => c.productId).filter(Boolean)));
+        if (productIds.length === 0) {
+          return NextResponse.json({ ok: false, error: 'No valid products in cart' }, { status: 400 });
         }
+
+        const { data: dbProducts, error: dbProdErr } = await supabaseAdmin
+          .from('products')
+          .select('*')
+          .in('id', productIds)
+          .eq('is_active', true);
+
+        if (dbProdErr || !dbProducts || dbProducts.length === 0) {
+          return NextResponse.json({ ok: false, error: 'Products not found or inactive' }, { status: 404 });
+        }
+
+        const productMap = new Map<string, any>();
+        for (const p of dbProducts) {
+          productMap.set(p.id, p);
+        }
+
+        for (const item of cartItems) {
+          const product = productMap.get(item.productId);
+          if (!product) {
+            return NextResponse.json({ ok: false, error: `Product "${item.title || item.productId}" is unavailable or inactive` }, { status: 400 });
+          }
+
+          const rawTiers = Array.isArray(product.tiers) ? product.tiers : [];
+          const matchedTier = rawTiers.find((t: any) => (t.tier_key || t.tierKey) === item.tierKey) || rawTiers[0];
+
+          const rawBase = Number(matchedTier?.price_php ?? matchedTier?.pricePHP ?? product.price_php ?? 0);
+          const discountPct = Number(matchedTier?.discount_percent ?? matchedTier?.discountPercent ?? product.discount_percent ?? 0);
+          const itemPricePhp = discountPct > 0 ? Math.round(rawBase * (1 - discountPct / 100)) : rawBase;
+          const qty = Math.max(1, Number(item.quantity) || 1);
+
+          basePhp += itemPricePhp * qty;
+
+          verifiedCartItems.push({
+            productId: product.id,
+            tierKey: matchedTier?.tier_key || matchedTier?.tierKey || item.tierKey || 'daily',
+            tierName: matchedTier?.name || item.tierName || 'Standard',
+            title: product.title,
+            pricePHP: itemPricePhp,
+            quantity: qty,
+            deliveryMode: product.delivery_mode || item.deliveryMode || 'generator_license',
+            hasDiscount: discountPct > 0,
+            discountPercent: discountPct,
+            originalPricePHP: rawBase
+          });
+        }
+
         basePhp = Math.round(basePhp);
-        orderProductId = cartItems[0]?.productId || null;
-        orderTierKey = cartItems[0]?.tierKey || 'daily';
+        orderProductId = verifiedCartItems[0]?.productId || null;
+        orderTierKey = verifiedCartItems[0]?.tierKey || 'daily';
       } else {
         if (!productId) {
           return NextResponse.json({ ok: false, error: 'Product ID required' }, { status: 400 });
@@ -93,7 +142,7 @@ export async function POST(req: NextRequest) {
             let eligibleSubtotalPhp = 0;
 
             if (isCartOrder) {
-              for (const item of cartItems) {
+              for (const item of verifiedCartItems) {
                 const isDiscounted = Boolean(
                   item.hasDiscount ||
                   (item.discountPercent && Number(item.discountPercent) > 0) ||
@@ -137,17 +186,27 @@ export async function POST(req: NextRequest) {
 
       // ── SUB-ROUTE: WEB BALANCE (Instant - 0% fee) ──
       if (provider === 'balance') {
-        if (!discordId) {
+        const auth = await requireUser(req);
+        if (!auth.ok) {
           return NextResponse.json({ ok: false, error: 'You must be logged in with Discord to pay with Web Balance' }, { status: 401 });
         }
 
-        const { data: userBal } = await supabaseAdmin
+        const buyerDiscordId = auth.data.discordId;
+
+        const { data: userBal, error: balErr } = await supabaseAdmin
           .from('user_balances')
           .select('balance_php')
-          .eq('discord_id', discordId)
+          .eq('discord_id', buyerDiscordId)
           .maybeSingle();
 
-        const currentBalance = Number(userBal?.balance_php || 0);
+        if (balErr || !userBal) {
+          return NextResponse.json({
+            ok: false,
+            error: 'User balance account not found. Please top up first.'
+          }, { status: 400 });
+        }
+
+        const currentBalance = Number(userBal.balance_php || 0);
         if (currentBalance < basePhp) {
           return NextResponse.json({
             ok: false,
@@ -155,17 +214,29 @@ export async function POST(req: NextRequest) {
           }, { status: 400 });
         }
 
-        const newBalance = currentBalance - basePhp;
-        await supabaseAdmin
+        const newBalance = Math.round((currentBalance - basePhp) * 100) / 100;
+
+        // Optimistic concurrency check: ensure balance hasn't been modified concurrently
+        const { data: updatedBal, error: updateErr } = await supabaseAdmin
           .from('user_balances')
           .update({ balance_php: newBalance, updated_at: new Date().toISOString() })
-          .eq('discord_id', discordId);
+          .eq('discord_id', buyerDiscordId)
+          .eq('balance_php', currentBalance)
+          .select('balance_php')
+          .maybeSingle();
+
+        if (updateErr || !updatedBal) {
+          return NextResponse.json({
+            ok: false,
+            error: 'Balance deduction conflict due to concurrent transactions. Please retry.'
+          }, { status: 409 });
+        }
 
         const { data: newOrder, error: orderErr } = await supabaseAdmin
           .from('orders')
           .insert({
-            discord_id: discordId,
-            email: cleanEmail || `${discordId}@discord.asyncdevph.xyz`,
+            discord_id: buyerDiscordId,
+            email: cleanEmail || `${buyerDiscordId}@discord.asyncdevph.xyz`,
             order_type: 'product_purchase',
             product_id: orderProductId,
             tier_key: orderTierKey,
@@ -181,7 +252,7 @@ export async function POST(req: NextRequest) {
               remaining_balance: newBalance,
               coupon_code: appliedCouponCode,
               discount_amount: appliedDiscountAmount,
-              ...(isCartOrder ? { cart_items: cartItems } : {})
+              ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
             },
             status: 'paid',
             paid_at: new Date().toISOString()
@@ -235,7 +306,7 @@ export async function POST(req: NextRequest) {
               maya_number: settings.mayaNumber,
               maya_name: settings.mayaName,
               maya_qr_url: settings.mayaQrUrl,
-              ...(isCartOrder ? { cart_items: cartItems } : {})
+              ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
             },
             status: 'awaiting_payment'
           })
@@ -256,17 +327,10 @@ export async function POST(req: NextRequest) {
             const pmSession = await createPayMongoCheckoutSession(secretKey, {
               orderId: newOrder.id,
               amountPHP: finalChargedPhp,
-              productName: isCartOrder ? `${cartItems.length} Cart Products` : 'ASYNC Product License',
+              productName: isCartOrder ? `ASYNC Order (${verifiedCartItems.length} items)` : 'ASYNC Product License',
               customerEmail: cleanEmail,
               customerDiscordId: discordId || null,
               originUrl,
-              lineItems: isCartOrder
-                ? cartItems.map((c: any) => ({
-                    name: c.title || 'ASYNC Product',
-                    quantity: Math.max(1, Number(c.quantity) || 1),
-                    amountPHP: Number(c.pricePHP || c.price || 0)
-                  }))
-                : undefined
             });
 
             paymongoCheckoutUrl = pmSession.checkoutUrl;
@@ -324,7 +388,7 @@ export async function POST(req: NextRequest) {
               gcash_name: settings.gcashName,
               gcash_qr_url: settings.gcashQrUrl,
               ref_code: refTag,
-              ...(isCartOrder ? { cart_items: cartItems } : {})
+              ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
             },
             status: 'awaiting_payment'
           })
@@ -364,7 +428,7 @@ export async function POST(req: NextRequest) {
               maya_name: settings.mayaName,
               maya_qr_url: settings.mayaQrUrl,
               ref_code: refTag,
-              ...(isCartOrder ? { cart_items: cartItems } : {})
+              ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
             },
             status: 'awaiting_payment'
           })
@@ -403,7 +467,7 @@ export async function POST(req: NextRequest) {
               paypal_email: settings.paypalEmail,
               paypal_note: uniqueMemo,
               original_php: basePhp,
-              ...(isCartOrder ? { cart_items: cartItems } : {})
+              ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
             },
             status: 'awaiting_payment'
           })
@@ -443,7 +507,7 @@ export async function POST(req: NextRequest) {
               usdt_address: settings.cryptoUsdt,
               ref_code: refTag,
               original_php: basePhp,
-              ...(isCartOrder ? { cart_items: cartItems } : {})
+              ...(isCartOrder ? { cart_items: verifiedCartItems } : {})
             },
             status: 'awaiting_payment'
           })
