@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
-const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const CHECK_INTERVAL_MS = 10 * 1000; // Check every 10 seconds
 const STORAGE_KEY = 'async_session_last_active';
 
