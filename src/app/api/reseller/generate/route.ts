@@ -300,6 +300,101 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 8. Dispatch Wholesale Discord Webhook / Channel Notification
+    try {
+      const botToken = (
+        process.env.DISCORD_BOT_TOKEN ||
+        process.env.Discord_bot_token ||
+        process.env.discord_bot_token ||
+        process.env.DISCORD_TOKEN
+      )?.trim();
+
+      let targetChannelId = (
+        process.env.DISCORD_WHOLESALE_CHANNEL_ID ||
+        '1564287719176409108'
+      ).trim();
+
+      // Check DB config table override if set
+      const { data: cfgRow } = await supabaseAdmin
+        .from('config')
+        .select('value')
+        .eq('key', 'log_wholesale_channel_id')
+        .maybeSingle();
+
+      if (cfgRow?.value?.trim()) {
+        targetChannelId = cfgRow.value.trim();
+      }
+
+      const webhookUrl = process.env.DISCORD_WHOLESALE_WEBHOOK_URL?.trim();
+
+      const keysPreview =
+        generatedKeys.length <= 4
+          ? generatedKeys.map((k) => `\`${k}\``).join('\n')
+          : `${generatedKeys.slice(0, 3).map((k) => `\`${k}\``).join('\n')}\n*+${generatedKeys.length - 3} more in audit ledger*`;
+
+      const embed = {
+        title: 'Wholesale License Batch Minted',
+        color: 0x9333ea, // ASYNC Violet
+        fields: [
+          {
+            name: 'Reseller',
+            value: `<@${reseller.discord_id}> (${reseller.company_name || 'Wholesale Partner'})`,
+            inline: true,
+          },
+          {
+            name: 'Product & Tier',
+            value: `**${product.title}**\n\`${cleanTierKey.toUpperCase()}\``,
+            inline: true,
+          },
+          {
+            name: 'Quantity',
+            value: `**${generatedKeys.length}x keys**`,
+            inline: true,
+          },
+          {
+            name: 'Wholesale Cost',
+            value: `**₱${totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**\n*(₱${unitWholesalePrice.toFixed(2)} / key)*`,
+            inline: true,
+          },
+          {
+            name: 'Remaining Balance',
+            value: `**₱${newBalance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**`,
+            inline: true,
+          },
+          {
+            name: 'Issued Keys',
+            value: keysPreview,
+            inline: false,
+          },
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+          text: `ASYNC Wholesale Telemetry • Reseller ID: ${reseller.id}`,
+        },
+      };
+
+      if (webhookUrl) {
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ embeds: [embed] }),
+        }).catch((err) => console.warn('[Reseller Webhook Log] Webhook dispatch warning:', err));
+      }
+
+      if (botToken && targetChannelId) {
+        fetch(`https://discord.com/api/v10/channels/${targetChannelId}/messages`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ embeds: [embed] }),
+        }).catch((err) => console.warn('[Reseller Bot Log] Channel dispatch warning:', err));
+      }
+    } catch (whErr) {
+      console.warn('[Reseller Webhook Log] Dispatch skipped on exception:', whErr);
+    }
+
     return NextResponse.json({
       ok: true,
       keys: generatedKeys,

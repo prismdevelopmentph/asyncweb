@@ -12,3 +12,4 @@ export default function ResellerLayout({
 }) {
   return <>{children}</>;
 }
+
