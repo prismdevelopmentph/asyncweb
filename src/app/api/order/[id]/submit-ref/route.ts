@@ -65,8 +65,7 @@ export async function POST(
       .from('orders')
       .update({
         status: 'pending',
-        payment_details: updatedDetails,
-        updated_at: new Date().toISOString()
+        payment_details: updatedDetails
       })
       .eq('id', id);
 
