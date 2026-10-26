@@ -339,7 +339,7 @@ export default function ResellerPortalPage() {
     return (
       <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center pt-28 pb-16">
           <div className="flex items-center gap-3 text-purple-400">
             <RefreshCw className="w-5 h-5 animate-spin" />
             <span className="font-mono text-sm tracking-widest uppercase">Authenticating Operator...</span>
@@ -355,7 +355,7 @@ export default function ResellerPortalPage() {
     return (
       <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center px-4 py-20">
+        <div className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
           <div className="max-w-md w-full bg-zinc-900/80 border border-purple-500/30 rounded-3xl p-8 text-center shadow-2xl backdrop-blur-xl relative overflow-hidden">
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
             <div className="w-14 h-14 mx-auto mb-6 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
@@ -380,7 +380,7 @@ export default function ResellerPortalPage() {
     return (
       <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center px-4 py-20">
+        <div className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
           <div className="max-w-md w-full bg-zinc-900/80 border border-red-500/30 rounded-3xl p-8 text-center shadow-2xl backdrop-blur-xl">
             <div className="w-14 h-14 mx-auto mb-6 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
               <ShieldAlert className="w-7 h-7" />
@@ -416,7 +416,7 @@ export default function ResellerPortalPage() {
     <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between selection:bg-purple-600 selection:text-white">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-16 space-y-8 relative z-10">
         {/* ── Top Header & Reseller Balance Card ── */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-purple-500/20 rounded-3xl p-6 sm:p-8 backdrop-blur-md relative overflow-hidden flex flex-col justify-between shadow-xl">
@@ -1031,3 +1031,4 @@ export default function ResellerPortalPage() {
     </div>
   );
 }
+

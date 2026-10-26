@@ -28,11 +28,18 @@ export default function Navbar() {
     }
     return false;
   });
+  const [isResellerSubdomain, setIsResellerSubdomain] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.host.startsWith('reseller.') || window.location.host.includes('reseller.asyncdevph.xyz');
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsGenSubdomain(window.location.host.startsWith('gen.') || window.location.host.includes('gen.asyncdevph.xyz'));
       setIsAdminSubdomain(window.location.host.startsWith('admin.') || window.location.host.includes('admin.asyncdevph.xyz'));
+      setIsResellerSubdomain(window.location.host.startsWith('reseller.') || window.location.host.includes('reseller.asyncdevph.xyz'));
     }
   }, []);
 
@@ -128,6 +135,11 @@ export default function Navbar() {
     ? [
         { name: 'Generator', href: '/', icon: Key, external: false },
         { name: 'Store ↗', href: 'https://asyncdevph.xyz', icon: Sparkles, external: true },
+      ]
+    : isResellerSubdomain
+    ? [
+        { name: 'Reseller Portal', href: '/', icon: Key, external: false },
+        { name: 'Main Store ↗', href: 'https://asyncdevph.xyz', icon: Sparkles, external: true },
       ]
     : [
         { name: 'Home', href: '/', icon: Sparkles, external: false },
