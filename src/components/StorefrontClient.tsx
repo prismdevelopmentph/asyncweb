@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CheckoutModal from '@/components/CheckoutModal';
+import ChatWidget from '@/components/ChatWidget';
 import { supabase } from '@/lib/supabase';
 import {
   Shield,
@@ -199,6 +200,16 @@ export default function StorefrontClient({
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session?.user) setCurrentUser(data.session.user);
     });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   // Client background sync
@@ -1064,6 +1075,9 @@ export default function StorefrontClient({
           currentUser={currentUser}
         />
       )}
+
+      {/* Floating Support Chat */}
+      <ChatWidget user={currentUser} />
 
       <Footer />
     </div>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ChatWidget from '@/components/ChatWidget';
 import { supabase } from '@/lib/supabase';
 import {
   Key,
@@ -618,6 +619,8 @@ export default function ResellerPortalPage() {
             </div>
           )}
         </main>
+
+        <ChatWidget user={user} />
 
         <Footer />
       </div>
@@ -1366,6 +1369,8 @@ export default function ResellerPortalPage() {
           </div>
         )}
       </main>
+
+      <ChatWidget user={user} />
 
       <Footer />
     </div>
