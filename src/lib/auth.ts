@@ -92,6 +92,43 @@ export async function requireUser(request: Request): Promise<AuthResult> {
 
   const userEmail = user.email || user.user_metadata?.email || null;
 
+  // ── Global Security Lockout Enforcement ──
+  // Check if caller's verified Discord ID or IP is flagged as banned in security_lockouts
+  if (!isOwnerDiscordId(discordId)) {
+    const cfIp = request.headers.get('cf-connecting-ip');
+    const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+    const realIp = request.headers.get('x-real-ip')?.trim();
+    const clientIp = cfIp || forwarded || realIp;
+
+    const searchTargets = [
+      `discord_user_id.eq.${encodeURIComponent(discordId)}`,
+    ];
+    if (clientIp && clientIp !== '127.0.0.1' && clientIp !== '::1') {
+      searchTargets.push(`ip_address.eq.${encodeURIComponent(clientIp)}`);
+    }
+
+    const { data: bannedRow } = await supabaseAdmin
+      .from('security_lockouts')
+      .select('id, reason')
+      .eq('is_banned', true)
+      .or(searchTargets.join(','))
+      .limit(1)
+      .maybeSingle();
+
+    if (bannedRow) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error: `Security Lockout Active: Your account or IP has been locked by automated security protection. (Reason: ${bannedRow.reason || 'Security Violation'})`,
+            code: 'SECURITY_LOCKOUT_ACTIVE',
+          },
+          { status: 403 }
+        ),
+      };
+    }
+  }
+
   return {
     ok: true,
     data: {
