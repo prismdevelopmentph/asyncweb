@@ -58,6 +58,18 @@ async function verifySessionToken(request: Request): Promise<{ claimedBy: string
       return null;
     }
 
+    // Security Lockout Gate: Reject if Discord account is flagged as banned
+    if (license.redeemed_by) {
+      const { data: banned } = await supabaseAdmin
+        .from('security_lockouts')
+        .select('id')
+        .eq('discord_user_id', String(license.redeemed_by))
+        .eq('is_banned', true)
+        .limit(1)
+        .maybeSingle();
+      if (banned) return null;
+    }
+
     const claimedBy = license.redeemed_by ? String(license.redeemed_by) : String(license.license_key);
     return { claimedBy, licenseId: license.id };
   } catch (err) {
