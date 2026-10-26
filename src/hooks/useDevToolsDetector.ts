@@ -34,8 +34,44 @@ export function useDevToolsDetector({ onDetected }: UseDevToolsDetectorOptions):
 
     const listener = (isOpen: boolean, detail?: { isOpen: boolean; checkerName: string }) => {
       if (isOpen) {
-        const reason = detail?.checkerName ? `DevTools (${detail.checkerName})` : 'DevTools Opened';
-        onDetectedRef.current(reason);
+        let dockContext = '';
+        if (typeof window !== 'undefined') {
+          const widthDiff = window.outerWidth - window.innerWidth;
+          const heightDiff = window.outerHeight - window.innerHeight;
+          if (widthDiff > 160) {
+            dockContext = ` (Side Dock: ${widthDiff}px)`;
+          } else if (heightDiff > 160) {
+            dockContext = ` (Bottom Dock: ${heightDiff}px)`;
+          } else {
+            dockContext = ' (Undocked / Detached)';
+          }
+        }
+
+        let descriptiveReason = 'DevTools Inspection Active';
+        switch (detail?.checkerName) {
+          case 'performance':
+            descriptiveReason = `DevTools Console Active (Console Timing Spike)${dockContext}`;
+            break;
+          case 'element':
+            descriptiveReason = `DevTools Elements Inspector Active (DOM Inspection)${dockContext}`;
+            break;
+          case 'dep-reg':
+            descriptiveReason = `DevTools Script Debugger Hooked (Regex Probe)${dockContext}`;
+            break;
+          case 'date-to-string':
+            descriptiveReason = `DevTools Console Formatter Active (Date Probe)${dockContext}`;
+            break;
+          case 'debugger':
+            descriptiveReason = `DevTools Breakpoint Intercepted (Debugger Hit)${dockContext}`;
+            break;
+          default:
+            descriptiveReason = detail?.checkerName
+              ? `DevTools Active (${detail.checkerName})${dockContext}`
+              : `DevTools Window Detected${dockContext}`;
+            break;
+        }
+
+        onDetectedRef.current(descriptiveReason);
       }
     };
 

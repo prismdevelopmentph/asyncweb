@@ -2718,7 +2718,14 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td className="py-4 px-6 font-medium text-zinc-200 font-sans">
-                            {lockout.reason}
+                            <div className="flex flex-col gap-1 max-w-md">
+                              <span className="text-xs text-zinc-100 font-medium leading-relaxed">{lockout.reason}</span>
+                              {lockout.url && (
+                                <span className="text-[10px] font-mono text-purple-400/90 truncate max-w-sm flex items-center gap-1" title={lockout.url}>
+                                  <span className="text-zinc-500">Path:</span> {lockout.url.replace(/^https?:\/\/[^/]+/, '') || '/'}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-4 px-6 font-mono text-zinc-400 text-xs">
                             {new Date(lockout.created_at || Date.now()).toLocaleString()}

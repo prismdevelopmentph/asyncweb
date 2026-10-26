@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       .upsert(
         {
           ip_address: ip,
-          reason: String(reason).slice(0, 150),
+          reason: String(reason).slice(0, 255),
           user_agent: resolvedUserAgent,
           url: String(url).slice(0, 255),
           discord_user_id: targetUserId,
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
         const { data: updateData, error: updateErr } = await supabaseAdmin
           .from('security_lockouts')
           .update({
-            reason: String(reason).slice(0, 150),
+            reason: String(reason).slice(0, 255),
             user_agent: resolvedUserAgent,
             url: String(url).slice(0, 255),
             discord_user_id: targetUserId,
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
           .from('security_lockouts')
           .insert({
             ip_address: ip,
-            reason: String(reason).slice(0, 150),
+            reason: String(reason).slice(0, 255),
             user_agent: resolvedUserAgent,
             url: String(url).slice(0, 255),
             discord_user_id: targetUserId,

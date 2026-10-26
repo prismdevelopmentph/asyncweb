@@ -89,7 +89,10 @@ export default function DevToolsProtection() {
     if (isLockedRef.current) return;
     isLockedRef.current = true;
 
-    setTriggerReason(reason);
+    const pagePath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const contextualReason = pagePath && !reason.includes(' on ') ? `${reason} on ${pagePath}` : reason;
+
+    setTriggerReason(contextualReason);
     const timeStr = new Date().toUTCString();
     setTriggerTime(timeStr);
     setIsTriggered(true);
@@ -97,7 +100,7 @@ export default function DevToolsProtection() {
       document.body.style.overflow = 'hidden';
     }
 
-    dispatchSecurityLockout(reason);
+    dispatchSecurityLockout(contextualReason);
   }, []);
 
   // Sensor Integration: Cleanly wired via decoupled useDevToolsDetector hook
@@ -131,10 +134,10 @@ export default function DevToolsProtection() {
         e.stopPropagation();
         triggerLockout(
           isF12
-            ? 'F12 Developer Key Triggered'
+            ? 'F12 Keystroke (DevTools Key)'
             : isInspectKey
-            ? 'Control+Shift Inspection Shortcut Triggered'
-            : 'View Page Source Shortcut Triggered'
+            ? 'Ctrl+Shift+I/J/C Keystroke (Inspect Element Shortcut)'
+            : 'Ctrl+U Keystroke (View Page Source Shortcut)'
         );
       }
     };
