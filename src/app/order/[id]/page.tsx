@@ -18,7 +18,10 @@ import {
   RefreshCw,
   QrCode,
   XCircle,
-  Ban
+  Ban,
+  Upload,
+  FileText,
+  X
 } from 'lucide-react';
 
 interface OrderItem {
@@ -87,8 +90,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   // Copy states
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  // Reference number input
+  // Reference number & receipt upload input
   const [referenceInput, setReferenceInput] = useState('');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [submittingRef, setSubmittingRef] = useState(false);
   const [refSuccess, setRefSuccess] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
@@ -202,13 +207,25 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const handleSubmitReference = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!referenceInput.trim()) return;
+
+    const isEwallet = order?.provider === 'gcash' || order?.provider === 'maya' || order?.provider === 'qrph';
+    if (isEwallet && !receiptFile) {
+      setRefError('Payment receipt screenshot is required for GCash and Maya payments.');
+      return;
+    }
+
     setSubmittingRef(true);
     setRefError(null);
     try {
+      const formData = new FormData();
+      formData.append('referenceNumber', referenceInput.trim());
+      if (receiptFile) {
+        formData.append('receipt', receiptFile);
+      }
+
       const res = await fetch(`/api/order/${id}/submit-ref`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ referenceNumber: referenceInput.trim() })
+        body: formData
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
@@ -1127,30 +1144,92 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   </div>
 
                   {/* Instructions & Reference Submission */}
-                  <form onSubmit={handleSubmitReference} className="space-y-3 pt-3 border-t border-zinc-800/80">
+                  <form onSubmit={handleSubmitReference} className="space-y-4 pt-3 border-t border-zinc-800/80">
                     <div className="text-xs text-zinc-400">
-                      After completing the transfer, enter your <strong>Reference Number</strong> below and click <strong>Submit Payment</strong>:
+                      After completing the transfer, upload your <strong>Transfer Receipt</strong> and enter your <strong>Reference Number</strong> below:
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={referenceInput}
-                        onChange={(e) => {
-                          setReferenceInput(e.target.value);
-                          if (refError) setRefError(null);
-                        }}
-                        placeholder="e.g. 102948291048"
-                        className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
-                      />
-                      <button
-                        type="submit"
-                        disabled={submittingRef || !referenceInput.trim()}
-                        className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40"
-                      >
-                        {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
-                      </button>
+                    {/* Screenshot Upload Dropzone (Strictly Required for GCash/Maya) */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-mono font-bold text-zinc-300 uppercase flex items-center justify-between">
+                        <span>Payment Receipt Screenshot *</span>
+                        <span className="text-[10px] text-purple-400 font-normal">Required (PNG / JPG / WEBP)</span>
+                      </label>
+
+                      {receiptFile ? (
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900 border border-purple-500/40">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {receiptPreview ? (
+                              <img src={receiptPreview} alt="Receipt preview" className="w-10 h-10 object-cover rounded-lg border border-zinc-700 shrink-0" />
+                            ) : (
+                              <FileText className="w-5 h-5 text-purple-400 shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-mono text-white truncate font-medium">{receiptFile.name}</p>
+                              <p className="text-[10px] font-mono text-zinc-400">{(receiptFile.size / 1024).toFixed(0)} KB</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReceiptFile(null);
+                              setReceiptPreview(null);
+                            }}
+                            className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                            title="Remove file"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex flex-col items-center justify-center p-4 border border-dashed border-zinc-700 hover:border-purple-500/60 rounded-xl bg-zinc-900/60 hover:bg-zinc-900 cursor-pointer transition-all">
+                          <Upload className="w-5 h-5 text-zinc-400 mb-1" />
+                          <span className="text-xs font-mono text-zinc-300 font-medium">Click or drag transfer receipt screenshot here</span>
+                          <span className="text-[10px] font-mono text-zinc-500">Max size 10MB • Sent directly to verification staff</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setReceiptFile(file);
+                                if (refError) setRefError(null);
+                                const url = URL.createObjectURL(file);
+                                setReceiptPreview(url);
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
                     </div>
+
+                    {/* Reference Input */}
+                    <div className="space-y-1.5 pt-1">
+                      <label className="text-[11px] font-mono font-bold text-zinc-300 uppercase block">
+                        Reference Number *
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={referenceInput}
+                          onChange={(e) => {
+                            setReferenceInput(e.target.value);
+                            if (refError) setRefError(null);
+                          }}
+                          placeholder="e.g. 102948291048"
+                          className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={submittingRef || !referenceInput.trim() || !receiptFile}
+                          className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40"
+                        >
+                          {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
+                        </button>
+                      </div>
+                    </div>
+
                     {refError && (
                       <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2">
                         <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />

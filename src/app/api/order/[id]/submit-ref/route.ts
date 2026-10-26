@@ -9,11 +9,25 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const body = await req.json().catch(() => ({}));
-    const { referenceNumber } = body;
+    if (!id) {
+      return NextResponse.json({ ok: false, error: 'Order ID is required' }, { status: 400 });
+    }
 
-    if (!id || !referenceNumber || typeof referenceNumber !== 'string' || !referenceNumber.trim()) {
-      return NextResponse.json({ ok: false, error: 'Order ID and a valid reference number are required' }, { status: 400 });
+    const contentType = req.headers.get('content-type') || '';
+    let referenceNumber = '';
+    let receiptFile: File | null = null;
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      referenceNumber = (formData.get('referenceNumber') as string) || '';
+      receiptFile = formData.get('receipt') as File | null;
+    } else {
+      const body = await req.json().catch(() => ({}));
+      referenceNumber = body.referenceNumber || '';
+    }
+
+    if (!referenceNumber || typeof referenceNumber !== 'string' || !referenceNumber.trim()) {
+      return NextResponse.json({ ok: false, error: 'A valid payment reference number is required.' }, { status: 400 });
     }
 
     const cleanRef = referenceNumber.trim();
@@ -38,7 +52,46 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // 2. Reference replay protection: ensure reference isn't already used on another active order
+    // 2. Receipt screenshot requirement for GCash and Maya payments
+    const isEwallet = order.provider === 'gcash' || order.provider === 'maya' || order.provider === 'qrph';
+    let receiptBuffer: ArrayBuffer | null = null;
+    let receiptMime = 'image/png';
+    let receiptExt = 'png';
+
+    if (isEwallet) {
+      if (!receiptFile || receiptFile.size === 0) {
+        return NextResponse.json({
+          ok: false,
+          error: 'A screenshot of your payment receipt is required for GCash/Maya payments.'
+        }, { status: 400 });
+      }
+
+      // Max 10MB receipt image
+      if (receiptFile.size > 10 * 1024 * 1024) {
+        return NextResponse.json({
+          ok: false,
+          error: 'Receipt screenshot exceeds the 10MB maximum file size.'
+        }, { status: 400 });
+      }
+
+      receiptMime = receiptFile.type || 'image/png';
+      if (!receiptMime.startsWith('image/')) {
+        return NextResponse.json({
+          ok: false,
+          error: 'Uploaded receipt must be an image file (.png, .jpg, .jpeg, .webp).'
+        }, { status: 400 });
+      }
+
+      receiptExt = receiptFile.name.split('.').pop()?.toLowerCase() || 'png';
+      if (!['png', 'jpg', 'jpeg', 'webp'].includes(receiptExt)) {
+        receiptExt = 'png';
+      }
+
+      // Read directly into memory buffer — NEVER written to Supabase Storage
+      receiptBuffer = await receiptFile.arrayBuffer();
+    }
+
+    // 3. Reference replay protection: ensure reference isn't already used on another active order
     const { data: existingRefs } = await supabaseAdmin
       .from('orders')
       .select('id, status')
@@ -57,10 +110,11 @@ export async function POST(
     const updatedDetails = {
       ...(order.payment_details || {}),
       customer_reference: cleanRef,
+      has_receipt_screenshot: Boolean(receiptBuffer),
       reference_submitted_at: new Date().toISOString()
     };
 
-    // 3. Atomically transition to 'pending' for admin review
+    // 4. Atomically transition to 'pending' for admin review
     const { error: updateErr } = await supabaseAdmin
       .from('orders')
       .update({
@@ -73,7 +127,7 @@ export async function POST(
       throw updateErr;
     }
 
-    // 4. Dispatch Discord Bot alert to staff verification channel with owner mention
+    // 5. Dispatch Discord Bot alert with in-memory receipt attachment & owner mention
     try {
       const botToken = (
         process.env.DISCORD_BOT_TOKEN ||
@@ -124,7 +178,9 @@ export async function POST(
           ? `<@${order.discord_id}> (${order.discord_id})`
           : (order.email || 'Web Buyer');
 
-        const embed = {
+        const attachmentFileName = `receipt_${id.slice(0, 8)}.${receiptExt}`;
+
+        const embed: Record<string, any> = {
           title: '⚡ Payment Reference Submitted // Verification Required',
           description: 'A customer has submitted a payment reference that requires manual verification in the ledger.',
           color: 0xf59e0b, // Amber
@@ -161,21 +217,44 @@ export async function POST(
           timestamp: new Date().toISOString(),
         };
 
-        // Fire and await dispatch to guarantee delivery
-        await fetch(`https://discord.com/api/v10/channels/${logChannelId}/messages`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bot ${botToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            content: `<@${ownerId}>`,
-            embeds: [embed],
-            allowed_mentions: {
-              users: [ownerId],
+        if (receiptBuffer) {
+          embed.image = { url: `attachment://${attachmentFileName}` };
+          const discordFormData = new FormData();
+          discordFormData.append(
+            'payload_json',
+            JSON.stringify({
+              content: `<@${ownerId}>`,
+              embeds: [embed],
+              allowed_mentions: { users: [ownerId] },
+            })
+          );
+          discordFormData.append(
+            'files[0]',
+            new Blob([receiptBuffer], { type: receiptMime }),
+            attachmentFileName
+          );
+
+          await fetch(`https://discord.com/api/v10/channels/${logChannelId}/messages`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bot ${botToken}`,
             },
-          }),
-        });
+            body: discordFormData,
+          });
+        } else {
+          await fetch(`https://discord.com/api/v10/channels/${logChannelId}/messages`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bot ${botToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: `<@${ownerId}>`,
+              embeds: [embed],
+              allowed_mentions: { users: [ownerId] },
+            }),
+          });
+        }
       }
     } catch (notifyErr) {
       console.warn('[Submit Ref Discord Alert Error]:', notifyErr);
