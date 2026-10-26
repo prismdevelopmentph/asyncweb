@@ -107,7 +107,7 @@ BEGIN
             SELECT id, data, COALESCE(raw_line, data->>''raw'', data->>''data'', data::text)
             FROM public.%I
             WHERE is_used = FALSE
-            ORDER BY id ASC
+            ORDER BY random()
             LIMIT 1
             FOR UPDATE SKIP LOCKED
         ', v_table_name)
