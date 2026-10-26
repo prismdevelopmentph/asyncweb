@@ -12,6 +12,15 @@ export async function GET(request: NextRequest) {
 
     const { reseller } = auth.data;
 
+    // Reset legacy test balance if previously seeded at 100,000
+    if (reseller && Number(reseller.credit_balance) === 100000) {
+      await supabaseAdmin
+        .from('resellers')
+        .update({ credit_balance: 0.00, updated_at: new Date().toISOString() })
+        .eq('id', reseller.id);
+      reseller.credit_balance = 0.00;
+    }
+
     const [pricingRes, prodsRes, licensesRes, txRes] = await Promise.all([
       supabaseAdmin
         .from('reseller_wholesale_pricing')
@@ -79,3 +88,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: err?.message || 'Server error' }, { status: 500 });
   }
 }
+

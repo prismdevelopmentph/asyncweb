@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       tierKey = 'daily',
       provider = 'paymongo_qrph', // 'paymongo_qrph' | 'gcash' | 'maya' | 'paypal' | 'crypto' | 'balance' | 'qrph'
       email,
-      orderType = 'product_purchase', // 'product_purchase' | 'balance_topup'
+      orderType = 'product_purchase', // 'product_purchase' | 'balance_topup' | 'reseller_topup'
       topupAmount,
       cartItems,
       couponCode
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       verifiedUserEmail = auth.data.email;
     }
 
-    if (orderType === 'balance_topup' && !verifiedDiscordId) {
+    if ((orderType === 'balance_topup' || orderType === 'reseller_topup') && !verifiedDiscordId) {
       return NextResponse.json({ ok: false, error: 'Authentication required for balance top-up' }, { status: 401 });
     }
 
@@ -655,17 +655,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── CASE B: BALANCE TOP-UP (Strictly GCash Rail) ──
-    if (orderType === 'balance_topup') {
+    // ── CASE B: BALANCE TOP-UP & RESELLER WHOLESALE CREDIT TOP-UP (Strictly GCash Rail) ──
+    if (orderType === 'balance_topup' || orderType === 'reseller_topup') {
       const topupPhp = Math.max(50, Number(topupAmount) || 100);
       const refTag = `GCASH-${Math.floor(1000 + Math.random() * 9000)}`;
+      const isResellerTopup = orderType === 'reseller_topup';
 
       const { data: newOrder, error: orderErr } = await supabaseAdmin
         .from('orders')
         .insert({
           discord_id: verifiedDiscordId,
           email: cleanEmail || `${verifiedDiscordId}@discord.asyncdevph.xyz`,
-          order_type: 'balance_topup',
+          order_type: isResellerTopup ? 'reseller_topup' : 'balance_topup',
           amount: topupPhp,
           currency: 'PHP',
           provider: 'gcash',
@@ -678,7 +679,8 @@ export async function POST(req: NextRequest) {
             account_name: settings.gcashName,
             qr_image_url: settings.gcashQrUrl,
             ref_code: refTag,
-            target_credit_php: topupPhp
+            target_credit_php: topupPhp,
+            is_reseller_pool: isResellerTopup
           },
           status: 'awaiting_payment'
         })

@@ -29,7 +29,10 @@ import {
   Activity,
   CheckCircle2,
   X,
-  Plus
+  Plus,
+  Wallet,
+  Loader2,
+  ArrowRight
 } from 'lucide-react';
 
 interface TierOption {
@@ -107,6 +110,13 @@ export default function ResellerPortalPage() {
   // HWID Reset Modal / State
   const [resettingHwidId, setResettingHwidId] = useState<string | null>(null);
   const [hwidMessage, setHwidMessage] = useState<{ id: string; success: boolean; text: string } | null>(null);
+
+  // Top-Up Modal State
+  const [topupModalOpen, setTopupModalOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState<number>(500);
+  const [customTopupAmount, setCustomTopupAmount] = useState<string>('');
+  const [isInitiatingTopup, setIsInitiatingTopup] = useState(false);
+  const [topupError, setTopupError] = useState<string | null>(null);
 
   // Search & Copy
   const [licenseSearch, setLicenseSearch] = useState('');
@@ -282,6 +292,61 @@ export default function ResellerPortalPage() {
       setHwidMessage({ id: licenseId, success: false, text: err?.message || 'Network error.' });
     } finally {
       setResettingHwidId(null);
+    }
+  };
+
+  const handleInitiateTopup = async () => {
+    const effectiveAmount = customTopupAmount ? Math.max(50, Number(customTopupAmount) || 0) : topupAmount;
+    if (effectiveAmount < 50) {
+      setTopupError('Minimum top-up amount is ₱50.');
+      return;
+    }
+
+    setIsInitiatingTopup(true);
+    setTopupError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setTopupError('Authentication session expired. Please log in again.');
+        setIsInitiatingTopup(false);
+        return;
+      }
+
+      const res = await fetch('/api/orders/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          orderType: 'reseller_topup',
+          topupAmount: effectiveAmount,
+          provider: 'gcash',
+          email: session.user?.email || undefined
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setTopupError(data.error || 'Failed to initialize top-up order.');
+        setIsInitiatingTopup(false);
+        return;
+      }
+
+      if (data.orderId && data.orderToken) {
+        try {
+          localStorage.setItem(`order_token_${data.orderId}`, data.orderToken);
+        } catch {}
+      }
+
+      // Navigate directly to official GCash QR & payment verification screen
+      window.location.href = `/order/${data.orderId}`;
+    } catch (err: any) {
+      console.error('[Reseller TopUp] Error:', err);
+      setTopupError('Network error. Please try again.');
+      setIsInitiatingTopup(false);
     }
   };
 
@@ -483,15 +548,17 @@ export default function ResellerPortalPage() {
             </div>
 
             <div className="mt-6 pt-4 border-t border-purple-500/20">
-              <a
-                href="https://discord.gg/asyncdev"
-                target="_blank"
-                rel="noreferrer"
-                className="w-full py-2.5 px-4 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 hover:text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all"
+              <button
+                type="button"
+                onClick={() => {
+                  setTopupError(null);
+                  setTopupModalOpen(true);
+                }}
+                className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/30 cursor-pointer"
               >
-                <span>Deposit / Top-up Balance</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </a>
+                <Wallet className="w-3.5 h-3.5" />
+                <span>Top-up Credit Balance (GCash)</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1022,6 +1089,132 @@ export default function ResellerPortalPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {/* ── GCASH WHOLESALE TOP-UP MODAL ── */}
+        {topupModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+            <div
+              className="relative w-full max-w-md bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden p-6 text-zinc-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-800/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-white">Top Up Wholesale Pool</h2>
+                    <p className="text-xs text-zinc-400">GCash Express Payment</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTopupModalOpen(false)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Amount Selector */}
+              <div className="py-5 space-y-4">
+                <label className="text-xs font-medium text-zinc-300 block">Select Top-Up Amount (PHP)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[250, 500, 1000, 2500, 5000, 10000].map((amt) => {
+                    const isSelected = !customTopupAmount && topupAmount === amt;
+                    return (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => {
+                          setTopupAmount(amt);
+                          setCustomTopupAmount('');
+                        }}
+                        className={`py-2.5 px-3 rounded-xl border text-sm font-mono font-medium transition-all ${
+                          isSelected
+                            ? 'bg-purple-600 text-white border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.35)]'
+                            : 'bg-zinc-900/60 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
+                        }`}
+                      >
+                        ₱{amt.toLocaleString('en-PH')}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-zinc-500 block mb-1">Or custom amount (min ₱50)</label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 font-mono text-sm">₱</span>
+                    <input
+                      type="number"
+                      min="50"
+                      step="10"
+                      placeholder="Custom PHP"
+                      value={customTopupAmount}
+                      onChange={(e) => setCustomTopupAmount(e.target.value)}
+                      className="w-full bg-zinc-900/70 border border-zinc-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-xl py-2.5 pl-8 pr-4 text-sm font-mono text-white placeholder-zinc-600 transition-all outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Payment Method Notice */}
+                <div className="p-3.5 rounded-xl bg-purple-950/20 border border-purple-500/20 flex items-start gap-3 text-xs text-zinc-300">
+                  <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 font-bold flex items-center justify-center shrink-0 text-xs">
+                    G
+                  </div>
+                  <div>
+                    <span className="text-white font-semibold">GCash Direct Transfer:</span> Scan the QR code or send to mobile number. Your wholesale balance pool is credited upon staff reference verification.
+                  </div>
+                </div>
+
+                {topupError && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono">
+                    {topupError}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-between gap-3">
+                <div className="text-xs">
+                  <span className="text-zinc-500">Total Due: </span>
+                  <span className="text-white font-mono font-bold text-sm">
+                    ₱{(customTopupAmount ? Math.max(50, Number(customTopupAmount) || 0) : topupAmount).toLocaleString('en-PH')}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTopupModalOpen(false)}
+                    disabled={isInitiatingTopup}
+                    className="px-3 py-2 rounded-xl text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleInitiateTopup}
+                    disabled={isInitiatingTopup || ((customTopupAmount ? Number(customTopupAmount) : topupAmount) < 50)}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-purple-900/20 cursor-pointer"
+                  >
+                    {isInitiatingTopup ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Generating QR...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Proceed to Pay</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

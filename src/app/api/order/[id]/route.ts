@@ -73,7 +73,17 @@ export async function GET(
 
     const cartItems = details.cart_items;
     const items =
-      order.order_type === 'balance_topup'
+      order.order_type === 'reseller_topup'
+        ? [
+            {
+              productName: 'Wholesale Reseller Credit Pool Top-Up',
+              variantName: `${order.currency === 'PHP' ? '₱' : '$'}${order.amount} Wholesale Credits`,
+              quantity: 1,
+              unitPrice: Number(order.amount),
+              lineTotal: Number(order.amount)
+            }
+          ]
+        : order.order_type === 'balance_topup'
         ? [
             {
               productName: 'Web Balance Account Top-Up',

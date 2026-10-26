@@ -218,7 +218,7 @@ export async function requireReseller(request: Request): Promise<ResellerAuthRes
       .insert({
         discord_id: discordId,
         company_name: 'ASYNC HQ (Owner)',
-        credit_balance: 100000.00,
+        credit_balance: 0.00,
         currency: 'PHP',
         status: 'active',
       })

@@ -175,6 +175,85 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({ ok: true, message: `Top-up of ₱${creditAmount} approved and credited.` });
       }
+
+      // If reseller wholesale pool top-up: atomic lock to 'processing' and credit resellers table
+      if (order.order_type === 'reseller_topup') {
+        const creditAmount = Number(order.payment_details?.target_credit_php || order.amount || 0);
+        const discordId = order.discord_id;
+
+        if (!discordId) {
+          return NextResponse.json({ ok: false, error: 'Cannot approve top-up: order has no associated Discord ID.' }, { status: 400 });
+        }
+        if (creditAmount <= 0) {
+          return NextResponse.json({ ok: false, error: 'Cannot approve top-up: invalid credit amount.' }, { status: 400 });
+        }
+
+        const { data: claim, error: claimErr } = await supabaseAdmin
+          .from('orders')
+          .update({
+            status: 'processing',
+            paid_at: order.paid_at || nowIso
+          })
+          .eq('id', order.id)
+          .in('status', ['pending', 'payment_mismatch', 'awaiting_payment', 'fulfillment_failed'])
+          .select('id')
+          .maybeSingle();
+
+        if (claimErr || !claim) {
+          return NextResponse.json({ ok: false, error: 'Order is already being processed or has already been fulfilled.' }, { status: 409 });
+        }
+
+        const { data: reseller, error: resErr } = await supabaseAdmin
+          .from('resellers')
+          .select('*')
+          .eq('discord_id', discordId)
+          .maybeSingle();
+
+        if (resErr || !reseller) {
+          await supabaseAdmin.from('orders').update({ status: order.status }).eq('id', order.id);
+          return NextResponse.json({ ok: false, error: `No reseller profile found for Discord ID ${discordId}` }, { status: 404 });
+        }
+
+        const balBefore = Number(reseller.credit_balance) || 0;
+        const balAfter = Number((balBefore + creditAmount).toFixed(2));
+
+        const { error: updErr } = await supabaseAdmin
+          .from('resellers')
+          .update({
+            credit_balance: balAfter,
+            updated_at: nowIso
+          })
+          .eq('id', reseller.id);
+
+        if (updErr) {
+          await supabaseAdmin.from('orders').update({ status: order.status }).eq('id', order.id);
+          throw updErr;
+        }
+
+        await supabaseAdmin.from('reseller_transactions').insert({
+          reseller_id: reseller.id,
+          type: 'deposit',
+          amount: creditAmount,
+          balance_before: balBefore,
+          balance_after: balAfter,
+          note: `GCash Top-up Order #${order.id.slice(0, 8)} (Ref: ${order.payment_details?.ref_code || order.payment_details?.customer_reference || 'GCash'})`,
+          metadata: { order_id: order.id }
+        });
+
+        await supabaseAdmin
+          .from('orders')
+          .update({
+            status: 'delivered',
+            paid_at: order.paid_at || nowIso,
+            delivered_at: nowIso
+          })
+          .eq('id', order.id);
+
+        return NextResponse.json({
+          ok: true,
+          message: `Successfully credited ₱${creditAmount.toFixed(2)} to reseller ${reseller.company_name}. New balance: ₱${balAfter.toFixed(2)}.`
+        });
+      }
     }
 
     // ── REJECT ORDER ──

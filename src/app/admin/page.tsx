@@ -6730,7 +6730,7 @@ export default function AdminPage() {
                       className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/50 disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{selectedOrderForModal.order_type === 'balance_topup' ? 'Approve & Credit Balance' : 'Approve & Dispatch Key'}</span>
+                      <span>{selectedOrderForModal.order_type === 'reseller_topup' ? 'Approve & Credit Wholesale Pool' : selectedOrderForModal.order_type === 'balance_topup' ? 'Approve & Credit Balance' : 'Approve & Dispatch Key'}</span>
                     </button>
 
                     <button
