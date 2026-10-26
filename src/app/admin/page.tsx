@@ -1675,7 +1675,7 @@ export default function AdminPage() {
   const fetchSupportTickets = async () => {
     setChatLoading(true);
     try {
-      const res = await fetch('/api/chat?channel=support&limit=100');
+      const res = await adminFetch('/api/chat?channel=support&limit=500');
       if (res.ok) {
         const json = await res.json();
         const allMsgs: any[] = json.messages || [];
@@ -1683,12 +1683,18 @@ export default function AdminPage() {
         const map = new Map<string, any>();
         allMsgs.forEach((m) => {
           const tid = m.ticket_id || m.sender_id;
+          if (!tid) return;
+
+          const prof = adminData?.userProfiles?.[tid];
+          const resolvedName = prof?.display_name || prof?.username || (!m.is_admin ? m.sender_name : null);
+          const resolvedAvatar = prof?.avatar_url || (!m.is_admin ? m.sender_avatar : null);
+
           if (!map.has(tid)) {
             map.set(tid, {
               ticket_id: tid,
-              sender_id: m.sender_id,
-              sender_name: m.sender_name,
-              sender_avatar: m.sender_avatar,
+              sender_id: !m.is_admin ? m.sender_id : tid,
+              sender_name: resolvedName || `User (${tid.slice(-4)})`,
+              sender_avatar: resolvedAvatar,
               last_message: m.content,
               last_time: m.created_at,
               unread_count: !m.is_admin ? 1 : 0,
@@ -1697,7 +1703,18 @@ export default function AdminPage() {
             const existing = map.get(tid);
             existing.last_message = m.content;
             existing.last_time = m.created_at;
-            if (!m.is_admin) existing.unread_count += 1;
+            if (!m.is_admin) {
+              existing.unread_count += 1;
+              if (m.sender_name) existing.sender_name = m.sender_name;
+              if (m.sender_avatar) existing.sender_avatar = m.sender_avatar;
+              existing.sender_id = m.sender_id;
+            }
+            if (prof?.display_name || prof?.username) {
+              existing.sender_name = prof.display_name || prof.username;
+            }
+            if (prof?.avatar_url) {
+              existing.sender_avatar = prof.avatar_url;
+            }
           }
         });
 
@@ -1719,7 +1736,7 @@ export default function AdminPage() {
 
   const fetchTicketMessages = async (ticketId: string) => {
     try {
-      const res = await fetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(ticketId)}&limit=100`);
+      const res = await adminFetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(ticketId)}&limit=200`);
       if (res.ok) {
         const json = await res.json();
         setTicketMessages(json.messages || []);
@@ -1814,17 +1831,13 @@ export default function AdminPage() {
     setTicketMessages((prev) => [...prev, optimisticMsg]);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await adminFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           channel: 'support',
           ticketId: selectedTicketId,
-          senderId: ownerUserId || '',
-          senderName: 'Mark (Admin)',
-          senderAvatar: user?.user_metadata?.avatar_url || null,
           content,
-          isAdmin: true,
         }),
       });
 

@@ -8,7 +8,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const ticketId = searchParams.get('ticketId');
   const limitParam = parseInt(searchParams.get('limit') || '50', 10);
-  const limit = Math.min(Math.max(limitParam, 10), 100);
   const before = searchParams.get('before');
 
   try {
@@ -17,6 +16,9 @@ export async function GET(request: NextRequest) {
 
     const callerDiscordId = auth.data.discordId;
     const isOwner = isOwnerDiscordId(callerDiscordId);
+
+    const maxLimit = isOwner ? 1000 : 100;
+    const limit = Math.min(Math.max(limitParam, 10), maxLimit);
 
     let query = supabaseAdmin
       .from('chat_messages')
