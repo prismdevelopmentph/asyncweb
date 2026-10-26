@@ -111,6 +111,7 @@ export async function GET(
     return NextResponse.json({
       ok: true,
       id: order.id,
+      orderType: order.order_type || 'product_purchase',
       status: order.status,
       provider: order.provider,
       providerLabel: order.provider_label,

@@ -32,6 +32,7 @@ interface OrderItem {
 interface OrderData {
   ok: boolean;
   id: string;
+  orderType?: 'product_purchase' | 'balance_topup';
   status: 'awaiting_payment' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'rejected' | 'payment_mismatch' | 'fulfillment_failed';
   provider: 'balance' | 'qrph' | 'paypal' | 'paymongo_qrph' | 'gcash' | 'maya' | 'crypto';
   providerLabel: string;
@@ -552,8 +553,54 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               </div>
             )}
             
+            {/* DELIVERED STATE: WALLET TOP-UP CREDITED */}
+            {isDelivered && order.orderType === 'balance_topup' && (
+              <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-zinc-950 to-black border border-emerald-500/40 space-y-5">
+                <div className="flex items-center justify-between">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>WALLET TOP-UP // CREDITED</span>
+                  </div>
+                  <span className="text-xs text-zinc-500 font-mono">Verified</span>
+                </div>
+
+                <div>
+                  <div className="text-xs font-mono text-emerald-400 font-bold mb-2 uppercase tracking-wider">
+                    FUNDS SUCCESSFULLY ADDED TO YOUR WEB BALANCE
+                  </div>
+                  <div className="p-4 rounded-2xl bg-zinc-900 border border-emerald-500/30 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-zinc-400 block font-mono">Credited Amount:</span>
+                      <span className="text-2xl font-mono font-bold text-white">
+                        {order.currency === 'PHP' ? '₱' : '$'}{Number(order.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="text-right text-xs font-mono text-emerald-400">
+                      Zero Fees &bull; Instant
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <Link
+                    href="/dashboard"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono font-bold text-xs transition-all shadow-lg shadow-emerald-950/40"
+                  >
+                    <span>View Account Dashboard</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                  <Link
+                    href="/products"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium border border-zinc-800 transition-colors"
+                  >
+                    <span>Spend Balance</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* DELIVERED STATE: KEY REVEAL CARD */}
-            {isDelivered && order.licenseKey && (
+            {isDelivered && order.orderType !== 'balance_topup' && order.licenseKey && (
               <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-zinc-950 to-black border border-emerald-500/40 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono">

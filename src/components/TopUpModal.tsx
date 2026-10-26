@@ -49,7 +49,7 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
         body: JSON.stringify({
           orderType: 'balance_topup',
           topupAmount: effectiveAmount,
-          provider: 'paymongo_qrph'
+          provider: 'gcash'
         })
       });
 
@@ -60,7 +60,7 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
         return;
       }
 
-      // Navigate directly to the order verification / QRPH screen
+      // Navigate directly to the GCash order verification screen
       window.location.href = `/order/${data.orderId}`;
     } catch (err: any) {
       console.error('[TopUpModal] Error:', err);
@@ -78,12 +78,12 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-zinc-800/80">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
               <Wallet className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base font-semibold text-white">Top Up Web Balance</h2>
-              <p className="text-xs text-zinc-400">Instant credit for fast zero-fee checkouts</p>
+              <p className="text-xs text-zinc-400">GCash Express Payment</p>
             </div>
           </div>
           <button 
@@ -110,7 +110,7 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
                   }}
                   className={`py-2.5 px-3 rounded-xl border text-sm font-mono font-medium transition-all ${
                     isSelected
-                      ? 'bg-purple-600 text-white border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.35)]'
+                      ? 'bg-blue-600 text-white border-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.35)]'
                       : 'bg-zinc-900/60 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900'
                   }`}
                 >
@@ -131,16 +131,18 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
                 placeholder="Custom PHP"
                 value={customAmount}
                 onChange={(e) => setCustomAmount(e.target.value)}
-                className="w-full bg-zinc-900/70 border border-zinc-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 rounded-xl py-2.5 pl-8 pr-4 text-sm font-mono text-white placeholder-zinc-600 transition-all outline-none"
+                className="w-full bg-zinc-900/70 border border-zinc-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl py-2.5 pl-8 pr-4 text-sm font-mono text-white placeholder-zinc-600 transition-all outline-none"
               />
             </div>
           </div>
 
           {/* Payment Method Notice */}
-          <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/80 flex items-start gap-2.5 text-xs text-zinc-400">
-            <QrCode className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+          <div className="p-3.5 rounded-xl bg-blue-950/20 border border-blue-500/20 flex items-start gap-3 text-xs text-zinc-300">
+            <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center shrink-0 text-xs">
+              G
+            </div>
             <div>
-              <span className="text-zinc-200 font-medium">Automatic QRPH Dispatch:</span> Supported across GCash, Maya, ShopeePay, BDO, BPI and all Philippine banking apps.
+              <span className="text-white font-semibold">GCash Direct Transfer:</span> Send payment via GCash QR or Mobile Number. Your balance is credited automatically upon reference verification.
             </div>
           </div>
 
@@ -191,3 +193,4 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
     </div>
   );
 }
+

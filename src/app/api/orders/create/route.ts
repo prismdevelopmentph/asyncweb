@@ -624,71 +624,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── CASE B: BALANCE TOP-UP ──
+    // ── CASE B: BALANCE TOP-UP (Strictly GCash Rail) ──
     if (orderType === 'balance_topup') {
       const topupPhp = Math.max(50, Number(topupAmount) || 100);
-      const topupUsd = Math.round(((topupPhp / liveRate) + Number.EPSILON) * 100) / 100;
+      const refTag = `GCASH-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      if (provider === 'paypal') {
-        const uniqueMemo = await getUniquePayPalMemo();
-        const { data: newOrder, error: orderErr } = await supabaseAdmin
-          .from('orders')
-          .insert({
-            discord_id: verifiedDiscordId,
-            email: cleanEmail || `${verifiedDiscordId}@discord.asyncdevph.xyz`,
-            order_type: 'balance_topup',
-            amount: topupUsd,
-            currency: 'USD',
-            provider: 'paypal',
-            provider_label: 'PayPal (Friends & Family)',
-            payment_details: {
-              paypal_email: settings.paypalEmail,
-              paypal_note: uniqueMemo,
-              target_credit_php: topupPhp
-            },
-            status: 'awaiting_payment'
-          })
-          .select()
-          .single();
+      const { data: newOrder, error: orderErr } = await supabaseAdmin
+        .from('orders')
+        .insert({
+          discord_id: verifiedDiscordId,
+          email: cleanEmail || `${verifiedDiscordId}@discord.asyncdevph.xyz`,
+          order_type: 'balance_topup',
+          amount: topupPhp,
+          currency: 'PHP',
+          provider: 'gcash',
+          provider_label: 'GCash',
+          payment_details: {
+            gcash_number: settings.gcashNumber,
+            gcash_name: settings.gcashName,
+            gcash_qr_url: settings.gcashQrUrl,
+            gcash_enabled: true,
+            account_name: settings.gcashName,
+            qr_image_url: settings.gcashQrUrl,
+            ref_code: refTag,
+            target_credit_php: topupPhp
+          },
+          status: 'awaiting_payment'
+        })
+        .select()
+        .single();
 
-        if (orderErr) throw orderErr;
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
-      }
-
-      if (provider === 'paymongo_qrph' || provider === 'qrph' || provider === 'gcash') {
-        const refTag = `TOPUP-${Math.floor(1000 + Math.random() * 9000)}`;
-        const { data: newOrder, error: orderErr } = await supabaseAdmin
-          .from('orders')
-          .insert({
-            discord_id: verifiedDiscordId,
-            email: cleanEmail || `${verifiedDiscordId}@discord.asyncdevph.xyz`,
-            order_type: 'balance_topup',
-            amount: topupPhp,
-            currency: 'PHP',
-            provider: 'paymongo_qrph',
-            provider_label: 'QRPH Payment',
-            payment_details: {
-              qr_image_url: settings.paymongoQrUrl || settings.gcashQrUrl,
-              account_name: settings.paymongoName,
-              gcash_number: settings.gcashNumber,
-              gcash_name: settings.gcashName,
-              gcash_qr_url: settings.gcashQrUrl,
-              gcash_enabled: settings.gcashEnabled,
-              maya_number: settings.mayaNumber,
-              maya_name: settings.mayaName,
-              maya_qr_url: settings.mayaQrUrl,
-              maya_enabled: settings.mayaEnabled,
-              ref_code: refTag,
-              target_credit_php: topupPhp
-            },
-            status: 'awaiting_payment'
-          })
-          .select()
-          .single();
-
-        if (orderErr) throw orderErr;
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
-      }
+      if (orderErr || !newOrder) throw orderErr || new Error('Failed to create GCash top-up order');
+      return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
     }
 
     return NextResponse.json({ ok: false, error: 'Unsupported provider or order configuration' }, { status: 400 });
