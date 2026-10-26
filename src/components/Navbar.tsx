@@ -225,8 +225,12 @@ export default function Navbar() {
             <div className="px-3 py-1.5 text-[11px] text-zinc-500 font-mono animate-pulse">Loading...</div>
           ) : user ? (
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 bg-zinc-900/90 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-zinc-800 text-xs">
-                <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden border border-zinc-700 shrink-0">
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800/90 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-zinc-800 hover:border-purple-500/50 text-xs transition-all group"
+                title="Go to Account Dashboard"
+              >
+                <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden border border-zinc-700 shrink-0 group-hover:border-purple-400 transition-colors">
                   <Image
                     src={userAvatar}
                     alt="Avatar"
@@ -235,14 +239,18 @@ export default function Navbar() {
                     className="object-cover"
                   />
                 </div>
-                <span className="text-zinc-200 font-medium max-w-[85px] sm:max-w-[130px] truncate text-xs">
+                <span className="text-zinc-200 group-hover:text-white font-medium max-w-[85px] sm:max-w-[130px] truncate text-xs transition-colors">
                   {userName}
                 </span>
-              </div>
+                <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                  Dashboard
+                </span>
+              </Link>
 
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-rose-400 border border-zinc-800 text-xs font-medium transition-all"
+                title="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden xs:inline">Sign Out</span>

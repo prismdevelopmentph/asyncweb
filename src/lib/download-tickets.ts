@@ -37,3 +37,4 @@ export function consumeDownloadTicket(code: string): DownloadTicket | null {
 
   return ticket;
 }
+
