@@ -153,7 +153,7 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'products' | 'orders' | 'payments' | 'coupons' | 'audit' | 'chat'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'licenses' | 'products' | 'orders' | 'payments' | 'coupons' | 'audit' | 'chat'>('security');
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered' | 'awaiting_payment' | 'rejected'>('all');
@@ -2036,13 +2036,41 @@ export default function AdminPage() {
                   <div className={`p-2 rounded-xl transition-colors ${
                     activeTab === 'generator' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-800/60 text-amber-400 group-hover:bg-zinc-800'
                   }`}>
-                    <Key className="w-4 h-4" />
+                    <Layers className="w-4 h-4" />
                   </div>
                   <span>Generator & Stock</span>
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
                   activeTab === 'generator'
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                }`}>
+                  {services.length}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setActiveTab('licenses');
+                  fetchAdminData(true);
+                }}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'licenses'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'licenses' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <span>Licenses & Subscriptions</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'licenses'
+                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
                     : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
                 }`}>
                   {generatorLicenses.length}
@@ -2259,6 +2287,16 @@ export default function AdminPage() {
                       <span>Generate Key</span>
                     </button>
                   </div>
+                )}
+
+                {activeTab === 'licenses' && (
+                  <button
+                    onClick={() => setShowGenLicenseModal(true)}
+                    className="px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center gap-1.5 transition-all shadow-md shrink-0 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Generate Key</span>
+                  </button>
                 )}
 
                 {activeTab === 'products' && (
@@ -2611,7 +2649,12 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
 
+        {/* ── TAB: LICENSES & SUBSCRIBERS ── */}
+        {activeTab === 'licenses' && (
+          <div className="space-y-6">
             {/* Generator Access & User Management Table */}
             <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
               <div className="p-4 sm:p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
