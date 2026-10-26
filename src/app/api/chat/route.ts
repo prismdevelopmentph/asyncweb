@@ -6,33 +6,30 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const channel = searchParams.get('channel') || 'general';
   const ticketId = searchParams.get('ticketId');
   const limitParam = parseInt(searchParams.get('limit') || '50', 10);
   const limit = Math.min(Math.max(limitParam, 10), 100);
   const before = searchParams.get('before');
 
   try {
+    const auth = await requireUser(request);
+    if (!auth.ok) return auth.response;
+
+    const callerDiscordId = auth.data.discordId;
+    const isOwner = isOwnerDiscordId(callerDiscordId);
+
     let query = supabaseAdmin
       .from('chat_messages')
       .select('*')
-      .eq('channel', channel);
+      .eq('channel', 'support');
 
-    if (channel === 'support') {
-      const auth = await requireUser(request);
-      if (!auth.ok) return auth.response;
-
-      const callerDiscordId = auth.data.discordId;
-      const isOwner = isOwnerDiscordId(callerDiscordId);
-
-      if (!isOwner) {
-        // Regular users can only see their own support ticket
-        query = query.eq('ticket_id', callerDiscordId);
-      } else {
-        // Admin/owner can view a specific ticket or all tickets if none specified
-        if (ticketId) {
-          query = query.eq('ticket_id', ticketId);
-        }
+    if (!isOwner) {
+      // Regular users can only see their own support ticket
+      query = query.eq('ticket_id', callerDiscordId);
+    } else {
+      // Admin/owner can view a specific ticket or all tickets if none specified
+      if (ticketId) {
+        query = query.eq('ticket_id', ticketId);
       }
     }
 
@@ -64,7 +61,7 @@ export async function POST(request: NextRequest) {
     const isOwner = isOwnerDiscordId(callerDiscordId);
 
     const body = await request.json().catch(() => ({}));
-    const { channel, ticketId, content } = body;
+    const { ticketId, content } = body;
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return NextResponse.json({ error: 'Message content cannot be empty' }, { status: 400 });
@@ -82,51 +79,21 @@ export async function POST(request: NextRequest) {
     const senderName = dbUser?.display_name || dbUser?.username || auth.data.user.user_metadata?.custom_claims?.global_name || auth.data.user.user_metadata?.full_name || 'Member';
     const senderAvatar = dbUser?.avatar_url || auth.data.user.user_metadata?.avatar_url || null;
 
-    // General Channel gating: Must hold active license or VIP plan unless owner
-    if (!isOwner && channel !== 'support') {
-      const nowStr = new Date().toISOString();
-      const [genLicenseRes, planRes] = await Promise.all([
-        supabaseAdmin
-          .from('licenses')
-          .select('id, expires_at, is_active')
-          .eq('redeemed_by', callerDiscordId)
-          .eq('is_active', true)
-          .limit(1),
-        supabaseAdmin
-          .from('plan_subscriptions')
-          .select('id, expires_at, active')
-          .eq('user_id', callerDiscordId)
-          .eq('active', 1)
-          .limit(1)
-      ]);
-
-      const hasActiveGen = (genLicenseRes.data || []).some((l: any) => !l.expires_at || l.expires_at > nowStr);
-      const hasActivePlan = (planRes.data || []).some((p: any) => !p.expires_at || p.expires_at > nowStr);
-
-      if (!hasActiveGen && !hasActivePlan) {
-        return NextResponse.json({ 
-          error: 'An active license or VIP subscription is required to chat in General.' 
-        }, { status: 403 });
-      }
-    }
-
     // Determine target ticket ID for support channel
     let effectiveTicketId: string | null = null;
-    if (channel === 'support') {
-      if (isOwner) {
-        if (!ticketId) {
-          return NextResponse.json({ error: 'Ticket ID is required for admin replies' }, { status: 400 });
-        }
-        effectiveTicketId = String(ticketId);
-      } else {
-        effectiveTicketId = callerDiscordId;
+    if (isOwner) {
+      if (!ticketId) {
+        return NextResponse.json({ error: 'Ticket ID is required for admin replies' }, { status: 400 });
       }
+      effectiveTicketId = String(ticketId);
+    } else {
+      effectiveTicketId = callerDiscordId;
     }
 
     const { data, error } = await supabaseAdmin
       .from('chat_messages')
       .insert({
-        channel: channel === 'support' ? 'support' : 'general',
+        channel: 'support',
         ticket_id: effectiveTicketId,
         sender_id: callerDiscordId,
         sender_name: String(senderName).slice(0, 50),

@@ -2,11 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { MessageSquare, Shield, Send, X, Users, RefreshCw, ChevronDown, Check, AlertCircle } from 'lucide-react';
+import { MessageSquare, Shield, Send, X, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface ChatMessage {
   id: number;
-  channel: 'general' | 'support';
+  channel: 'support';
   ticket_id: string | null;
   sender_id: string;
   sender_name: string;
@@ -18,39 +18,27 @@ interface ChatMessage {
 
 interface ChatWidgetProps {
   user: any;
-  hasPlan: boolean;
+  hasPlan?: boolean;
 }
 
-export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
+export default function ChatWidget({ user }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeChannel, setActiveChannel] = useState<'general' | 'support'>('general');
-  const [generalMessages, setGeneralMessages] = useState<ChatMessage[]>([]);
-  const [supportMessages, setSupportMessages] = useState<ChatMessage[]>([]);
-  const [hasMoreGeneral, setHasMoreGeneral] = useState(true);
-  const [hasMoreSupport, setHasMoreSupport] = useState(true);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [hasMore, setHasMore] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [unreadGeneral, setUnreadGeneral] = useState(0);
-  const [unreadSupport, setUnreadSupport] = useState(0);
-  const totalUnread = unreadGeneral + unreadSupport;
+  const [unreadCount, setUnreadCount] = useState(0);
   const [errorToast, setErrorToast] = useState<string | null>(null);
 
-  const messages = activeChannel === 'general' ? generalMessages : supportMessages;
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const isOpenRef = useRef(isOpen);
-  const activeChannelRef = useRef(activeChannel);
 
   useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
-
-  useEffect(() => {
-    activeChannelRef.current = activeChannel;
-  }, [activeChannel]);
 
   const discordUserId = user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id || null;
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.custom_claims?.global_name || user?.user_metadata?.user_name || 'Member';
@@ -78,18 +66,13 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     }
   };
 
-  const markChannelAsRead = (channel: 'general' | 'support') => {
+  const markAsRead = () => {
     if (!discordUserId) return;
     const now = new Date().toISOString();
     try {
-      localStorage.setItem(`chat_last_read_${channel}_${discordUserId}`, now);
+      localStorage.setItem(`chat_last_read_support_${discordUserId}`, now);
     } catch {}
-
-    if (channel === 'general') {
-      setUnreadGeneral(0);
-    } else {
-      setUnreadSupport(0);
-    }
+    setUnreadCount(0);
   };
 
   const scrollToBottom = (instant = false) => {
@@ -101,10 +84,10 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     }
   };
 
-  // 1. Instant background sync (no blanking/unmounting when switching tabs)
-  const fetchChannelMessages = async (channel: 'general' | 'support', isInitial = false) => {
+  // 1. Fetch support messages
+  const fetchMessages = async (isInitial = false) => {
     if (!discordUserId) return;
-    if (isInitial && (channel === 'general' ? generalMessages.length === 0 : supportMessages.length === 0)) {
+    if (isInitial && messages.length === 0) {
       setLoading(true);
     }
 
@@ -115,25 +98,16 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
       }
 
-      const url = channel === 'support'
-        ? `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`
-        : `/api/chat?channel=general&limit=30`;
-
+      const url = `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`;
       const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();
         const incoming: ChatMessage[] = data.messages || [];
-
-        if (channel === 'general') {
-          setGeneralMessages(incoming);
-          if (incoming.length < 30) setHasMoreGeneral(false);
-        } else {
-          setSupportMessages(incoming);
-          if (incoming.length < 30) setHasMoreSupport(false);
-        }
+        setMessages(incoming);
+        if (incoming.length < 30) setHasMore(false);
       }
     } catch (e) {
-      console.error('[Chat Widget Fetch Error]:', e);
+      console.error('[Support Chat Fetch Error]:', e);
     } finally {
       setLoading(false);
       if (isInitial) {
@@ -146,76 +120,53 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
   useEffect(() => {
     if (!discordUserId) return;
 
-    const initUnreadAndCache = async () => {
+    const initUnread = async () => {
       try {
-        const lastReadGen = localStorage.getItem(`chat_last_read_general_${discordUserId}`);
-        const lastReadSup = localStorage.getItem(`chat_last_read_support_${discordUserId}`);
-
+        const lastRead = localStorage.getItem(`chat_last_read_support_${discordUserId}`);
         const { data: { session } } = await supabase.auth.getSession();
         const headers: Record<string, string> = {};
         if (session?.access_token) {
           headers['Authorization'] = `Bearer ${session.access_token}`;
         }
 
-        const [genRes, supRes] = await Promise.all([
-          fetch('/api/chat?channel=general&limit=30', { headers }),
-          fetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`, { headers }),
-        ]);
-
-        if (genRes.ok) {
-          const data = await genRes.json();
+        const res = await fetch(`/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=30`, { headers });
+        if (res.ok) {
+          const data = await res.json();
           const incoming: ChatMessage[] = data.messages || [];
-          setGeneralMessages(incoming);
-          if (incoming.length < 30) setHasMoreGeneral(false);
+          setMessages(incoming);
+          if (incoming.length < 30) setHasMore(false);
 
-          if (lastReadGen) {
+          if (lastRead) {
             const count = incoming.filter(
-              (m) => m.sender_id !== discordUserId && m.created_at > lastReadGen
+              (m) => m.sender_id !== discordUserId && m.created_at > lastRead
             ).length;
-            setUnreadGeneral(count);
-          }
-        }
-
-        if (supRes.ok) {
-          const data = await supRes.json();
-          const incoming: ChatMessage[] = data.messages || [];
-          setSupportMessages(incoming);
-          if (incoming.length < 30) setHasMoreSupport(false);
-
-          if (lastReadSup) {
-            const count = incoming.filter(
-              (m) => m.sender_id !== discordUserId && m.created_at > lastReadSup
-            ).length;
-            setUnreadSupport(count);
+            setUnreadCount(count);
           }
         }
       } catch (err) {
-        console.error('[Chat Init Error]:', err);
+        console.error('[Support Chat Init Error]:', err);
       }
     };
 
-    initUnreadAndCache();
+    initUnread();
   }, [discordUserId]);
 
-  // Fetch immediately on open or tab switch & mark read
+  // Fetch immediately on open & mark read
   useEffect(() => {
     if (isOpen) {
-      const currentList = activeChannel === 'general' ? generalMessages : supportMessages;
-      fetchChannelMessages(activeChannel, currentList.length === 0);
-      markChannelAsRead(activeChannel);
+      fetchMessages(messages.length === 0);
+      markAsRead();
       setTimeout(() => scrollToBottom(true), 60);
     }
-  }, [isOpen, activeChannel, discordUserId]);
+  }, [isOpen, discordUserId]);
 
-  // Load older messages when user scrolls up (iMessage / WhatsApp behavior)
+  // Load older messages when scrolling up
   const handleScroll = async (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     if (target.scrollTop <= 15 && !loadingOlder && !loading) {
-      const currentList = activeChannel === 'general' ? generalMessages : supportMessages;
-      const hasMore = activeChannel === 'general' ? hasMoreGeneral : hasMoreSupport;
-      if (!hasMore || currentList.length === 0) return;
+      if (!hasMore || messages.length === 0) return;
 
-      const oldestMsg = currentList[0];
+      const oldestMsg = messages[0];
       setLoadingOlder(true);
       const prevScrollHeight = target.scrollHeight;
 
@@ -226,28 +177,18 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
           headers['Authorization'] = `Bearer ${session.access_token}`;
         }
 
-        const url = activeChannel === 'support'
-          ? `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=25&before=${encodeURIComponent(oldestMsg.created_at)}`
-          : `/api/chat?channel=general&limit=25&before=${encodeURIComponent(oldestMsg.created_at)}`;
-
+        const url = `/api/chat?channel=support&ticketId=${encodeURIComponent(discordUserId)}&limit=25&before=${encodeURIComponent(oldestMsg.created_at)}`;
         const res = await fetch(url, { headers });
         if (res.ok) {
           const data = await res.json();
           const older: ChatMessage[] = data.messages || [];
 
           if (older.length < 25) {
-            if (activeChannel === 'general') setHasMoreGeneral(false);
-            else setHasMoreSupport(false);
+            setHasMore(false);
           }
 
           if (older.length > 0) {
-            if (activeChannel === 'general') {
-              setGeneralMessages((prev) => [...older, ...prev]);
-            } else {
-              setSupportMessages((prev) => [...older, ...prev]);
-            }
-
-            // Maintain exact scroll position so user doesn't jump
+            setMessages((prev) => [...older, ...prev]);
             setTimeout(() => {
               target.scrollTop = target.scrollHeight - prevScrollHeight;
             }, 30);
@@ -261,12 +202,12 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     }
   };
 
-  // 2. Realtime Subscription via Supabase WebSocket (permanent single channel)
+  // 2. Realtime WebSocket Subscription
   useEffect(() => {
     if (!discordUserId) return;
 
     const channelSub = supabase
-      .channel(`chat_realtime_widget_${discordUserId}`)
+      .channel(`chat_realtime_support_${discordUserId}`)
       .on(
         'postgres_changes',
         {
@@ -278,30 +219,17 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
           const newMsg = payload.new as ChatMessage;
           const isFromMe = newMsg.sender_id === discordUserId;
 
-          if (newMsg.channel === 'general') {
-            setGeneralMessages((prev) => {
+          if (newMsg.channel === 'support' && newMsg.ticket_id === discordUserId) {
+            setMessages((prev) => {
               if (prev.some((m) => m.id === newMsg.id)) return prev;
               return [...prev, newMsg];
             });
-          } else if (newMsg.channel === 'support' && newMsg.ticket_id === discordUserId) {
-            setSupportMessages((prev) => {
-              if (prev.some((m) => m.id === newMsg.id)) return prev;
-              return [...prev, newMsg];
-            });
-          }
 
-          const isPanelOpen = isOpenRef.current;
-          const currentCh = activeChannelRef.current;
-
-          if (isPanelOpen && currentCh === newMsg.channel) {
-            setTimeout(() => scrollToBottom(false), 50);
-            markChannelAsRead(currentCh);
-          } else if (!isFromMe) {
-            if (newMsg.channel === 'general') {
-              setUnreadGeneral((c) => c + 1);
-              playChime();
-            } else if (newMsg.channel === 'support' && newMsg.ticket_id === discordUserId) {
-              setUnreadSupport((c) => c + 1);
+            if (isOpenRef.current) {
+              setTimeout(() => scrollToBottom(false), 50);
+              markAsRead();
+            } else if (!isFromMe) {
+              setUnreadCount((c) => c + 1);
               playChime();
             }
           }
@@ -325,22 +253,15 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
       return;
     }
 
-    if (activeChannel === 'general' && !hasPlan && !isOwner) {
-      setErrorToast('Active license required to chat in General.');
-      setTimeout(() => setErrorToast(null), 3000);
-      return;
-    }
-
     const textToSend = inputText.trim();
     setInputText('');
     setSending(true);
 
-    // Optimistic message rendering (<0.05s instant receipt for sender)
     const tempId = Date.now();
     const optimisticMsg: ChatMessage = {
       id: tempId,
-      channel: activeChannel,
-      ticket_id: activeChannel === 'support' ? discordUserId : null,
+      channel: 'support',
+      ticket_id: discordUserId,
       sender_id: discordUserId,
       sender_name: displayName,
       sender_avatar: avatarUrl,
@@ -349,64 +270,54 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
       created_at: new Date().toISOString(),
     };
 
-    const updateChannelState = (updater: (prev: ChatMessage[]) => ChatMessage[]) => {
-      if (activeChannel === 'general') {
-        setGeneralMessages(updater);
-      } else {
-        setSupportMessages(updater);
-      }
-    };
-
-    updateChannelState((prev) => [...prev, optimisticMsg]);
-    setTimeout(() => scrollToBottom(false), 50);
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setTimeout(() => scrollToBottom(true), 20);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
-          channel: activeChannel,
-          ticketId: activeChannel === 'support' ? discordUserId : null,
+          channel: 'support',
+          ticketId: discordUserId,
           content: textToSend,
         }),
       });
 
       if (!res.ok) {
-        // Rollback optimistic message on failure
-        updateChannelState((prev) => prev.filter((m) => m.id !== tempId));
-        const errJson = await res.json();
+        const errJson = await res.json().catch(() => ({}));
         setErrorToast(errJson.error || 'Failed to send message.');
-        setTimeout(() => setErrorToast(null), 3500);
+        setTimeout(() => setErrorToast(null), 4000);
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
       } else {
-        const json = await res.json();
-        if (json.message) {
-          updateChannelState((prev) =>
-            prev.map((m) => (m.id === tempId ? (json.message as ChatMessage) : m))
+        const resData = await res.json();
+        if (resData.message) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? resData.message : m))
           );
         }
       }
-    } catch (err: any) {
-      setErrorToast('Network error sending message.');
-      setTimeout(() => setErrorToast(null), 3000);
+    } catch (e: any) {
+      setErrorToast(e.message || 'Network error.');
+      setTimeout(() => setErrorToast(null), 4000);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 font-sans">
-      {/* Floating Widget Trigger Button */}
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+      {/* Floating Toggle Pill */}
       {!isOpen && (
         <button
           onClick={() => {
             setIsOpen(true);
-            markChannelAsRead(activeChannel);
+            markAsRead();
           }}
           className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-zinc-950/90 hover:bg-zinc-900 border border-purple-500/40 text-white shadow-2xl transition-all duration-200 hover:scale-105 backdrop-blur-md"
         >
@@ -414,32 +325,35 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
             <MessageSquare className="w-5 h-5 text-purple-400 group-hover:text-purple-300 transition-colors" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse border-2 border-zinc-950" />
           </div>
-          <span className="font-mono text-xs font-semibold tracking-wide">Live Chat & Support</span>
+          <span className="font-mono text-xs font-semibold tracking-wide">Support Chat</span>
 
-          {totalUnread > 0 && (
+          {unreadCount > 0 && (
             <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-mono text-[10px] font-bold shadow-[0_0_12px_rgba(168,85,247,0.8)] animate-pulse">
-              {totalUnread > 99 ? '99+' : totalUnread}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </button>
       )}
 
-      {/* Main Chat Panel Container */}
+      {/* Main Support Panel Container */}
       {isOpen && (
         <div className="w-[360px] sm:w-[400px] h-[520px] rounded-2xl bg-zinc-950/95 border border-zinc-800 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="p-3.5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span className="font-mono text-xs font-semibold text-white tracking-wide">ASYNC Communications</span>
+              <div className="flex flex-col">
+                <span className="font-mono text-xs font-semibold text-white tracking-wide">ASYNC Support Desk</span>
+                <span className="text-[10px] text-zinc-500 font-mono">Private Encrypted Thread</span>
+              </div>
             </div>
 
             <div className="flex items-center gap-1">
               <button
-                onClick={() => fetchChannelMessages(activeChannel, true)}
+                onClick={() => fetchMessages(true)}
                 disabled={loading}
                 className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors"
-                title="Refresh feed"
+                title="Refresh messages"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-purple-400' : ''}`} />
               </button>
@@ -452,57 +366,13 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
             </div>
           </div>
 
-          {/* Dual Channel Switcher */}
-          <div className="p-2 border-b border-zinc-800/60 bg-zinc-950/60 flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                setActiveChannel('general');
-                markChannelAsRead('general');
-              }}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors relative ${
-                activeChannel === 'general'
-                  ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>General Chat</span>
-              {activeChannel !== 'general' && unreadGeneral > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-purple-600 text-white font-mono text-[9px] font-bold shadow-[0_0_8px_rgba(168,85,247,0.6)]">
-                  {unreadGeneral > 99 ? '99+' : unreadGeneral}
-                </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveChannel('support');
-                markChannelAsRead('support');
-              }}
-              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors relative ${
-                activeChannel === 'support'
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5 text-amber-400" />
-              <span>Support (Private)</span>
-              {activeChannel !== 'support' && unreadSupport > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-black font-mono text-[9px] font-bold shadow-[0_0_8px_rgba(245,158,11,0.8)] animate-pulse">
-                  {unreadSupport > 99 ? '99+' : unreadSupport}
-                </span>
-              )}
-            </button>
-          </div>
-
           {/* Sub-header Information Banner */}
           <div className="px-3.5 py-1.5 bg-zinc-900/30 border-b border-zinc-800/40 text-[11px] font-mono text-zinc-400 flex items-center justify-between">
-            {activeChannel === 'general' ? (
-              <span>Public feed for verified license holders</span>
-            ) : (
-              <span>Direct encrypted thread to Admin</span>
-            )}
-            <span className="text-[10px] text-zinc-500">Live Realtime</span>
+            <span className="flex items-center gap-1 text-purple-300">
+              <Shield className="w-3 h-3 text-purple-400" />
+              <span>Direct thread to Staff</span>
+            </span>
+            <span className="text-[10px] text-emerald-400 font-mono">Live Realtime</span>
           </div>
 
           {/* Error Notification Toast */}
@@ -536,9 +406,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
                 <MessageSquare className="w-8 h-8 text-zinc-700 mb-2" />
                 <p className="text-zinc-400 font-medium">No messages yet.</p>
                 <p className="text-[11px] text-zinc-600 mt-1">
-                  {activeChannel === 'general'
-                    ? 'Start the discussion with other members!'
-                    : 'Send a message to open a private ticket with Admin.'}
+                  Send a message below to open a private support ticket with staff.
                 </p>
               </div>
             ) : (
@@ -552,7 +420,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
                     <div className="flex items-center gap-1.5 text-[10px] text-zinc-500">
                       {msg.is_admin ? (
                         <span className="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold uppercase text-[9px]">
-                          Admin
+                          Staff
                         </span>
                       ) : (
                         <span className="font-semibold text-zinc-400">{msg.sender_name}</span>
@@ -583,11 +451,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
           <form onSubmit={handleSendMessage} className="p-2.5 border-t border-zinc-800/80 bg-zinc-950/80">
             {!user ? (
               <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-center text-[11px] font-mono text-zinc-400">
-                Please log in with Discord to send a message.
-              </div>
-            ) : (activeChannel === 'general' && !hasPlan && !isOwner) ? (
-              <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-center text-[11px] font-mono text-zinc-500">
-                Active license required to chat in General.
+                Please log in with Discord to message support.
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -595,11 +459,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder={
-                    activeChannel === 'general'
-                      ? 'Type message to general...'
-                      : 'Send ticket message to support...'
-                  }
+                  placeholder="Send ticket message to staff..."
                   maxLength={500}
                   className="flex-1 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500/60 font-sans transition-colors"
                 />
@@ -607,7 +467,7 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
                 <button
                   type="submit"
                   disabled={!inputText.trim() || sending}
-                  className="p-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white transition-colors shrink-0 shadow-sm"
+                  className="p-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white transition-colors shrink-0 shadow-sm cursor-pointer"
                   title="Send Message"
                 >
                   <Send className={`w-3.5 h-3.5 ${sending ? 'animate-pulse' : ''}`} />
@@ -620,4 +480,3 @@ export default function ChatWidget({ user, hasPlan }: ChatWidgetProps) {
     </div>
   );
 }
-

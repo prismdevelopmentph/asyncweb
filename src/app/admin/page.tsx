@@ -237,7 +237,6 @@ export default function AdminPage() {
   const [cropModalImgUrl, setCropModalImgUrl] = useState('');
   const [cropModalType, setCropModalType] = useState<'paymongo' | 'gcash' | 'maya'>('paymongo');
   const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'unbans'>('claims');
-  const [chatChannel, setChatChannel] = useState<'support' | 'general'>('support');
   const [chatTickets, setChatTickets] = useState<any[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [ticketMessages, setTicketMessages] = useState<any[]>([]);
@@ -1730,36 +1729,17 @@ export default function AdminPage() {
     }
   };
 
-  const fetchGeneralMessages = async () => {
-    setChatLoading(true);
-    try {
-      const res = await fetch('/api/chat?channel=general&limit=80');
-      if (res.ok) {
-        const json = await res.json();
-        setTicketMessages(json.messages || []);
-      }
-    } catch (e) {
-      console.error('[Admin General Chat Error]:', e);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (activeTab === 'chat') {
-      if (chatChannel === 'support') {
-        fetchSupportTickets();
-      } else {
-        fetchGeneralMessages();
-      }
+      fetchSupportTickets();
     }
-  }, [activeTab, chatChannel]);
+  }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'chat' && chatChannel === 'support' && selectedTicketId) {
+    if (activeTab === 'chat' && selectedTicketId) {
       fetchTicketMessages(selectedTicketId);
     }
-  }, [activeTab, chatChannel, selectedTicketId]);
+  }, [activeTab, selectedTicketId]);
 
   useEffect(() => {
     if (activeTab !== 'chat') return;
@@ -1771,9 +1751,7 @@ export default function AdminPage() {
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
         (payload) => {
           const newMsg = payload.new as any;
-          if (chatChannel === 'general' && newMsg.channel === 'general') {
-            setTicketMessages((prev) => [...prev, newMsg]);
-          } else if (chatChannel === 'support' && newMsg.channel === 'support') {
+          if (newMsg.channel === 'support') {
             const tid = newMsg.ticket_id || newMsg.sender_id;
             if (tid === selectedTicketId) {
               setTicketMessages((prev) => [...prev, newMsg]);
@@ -1810,11 +1788,11 @@ export default function AdminPage() {
     return () => {
       supabase.removeChannel(channelSub);
     };
-  }, [activeTab, chatChannel, selectedTicketId]);
+  }, [activeTab, selectedTicketId]);
 
   const handleSendAdminMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!adminChatInput.trim() || sendingAdminChat) return;
+    if (!adminChatInput.trim() || sendingAdminChat || !selectedTicketId) return;
 
     const content = adminChatInput.trim();
     setAdminChatInput('');
@@ -1823,8 +1801,8 @@ export default function AdminPage() {
     const tempId = Date.now();
     const optimisticMsg: any = {
       id: tempId,
-      channel: chatChannel,
-      ticket_id: chatChannel === 'support' ? selectedTicketId : null,
+      channel: 'support',
+      ticket_id: selectedTicketId,
       sender_id: ownerUserId || '',
       sender_name: 'Mark (Admin)',
       sender_avatar: user?.user_metadata?.avatar_url || null,
@@ -1840,8 +1818,8 @@ export default function AdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          channel: chatChannel,
-          ticketId: chatChannel === 'support' ? selectedTicketId : null,
+          channel: 'support',
+          ticketId: selectedTicketId,
           senderId: ownerUserId || '',
           senderName: 'Mark (Admin)',
           senderAvatar: user?.user_metadata?.avatar_url || null,
@@ -5491,52 +5469,38 @@ export default function AdminPage() {
             <div className="w-full md:w-80 border-r border-zinc-800/80 flex flex-col bg-zinc-950/40">
               <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setChatChannel('support')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${chatChannel === 'support' ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:text-zinc-200'}`}
-                  >
-                    Tickets ({chatTickets.length})
-                  </button>
-                  <button
-                    onClick={() => setChatChannel('general')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${chatChannel === 'general' ? 'bg-zinc-800 text-white border border-zinc-700' : 'text-zinc-400 hover:text-zinc-200'}`}
-                  >
-                    General
-                  </button>
+                  <Shield className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-200">
+                    Support Tickets ({chatTickets.length})
+                  </span>
                 </div>
               </div>
 
-              {chatChannel === 'support' ? (
-                <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/60">
-                  {chatTickets.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-500 text-xs">
-                      No support tickets open.
-                    </div>
-                  ) : (
-                    chatTickets.map((t) => (
-                      <div
-                        key={t.ticket_id}
-                        onClick={() => setSelectedTicketId(t.ticket_id)}
-                        className={`p-4 cursor-pointer transition-colors ${selectedTicketId === t.ticket_id ? 'bg-purple-950/20 border-l-2 border-purple-500' : 'hover:bg-zinc-900/40'}`}
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-semibold text-white text-xs truncate max-w-[150px]">
-                            {t.sender_name || 'Member'}
-                          </span>
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            {new Date(t.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-400 truncate">{t.last_message}</p>
+              <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/60">
+                {chatTickets.length === 0 ? (
+                  <div className="p-8 text-center text-zinc-500 text-xs">
+                    No support tickets open.
+                  </div>
+                ) : (
+                  chatTickets.map((t) => (
+                    <div
+                      key={t.ticket_id}
+                      onClick={() => setSelectedTicketId(t.ticket_id)}
+                      className={`p-4 cursor-pointer transition-colors ${selectedTicketId === t.ticket_id ? 'bg-purple-950/20 border-l-2 border-purple-500' : 'hover:bg-zinc-900/40'}`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-semibold text-white text-xs truncate max-w-[150px]">
+                          {t.sender_name || 'Member'}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 font-mono">
+                          {new Date(t.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
-                    ))
-                  )}
-                </div>
-              ) : (
-                <div className="p-6 text-center text-xs text-zinc-500">
-                  Viewing Public General Chat feed.
-                </div>
-              )}
+                      <p className="text-xs text-zinc-400 truncate">{t.last_message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Right Chat Message Pane */}
@@ -5544,7 +5508,7 @@ export default function AdminPage() {
               <div className="p-4 border-b border-zinc-800/80 bg-zinc-950/30 flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-white">
-                    {chatChannel === 'support' ? `Ticket: ${selectedTicketId || 'Select a ticket'}` : 'General Public Chat'}
+                    Ticket: {selectedTicketId || 'Select a ticket from the left panel'}
                   </h4>
                   <p className="text-[11px] text-zinc-500 font-mono">Real-time WebSocket active</p>
                 </div>
@@ -5553,7 +5517,7 @@ export default function AdminPage() {
               <div className="flex-1 p-6 overflow-y-auto space-y-4">
                 {ticketMessages.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-zinc-500 text-xs">
-                    No messages in this channel yet.
+                    {selectedTicketId ? 'No messages in this ticket yet.' : 'Select a support ticket to start responding.'}
                   </div>
                 ) : (
                   ticketMessages.map((msg, idx) => (
@@ -5589,13 +5553,14 @@ export default function AdminPage() {
                   type="text"
                   value={adminChatInput}
                   onChange={(e) => setAdminChatInput(e.target.value)}
-                  placeholder={chatChannel === 'support' ? 'Type response to user...' : 'Post announcement to general...'}
-                  className="flex-1 px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
+                  placeholder="Type response to user ticket..."
+                  disabled={!selectedTicketId}
+                  className="flex-1 px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={sendingAdminChat || !adminChatInput.trim()}
-                  className="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-50 shrink-0"
+                  disabled={sendingAdminChat || !adminChatInput.trim() || !selectedTicketId}
+                  className="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
                   <span>Send</span>
