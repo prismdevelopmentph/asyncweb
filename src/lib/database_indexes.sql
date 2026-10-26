@@ -41,8 +41,8 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at
 CREATE INDEX IF NOT EXISTS idx_orders_status
   ON orders (status);
 
-CREATE INDEX IF NOT EXISTS idx_orders_user_id
-  ON orders (user_id);
+CREATE INDEX IF NOT EXISTS idx_orders_discord_id
+  ON orders (discord_id);
 
 CREATE INDEX IF NOT EXISTS idx_orders_email
   ON orders (email);
@@ -53,3 +53,4 @@ CREATE INDEX IF NOT EXISTS idx_claim_logs_claimed_at
 
 CREATE INDEX IF NOT EXISTS idx_download_logs_downloaded_at
   ON client_download_logs (downloaded_at DESC);
+
