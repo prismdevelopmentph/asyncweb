@@ -36,7 +36,7 @@ interface OrderItem {
 interface OrderData {
   ok: boolean;
   id: string;
-  orderType?: 'product_purchase' | 'balance_topup';
+  orderType?: 'product_purchase' | 'balance_topup' | 'reseller_topup';
   status: 'awaiting_payment' | 'pending' | 'paid' | 'delivered' | 'cancelled' | 'rejected' | 'payment_mismatch' | 'fulfillment_failed';
   provider: 'balance' | 'qrph' | 'paypal' | 'paymongo_qrph' | 'gcash' | 'maya' | 'crypto';
   providerLabel: string;
@@ -385,7 +385,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-white mb-1 font-sans">
                   {isDelivered
-                    ? 'Your License Key is Delivered'
+                    ? order.orderType === 'reseller_topup'
+                      ? 'Wholesale Reseller Balance Credited'
+                      : order.orderType === 'balance_topup'
+                      ? 'Account Balance Top-Up Credited'
+                      : 'Your License Key is Delivered'
                     : isCancelled
                     ? 'Order Cancelled'
                     : isRejected
@@ -395,14 +399,22 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     : isFulfillmentFailed
                     ? 'License Generation Delayed'
                     : isPaymentSubmitted
-                    ? 'Payment Submitted // Pending Staff Approval'
+                    ? order.orderType === 'reseller_topup'
+                      ? 'Payment Submitted // Pending Reseller Pool Credit'
+                      : order.orderType === 'balance_topup'
+                      ? 'Payment Submitted // Pending Balance Verification'
+                      : 'Payment Submitted // Pending Staff Approval'
                     : order.provider === 'balance'
                     ? 'Processing Order'
                     : `Complete your ${order.providerLabel} payment`}
                 </h1>
                 <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
                   {isDelivered
-                    ? 'Your payment is confirmed. Your cryptographic license key is ready to use below.'
+                    ? order.orderType === 'reseller_topup'
+                      ? 'Your payment is confirmed. Wholesale credits have been added to your reseller balance.'
+                      : order.orderType === 'balance_topup'
+                      ? 'Your payment is confirmed. Funds have been added to your account web balance.'
+                      : 'Your payment is confirmed. Your cryptographic license key is ready to use below.'
                     : isCancelled
                     ? 'This order has been cancelled. No payment was captured and no license keys will be generated.'
                     : isRejected
@@ -412,7 +424,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     : isFulfillmentFailed
                     ? 'Your payment is confirmed. Automated license generation encountered a temporary delay — staff have been notified and will issue your key shortly.'
                     : isPaymentSubmitted
-                    ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your license key will unlock here automatically.'
+                    ? order.orderType === 'reseller_topup'
+                      ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your wholesale balance will update here automatically.'
+                      : order.orderType === 'balance_topup'
+                      ? 'We have recorded your transfer reference. An administrator is verifying the funds. Your web balance will update here automatically.'
+                      : 'We have recorded your transfer reference. An administrator is verifying the funds. Your license key will unlock here automatically.'
                     : 'Follow the steps below. Once we confirm your payment, your items unlock here automatically.'}
                 </p>
               </div>
@@ -500,7 +516,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               </div>
             </div>
 
-            {/* Step 3: Delivered */}
+            {/* Step 3: Delivered / Credited */}
             <div className="flex items-center gap-2">
               <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
                 isDelivered ? 'bg-emerald-500 text-black' : 'bg-zinc-800 text-zinc-500'
@@ -508,7 +524,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 {isDelivered ? '✓' : '3'}
               </span>
               <span className={`text-xs font-mono font-medium ${isDelivered ? 'text-white' : 'text-zinc-500'}`}>
-                Delivered
+                {order.orderType === 'reseller_topup' || order.orderType === 'balance_topup' ? 'Balance Credited' : 'Delivered'}
               </span>
             </div>
           </div>
@@ -649,8 +665,54 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
               </div>
             )}
 
+            {/* DELIVERED STATE: RESELLER WHOLESALE TOP-UP CREDITED */}
+            {isDelivered && order.orderType === 'reseller_topup' && (
+              <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-purple-950/40 via-zinc-950 to-black border border-purple-500/40 space-y-5">
+                <div className="flex items-center justify-between">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-[11px] font-mono">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" />
+                    <span>WHOLESALE RESELLER BALANCE // CREDITED</span>
+                  </div>
+                  <span className="text-xs text-zinc-500 font-mono">Verified</span>
+                </div>
+
+                <div>
+                  <div className="text-xs font-mono text-purple-400 font-bold mb-2 uppercase tracking-wider">
+                    FUNDS SUCCESSFULLY ADDED TO YOUR RESELLER WHOLESALE POOL
+                  </div>
+                  <div className="p-4 rounded-2xl bg-zinc-900 border border-purple-500/30 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs text-zinc-400 block font-mono">Credited Wholesale Balance:</span>
+                      <span className="text-2xl font-mono font-bold text-white">
+                        {order.currency === 'PHP' ? '₱' : '$'}{Number(order.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="text-right text-xs font-mono text-purple-400">
+                      Wholesale Minter &bull; Active
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <a
+                    href="https://reseller.asyncdevph.xyz"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono font-bold text-xs transition-all shadow-lg shadow-purple-950/40"
+                  >
+                    <span>Launch Reseller Portal</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium border border-zinc-800 transition-colors"
+                  >
+                    <span>Account Overview</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+
             {/* DELIVERED STATE: KEY REVEAL CARD */}
-            {isDelivered && order.orderType !== 'balance_topup' && order.licenseKey && (
+            {isDelivered && order.orderType !== 'balance_topup' && order.orderType !== 'reseller_topup' && order.licenseKey && (
               <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-emerald-950/40 via-zinc-950 to-black border border-emerald-500/40 space-y-5">
                 <div className="flex items-center justify-between">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono">
@@ -717,7 +779,9 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-bold">
                     <Clock className="w-4 h-4 animate-pulse" />
                     <span>
-                      {order.orderType === 'balance_topup'
+                      {order.orderType === 'reseller_topup'
+                        ? 'PAYMENT SUBMITTED // PENDING RESELLER POOL CREDIT'
+                        : order.orderType === 'balance_topup'
                         ? 'PAYMENT SUBMITTED // PENDING TOP-UP VERIFICATION'
                         : 'PAYMENT SUBMITTED // PENDING STAFF VERIFICATION'}
                     </span>
@@ -727,7 +791,11 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   </span>
                 </div>
                 <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-                  {order.orderType === 'balance_topup' ? (
+                  {order.orderType === 'reseller_topup' ? (
+                    <>
+                      We have received your GCash payment reference (<strong className="font-mono text-white">{order.customerRef || referenceInput}</strong>). Your wholesale reseller credit balance will be credited automatically once confirmed in the ledger.
+                    </>
+                  ) : order.orderType === 'balance_topup' ? (
                     <>
                       We have received your GCash payment reference (<strong className="font-mono text-white">{order.customerRef || referenceInput}</strong>). Your Web Balance will be credited automatically once confirmed in the ledger.
                     </>

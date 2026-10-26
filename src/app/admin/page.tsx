@@ -58,7 +58,8 @@ import {
   Coins,
   Percent,
   Eye,
-  Tag
+  Tag,
+  ShoppingBag
 } from 'lucide-react';
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -157,6 +158,8 @@ export default function AdminPage() {
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered' | 'awaiting_payment' | 'rejected'>('all');
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'products' | 'dashboard_topup' | 'reseller_topup'>('all');
+  const [orderSortBy, setOrderSortBy] = useState<'newest' | 'oldest' | 'amount_desc' | 'amount_asc' | 'needs_attention'>('newest');
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
 
   // Resellers Management State
@@ -3741,11 +3744,16 @@ export default function AdminPage() {
         {activeTab === 'orders' && (
           <div className="space-y-6">
             {/* Header Strip & Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
               <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] font-mono text-zinc-400">Total Orders</div>
-                  <div className="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">{ordersList.length}</div>
+                  <div className="text-[11px] font-mono text-zinc-400">Total Captured Volume</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-white mt-0.5">
+                    ₱{ordersList
+                      .filter((o) => o.status === 'delivered')
+                      .reduce((sum, o) => sum + Number(o.amount || 0), 0)
+                      .toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
                 <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   <CreditCard className="w-5 h-5" />
@@ -3766,97 +3774,184 @@ export default function AdminPage() {
 
               <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] font-mono text-zinc-400">Delivered Licenses</div>
-                  <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-400 mt-0.5">
-                    {ordersList.filter((o) => o.status === 'delivered').length}
+                  <div className="text-[11px] font-mono text-zinc-400">Product Orders</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-blue-400 mt-0.5">
+                    {ordersList.filter((o) => !o.order_type || o.order_type === 'product_purchase').length}
                   </div>
                 </div>
-                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <CheckCircle2 className="w-5 h-5" />
+                <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <ShoppingBag className="w-5 h-5" />
                 </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between">
                 <div>
-                  <div className="text-[11px] font-mono text-zinc-400">Balance Top-Ups</div>
-                  <div className="text-xl sm:text-2xl font-bold font-mono text-blue-400 mt-0.5">
+                  <div className="text-[11px] font-mono text-zinc-400">Dashboard Top-Ups</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-400 mt-0.5">
                     {ordersList.filter((o) => o.order_type === 'balance_topup').length}
                   </div>
                 </div>
-                <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   <Zap className="w-5 h-5" />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 flex items-center justify-between col-span-2 lg:col-span-1">
+                <div>
+                  <div className="text-[11px] font-mono text-zinc-400">Reseller Top-Ups</div>
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-purple-400 mt-0.5">
+                    {ordersList.filter((o) => o.order_type === 'reseller_topup').length}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                  <Key className="w-5 h-5" />
                 </div>
               </div>
             </div>
 
-            {/* Sub-Filters and Refresh */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 rounded-2xl bg-zinc-900/80 border border-zinc-800">
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-                <button
-                  onClick={() => setOrderFilter('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
-                    orderFilter === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  All ({ordersList.length})
-                </button>
-                <button
-                  onClick={() => setOrderFilter('pending')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all flex items-center gap-1.5 ${
-                    orderFilter === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <span>Pending Approvals</span>
-                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-200 text-[10px]">
-                    {ordersList.filter((o) => o.status === 'pending').length}
-                  </span>
-                </button>
-                <button
-                  onClick={() => setOrderFilter('delivered')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
-                    orderFilter === 'delivered' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Delivered ({ordersList.filter((o) => o.status === 'delivered').length})
-                </button>
-                <button
-                  onClick={() => setOrderFilter('awaiting_payment')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
-                    orderFilter === 'awaiting_payment' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Awaiting Payment ({ordersList.filter((o) => o.status === 'awaiting_payment').length})
-                </button>
-                <button
-                  onClick={() => setOrderFilter('rejected')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all ${
-                    orderFilter === 'rejected' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  Rejected ({ordersList.filter((o) => o.status === 'rejected' || o.status === 'cancelled').length})
-                </button>
+            {/* Sub-Filters and Sorting Panel */}
+            <div className="p-3.5 rounded-2xl bg-zinc-900/80 border border-zinc-800 space-y-3">
+              {/* Row 1: Status Filters + Action Shortcuts */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                  <span className="text-[10px] font-mono uppercase text-zinc-500 font-bold mr-1 shrink-0">Status:</span>
+                  <button
+                    onClick={() => setOrderFilter('all')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all shrink-0 ${
+                      orderFilter === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    All ({ordersList.length})
+                  </button>
+                  <button
+                    onClick={() => setOrderFilter('pending')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all flex items-center gap-1.5 shrink-0 ${
+                      orderFilter === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold' : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>Pending</span>
+                    <span className="px-1.5 py-0.2 rounded-full bg-amber-500/30 text-amber-200 text-[10px]">
+                      {ordersList.filter((o) => o.status === 'pending').length}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setOrderFilter('delivered')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all shrink-0 ${
+                      orderFilter === 'delivered' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Delivered / Credited ({ordersList.filter((o) => o.status === 'delivered').length})
+                  </button>
+                  <button
+                    onClick={() => setOrderFilter('awaiting_payment')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all shrink-0 ${
+                      orderFilter === 'awaiting_payment' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Awaiting Payment ({ordersList.filter((o) => o.status === 'awaiting_payment').length})
+                  </button>
+                  <button
+                    onClick={() => setOrderFilter('rejected')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition-all shrink-0 ${
+                      orderFilter === 'rejected' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    Rejected ({ordersList.filter((o) => o.status === 'rejected' || o.status === 'cancelled').length})
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setActiveTab('payments');
+                      fetchPaymentSettings();
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer border bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/60"
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Gateways &rarr;</span>
+                  </button>
+
+                  <button
+                    onClick={() => fetchOrders()}
+                    disabled={ordersLoading}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${ordersLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setActiveTab('payments');
-                    fetchPaymentSettings();
-                  }}
-                  className="px-3 py-1.5 rounded-xl text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer border bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700/60"
-                >
-                  <Sliders className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Configure Gateways &rarr;</span>
-                </button>
+              {/* Row 2: Order Type Filter & Sorting Controls */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2.5 border-t border-zinc-800/80">
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+                  <span className="text-[10px] font-mono uppercase text-zinc-500 font-bold mr-1 shrink-0">Type:</span>
+                  <button
+                    onClick={() => setOrderTypeFilter('all')}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono transition-all shrink-0 ${
+                      orderTypeFilter === 'all'
+                        ? 'bg-zinc-800 text-white font-bold border border-zinc-700 shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    All Types ({ordersList.length})
+                  </button>
+                  <button
+                    onClick={() => setOrderTypeFilter('products')}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 shrink-0 ${
+                      orderTypeFilter === 'products'
+                        ? 'bg-blue-950/60 text-blue-300 font-bold border border-blue-500/40 shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>🛒 Product Licenses</span>
+                    <span className="text-[10px] opacity-75">
+                      ({ordersList.filter((o) => !o.order_type || o.order_type === 'product_purchase').length})
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setOrderTypeFilter('dashboard_topup')}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 shrink-0 ${
+                      orderTypeFilter === 'dashboard_topup'
+                        ? 'bg-emerald-950/60 text-emerald-300 font-bold border border-emerald-500/40 shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>💳 Dashboard Top-Ups</span>
+                    <span className="text-[10px] opacity-75">
+                      ({ordersList.filter((o) => o.order_type === 'balance_topup').length})
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setOrderTypeFilter('reseller_topup')}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 shrink-0 ${
+                      orderTypeFilter === 'reseller_topup'
+                        ? 'bg-purple-950/60 text-purple-300 font-bold border border-purple-500/40 shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <span>👑 Reseller Top-Ups</span>
+                    <span className="text-[10px] opacity-75">
+                      ({ordersList.filter((o) => o.order_type === 'reseller_topup').length})
+                    </span>
+                  </button>
+                </div>
 
-                <button
-                  onClick={() => fetchOrders()}
-                  disabled={ordersLoading}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-zinc-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${ordersLoading ? 'animate-spin' : ''}`} />
-                  <span>Refresh Orders</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                  <span className="text-[10px] font-mono uppercase text-zinc-500 font-bold">Sort By:</span>
+                  <select
+                    value={orderSortBy}
+                    onChange={(e: any) => setOrderSortBy(e.target.value)}
+                    className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-300 focus:outline-none focus:border-purple-500 cursor-pointer"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="amount_desc">Amount: High to Low</option>
+                    <option value="amount_asc">Amount: Low to High</option>
+                    <option value="needs_attention">Needs Review First</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -3875,17 +3970,47 @@ export default function AdminPage() {
               <div className="space-y-3">
                 {ordersList
                   .filter((ord) => {
-                    if (orderFilter === 'pending') return ord.status === 'pending';
-                    if (orderFilter === 'delivered') return ord.status === 'delivered';
-                    if (orderFilter === 'awaiting_payment') return ord.status === 'awaiting_payment';
-                    if (orderFilter === 'rejected') return ord.status === 'rejected' || ord.status === 'cancelled';
+                    // Status filter
+                    if (orderFilter === 'pending' && ord.status !== 'pending') return false;
+                    if (orderFilter === 'delivered' && ord.status !== 'delivered') return false;
+                    if (orderFilter === 'awaiting_payment' && ord.status !== 'awaiting_payment') return false;
+                    if (orderFilter === 'rejected' && ord.status !== 'rejected' && ord.status !== 'cancelled') return false;
+
+                    // Type filter
+                    const ordType = ord.order_type || 'product_purchase';
+                    if (orderTypeFilter === 'products' && ordType !== 'product_purchase') return false;
+                    if (orderTypeFilter === 'dashboard_topup' && ordType !== 'balance_topup') return false;
+                    if (orderTypeFilter === 'reseller_topup' && ordType !== 'reseller_topup') return false;
+
                     return true;
+                  })
+                  .sort((a, b) => {
+                    if (orderSortBy === 'oldest') {
+                      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                    }
+                    if (orderSortBy === 'amount_desc') {
+                      return Number(b.amount || 0) - Number(a.amount || 0);
+                    }
+                    if (orderSortBy === 'amount_asc') {
+                      return Number(a.amount || 0) - Number(b.amount || 0);
+                    }
+                    if (orderSortBy === 'needs_attention') {
+                      const aWeight = a.status === 'pending' ? 2 : a.status === 'awaiting_payment' ? 1 : 0;
+                      const bWeight = b.status === 'pending' ? 2 : b.status === 'awaiting_payment' ? 1 : 0;
+                      if (aWeight !== bWeight) return bWeight - aWeight;
+                      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                    }
+                    // Default newest
+                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                   })
                   .map((ord) => {
                     const isOrdPending = ord.status === 'pending';
                     const isOrdDelivered = ord.status === 'delivered';
                     const isOrdAwaiting = ord.status === 'awaiting_payment';
                     const isOrdRejected = ord.status === 'rejected';
+                    const isResellerTopup = ord.order_type === 'reseller_topup';
+                    const isDashboardTopup = ord.order_type === 'balance_topup';
+                    const isProductOrder = !isResellerTopup && !isDashboardTopup;
                     const memo = ord.payment_details?.paypal_note;
                     const customerRef = ord.payment_details?.customer_reference;
                     const rejectionReason = ord.payment_details?.rejection_reason;
@@ -3912,8 +4037,23 @@ export default function AdminPage() {
                                 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                                 : 'bg-zinc-800 border-zinc-700 text-zinc-400'
                             }`}>
-                              {ord.status === 'awaiting_payment' ? 'Awaiting Payment' : ord.status}
+                              {ord.status === 'awaiting_payment' ? 'Awaiting Payment' : ord.status === 'delivered' && (isResellerTopup || isDashboardTopup) ? 'Credited' : ord.status}
                             </span>
+
+                            {/* Type Badge */}
+                            {isResellerTopup ? (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold flex items-center gap-1">
+                                <span>👑</span> RESELLER TOP-UP
+                              </span>
+                            ) : isDashboardTopup ? (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold flex items-center gap-1">
+                                <span>💳</span> DASHBOARD TOP-UP
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-bold flex items-center gap-1">
+                                <span>🛒</span> PRODUCT ORDER
+                              </span>
+                            )}
 
                             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300">
                               {ord.provider_label || ord.provider}
@@ -3932,8 +4072,10 @@ export default function AdminPage() {
                           {/* Row 2: Title & Details */}
                           <div className="flex flex-wrap items-baseline gap-2">
                             <span className="text-sm font-bold text-white">
-                              {ord.order_type === 'balance_topup'
-                                ? 'Web Balance Top-Up'
+                              {isResellerTopup
+                                ? 'Reseller Wholesale Balance Top-Up'
+                                : isDashboardTopup
+                                ? 'Dashboard Web Balance Top-Up'
                                 : ord.products?.title || 'ASYNC Product License'}
                             </span>
                             {tierName && (
@@ -3977,23 +4119,35 @@ export default function AdminPage() {
                             )}
                           </div>
 
-                          {/* Row 4: License Key if delivered */}
-                          {isOrdDelivered && ord.license_key && (
+                          {/* Row 4: Fulfillment Information */}
+                          {isOrdDelivered && (
                             <div className="pt-1 flex items-center gap-2">
-                              <span className="text-[11px] font-mono text-zinc-500">Issued Key:</span>
-                              <code className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/30 select-all">
-                                {ord.license_key}
-                              </code>
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(ord.license_key);
-                                  setCopiedKey(ord.license_key);
-                                  setTimeout(() => setCopiedKey(null), 2000);
-                                }}
-                                className="text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
-                              >
-                                {copiedKey === ord.license_key ? 'Copied!' : 'Copy'}
-                              </button>
+                              <span className="text-[11px] font-mono text-zinc-500">Delivered Fulfillment:</span>
+                              {isResellerTopup ? (
+                                <span className="text-xs font-mono font-bold text-purple-300 bg-purple-950/40 px-2 py-0.5 rounded border border-purple-500/40">
+                                  +₱{Number(ord.amount).toFixed(2)} Credited to Reseller Wholesale Pool
+                                </span>
+                              ) : isDashboardTopup ? (
+                                <span className="text-xs font-mono font-bold text-emerald-300 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/40">
+                                  +₱{Number(ord.amount).toFixed(2)} Credited to User Web Balance
+                                </span>
+                              ) : ord.license_key ? (
+                                <>
+                                  <code className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/30 select-all">
+                                    {ord.license_key}
+                                  </code>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(ord.license_key);
+                                      setCopiedKey(ord.license_key);
+                                      setTimeout(() => setCopiedKey(null), 2000);
+                                    }}
+                                    className="text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
+                                  >
+                                    {copiedKey === ord.license_key ? 'Copied!' : 'Copy'}
+                                  </button>
+                                </>
+                              ) : null}
                             </div>
                           )}
                         </div>
@@ -4016,7 +4170,19 @@ export default function AdminPage() {
                                 className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/40 cursor-pointer disabled:opacity-50"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>{processingOrderId === ord.id ? 'Issuing Key...' : ord.order_type === 'balance_topup' ? 'Approve Top-Up' : 'Approve & Issue Key'}</span>
+                                <span>
+                                  {processingOrderId === ord.id
+                                    ? isResellerTopup
+                                      ? 'Crediting Pool...'
+                                      : isDashboardTopup
+                                      ? 'Crediting Balance...'
+                                      : 'Issuing Key...'
+                                    : isResellerTopup
+                                    ? 'Approve Reseller Top-Up'
+                                    : isDashboardTopup
+                                    ? 'Approve Dashboard Top-Up'
+                                    : 'Approve & Issue Key'}
+                                </span>
                               </button>
 
                               <button
@@ -6629,8 +6795,20 @@ export default function AdminPage() {
                 ) : (
                   <div className="flex items-center justify-between text-xs font-mono">
                     <div>
-                      <div className="text-white font-bold">{selectedOrderForModal.products?.title || (selectedOrderForModal.order_type === 'balance_topup' ? 'Web Balance Top-Up' : 'ASYNC Product License')}</div>
-                      <div className="text-[11px] text-zinc-400">{selectedOrderForModal.tier_key || 'Standard Tier'}</div>
+                      <div className="text-white font-bold">
+                        {selectedOrderForModal.order_type === 'reseller_topup'
+                          ? 'Wholesale Reseller Balance Top-Up'
+                          : selectedOrderForModal.order_type === 'balance_topup'
+                          ? 'Dashboard Web Balance Top-Up'
+                          : selectedOrderForModal.products?.title || 'ASYNC Product License'}
+                      </div>
+                      <div className="text-[11px] text-zinc-400">
+                        {selectedOrderForModal.order_type === 'reseller_topup'
+                          ? 'Reseller Wholesale Credit Pool'
+                          : selectedOrderForModal.order_type === 'balance_topup'
+                          ? 'User Web Wallet Balance'
+                          : selectedOrderForModal.tier_key || 'Standard Tier'}
+                      </div>
                     </div>
                     <div className="text-zinc-200 font-semibold">
                       {selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.amount).toFixed(2)}
@@ -6690,6 +6868,26 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
+
+              {selectedOrderForModal.status === 'delivered' && selectedOrderForModal.order_type === 'reseller_topup' && (
+                <div className="pt-2 border-t border-zinc-800/50">
+                  <span className="text-zinc-500 text-[10px] block mb-1">Delivered Wholesale Credit:</span>
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/40 text-purple-300 font-mono text-xs font-bold">
+                    <span>+₱{Number(selectedOrderForModal.amount).toFixed(2)} Credited to Reseller Wholesale Pool</span>
+                    <span className="text-[10px] text-purple-400 uppercase">Live Pool Active</span>
+                  </div>
+                </div>
+              )}
+
+              {selectedOrderForModal.status === 'delivered' && selectedOrderForModal.order_type === 'balance_topup' && (
+                <div className="pt-2 border-t border-zinc-800/50">
+                  <span className="text-zinc-500 text-[10px] block mb-1">Delivered Account Credit:</span>
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold">
+                    <span>+₱{Number(selectedOrderForModal.amount).toFixed(2)} Credited to User Web Balance</span>
+                    <span className="text-[10px] text-emerald-400 uppercase">Wallet Active</span>
+                  </div>
+                </div>
+              )}
 
               {selectedOrderForModal.license_key && (
                 <div className="pt-2 border-t border-zinc-800/50">
