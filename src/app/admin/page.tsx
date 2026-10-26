@@ -1118,7 +1118,7 @@ export default function AdminPage() {
 
   // ── HANDLERS ──
 
-  const handleUnbanLockout = async (lockoutId: number, ipAddress: string) => {
+  const handleUnbanLockout = async (lockoutId: string | number, ipAddress: string) => {
     if (!confirm(`Unban IP / Device ${ipAddress}? This will restore access immediately.`)) return;
     setActionMessage('');
     setActionError('');
@@ -1135,10 +1135,17 @@ export default function AdminPage() {
         }),
       });
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to lift lockout');
+      const text = await res.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(res.ok ? 'Invalid response format from server.' : `Server error (${res.status}): Please refresh your admin session.`);
+      }
 
-      setActionMessage(json.message);
+      if (!res.ok) throw new Error(json.error || `Failed to lift lockout (${res.status})`);
+
+      setActionMessage(json.message || 'Security lockout lifted successfully.');
       fetchAdminData(true);
     } catch (err: any) {
       setActionError(err.message);
@@ -1163,10 +1170,17 @@ export default function AdminPage() {
         }),
       });
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to ban IP');
+      const text = await res.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(res.ok ? 'Invalid response format from server.' : `Server error (${res.status}): Please refresh your admin session.`);
+      }
 
-      setActionMessage(json.message);
+      if (!res.ok) throw new Error(json.error || `Failed to ban IP (${res.status})`);
+
+      setActionMessage(json.message || 'IP banned successfully.');
       setShowManualBanModal(false);
       setBanIpAddress('');
       setBanReason('');

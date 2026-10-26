@@ -3,6 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { requireOwner } from '@/lib/auth';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireOwner(request);
@@ -119,26 +122,22 @@ export async function POST(request: NextRequest) {
       // First fetch the target lockout record to get linked device token / discord ID
       let targetRecord: any = null;
       if (lockoutId) {
-        const { data } = await supabaseAdmin.from('security_lockouts').select('ip_address, discord_user_id').eq('id', lockoutId).single();
+        const { data } = await supabaseAdmin.from('security_lockouts').select('ip_address, discord_user_id').eq('id', lockoutId).maybeSingle();
         targetRecord = data;
       }
 
-      const targetIp = ipAddress || targetRecord?.ip_address;
-      const targetUid = targetRecord?.discord_user_id;
+      const targetIp = (ipAddress || targetRecord?.ip_address || '').trim();
+      const targetUid = targetRecord?.discord_user_id ? String(targetRecord.discord_user_id).trim() : null;
 
-      // Update all lockout records matching either target IP OR target Discord/Device ID
-      let updateQuery = supabaseAdmin.from('security_lockouts').update({ is_banned: false });
-      
-      const filterConditions: string[] = [];
-      if (targetIp) filterConditions.push(`ip_address.eq.${targetIp}`);
-      if (targetUid) filterConditions.push(`discord_user_id.eq.${targetUid}`);
-
-      if (filterConditions.length > 0) {
-        updateQuery = updateQuery.or(filterConditions.join(','));
+      if (targetIp) {
+        await supabaseAdmin.from('security_lockouts').update({ is_banned: false }).eq('ip_address', targetIp);
       }
-
-      const { error } = await updateQuery;
-      if (error) throw error;
+      if (targetUid) {
+        await supabaseAdmin.from('security_lockouts').update({ is_banned: false }).eq('discord_user_id', targetUid);
+      }
+      if (lockoutId) {
+        await supabaseAdmin.from('security_lockouts').update({ is_banned: false }).eq('id', lockoutId);
+      }
 
       return NextResponse.json({ success: true, message: `Security Lockout lifted for ${targetIp || 'device ' + targetUid}.` });
     }
