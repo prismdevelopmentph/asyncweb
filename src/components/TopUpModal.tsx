@@ -49,7 +49,8 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
         body: JSON.stringify({
           orderType: 'balance_topup',
           topupAmount: effectiveAmount,
-          provider: 'gcash'
+          provider: 'gcash',
+          email: session.user?.email || undefined
         })
       });
 

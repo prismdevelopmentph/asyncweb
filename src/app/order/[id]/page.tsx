@@ -91,6 +91,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const [referenceInput, setReferenceInput] = useState('');
   const [submittingRef, setSubmittingRef] = useState(false);
   const [refSuccess, setRefSuccess] = useState(false);
+  const [refError, setRefError] = useState<string | null>(null);
 
   // Cancellation states
   const [cancelling, setCancelling] = useState(false);
@@ -202,19 +203,25 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     e.preventDefault();
     if (!referenceInput.trim()) return;
     setSubmittingRef(true);
+    setRefError(null);
     try {
       const res = await fetch(`/api/order/${id}/submit-ref`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ referenceNumber: referenceInput.trim() })
       });
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
         setRefSuccess(true);
-        fetchOrder();
+        setRefError(null);
+        await fetchOrder();
         setTimeout(() => setRefSuccess(false), 3000);
+      } else {
+        setRefError(data.error || 'Failed to submit payment reference. Please verify and try again.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setRefError(err?.message || 'Network error occurred while submitting payment reference.');
     } finally {
       setSubmittingRef(false);
     }
@@ -532,12 +539,15 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <p className="text-xs text-zinc-400 leading-relaxed font-sans">
                   If this was a typo or you transferred under a different reference number, update it below and click <strong>Re-Submit Payment</strong> for re-verification.
                 </p>
-                <form onSubmit={handleSubmitReference} className="pt-1">
+                <form onSubmit={handleSubmitReference} className="pt-1 space-y-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
                       value={referenceInput}
-                      onChange={(e) => setReferenceInput(e.target.value)}
+                      onChange={(e) => {
+                        setReferenceInput(e.target.value);
+                        if (refError) setRefError(null);
+                      }}
                       placeholder="Enter correct Reference Number / TxID"
                       className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-rose-500"
                     />
@@ -549,6 +559,12 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                       {refSuccess ? 'Re-submitted ✓' : submittingRef ? 'Submitting...' : 'Re-Submit Payment'}
                     </button>
                   </div>
+                  {refError && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      <span>{refError}</span>
+                    </div>
+                  )}
                 </form>
               </div>
             )}
@@ -666,14 +682,26 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-amber-300 font-mono text-xs font-bold">
                     <Clock className="w-4 h-4 animate-pulse" />
-                    <span>PAYMENT SUBMITTED // PENDING STAFF VERIFICATION</span>
+                    <span>
+                      {order.orderType === 'balance_topup'
+                        ? 'PAYMENT SUBMITTED // PENDING TOP-UP VERIFICATION'
+                        : 'PAYMENT SUBMITTED // PENDING STAFF VERIFICATION'}
+                    </span>
                   </div>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-200">
                     Step 2 / 3
                   </span>
                 </div>
                 <p className="text-xs text-zinc-300 leading-relaxed font-sans">
-                  We have received your payment reference (<strong className="font-mono text-white">{order.customerRef || referenceInput}</strong>). A staff member is currently confirming the transaction in the ledger. Your license will automatically unlock here once verified.
+                  {order.orderType === 'balance_topup' ? (
+                    <>
+                      We have received your GCash payment reference (<strong className="font-mono text-white">{order.customerRef || referenceInput}</strong>). Your Web Balance will be credited automatically once confirmed in the ledger.
+                    </>
+                  ) : (
+                    <>
+                      We have received your payment reference (<strong className="font-mono text-white">{order.customerRef || referenceInput}</strong>). A staff member is currently confirming the transaction in the ledger. Your license will automatically unlock here once verified.
+                    </>
+                  )}
                 </p>
                 <div className="text-[11px] font-mono text-zinc-400 flex items-center gap-2 pt-1 border-t border-amber-500/20">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
@@ -744,7 +772,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                 </div>
 
                 {/* Optional TxID input */}
-                <form onSubmit={handleSubmitReference} className="pt-2">
+                <form onSubmit={handleSubmitReference} className="pt-2 space-y-2">
                   <div className="text-[11px] font-mono text-zinc-500 mb-1.5">
                     ALREADY SENT? ENTER YOUR PAYPAL TRANSACTION ID:
                   </div>
@@ -752,7 +780,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     <input
                       type="text"
                       value={referenceInput}
-                      onChange={(e) => setReferenceInput(e.target.value)}
+                      onChange={(e) => {
+                        setReferenceInput(e.target.value);
+                        if (refError) setRefError(null);
+                      }}
                       placeholder="e.g. 5PK3829104829104A"
                       className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
                     />
@@ -764,12 +795,18 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                       {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
                     </button>
                   </div>
+                  {refError && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      <span>{refError}</span>
+                    </div>
+                  )}
                 </form>
               </div>
             )}
 
             {/* PENDING STATE: PAYMONGO QRPH PAYMENT CARD */}
-            {isPending && order.provider === 'paymongo_qrph' && (
+            {isPending && !isPaymentSubmitted && order.provider === 'paymongo_qrph' && (
               <div className="p-6 sm:p-8 rounded-3xl bg-zinc-950/80 border border-purple-500/30 space-y-6">
                 <div className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider flex items-center justify-between">
                   <span>PAYMONGO QRPH PAYMENT</span>
@@ -859,7 +896,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     <input
                       type="text"
                       value={referenceInput}
-                      onChange={(e) => setReferenceInput(e.target.value)}
+                      onChange={(e) => {
+                        setReferenceInput(e.target.value);
+                        if (refError) setRefError(null);
+                      }}
                       placeholder="e.g. 102948291048"
                       className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
                     />
@@ -871,6 +911,12 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                       {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
                     </button>
                   </div>
+                  {refError && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      <span>{refError}</span>
+                    </div>
+                  )}
                 </form>
               </div>
             )}
@@ -933,7 +979,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                     <input
                       type="text"
                       value={referenceInput}
-                      onChange={(e) => setReferenceInput(e.target.value)}
+                      onChange={(e) => {
+                        setReferenceInput(e.target.value);
+                        if (refError) setRefError(null);
+                      }}
                       placeholder="e.g. b8f9a2c... (Transaction Hash)"
                       className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
                     />
@@ -945,12 +994,18 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                       {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
                     </button>
                   </div>
+                  {refError && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2">
+                      <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                      <span>{refError}</span>
+                    </div>
+                  )}
                 </form>
               </div>
             )}
 
             {/* PENDING STATE: QRPH / GCASH / MAYA PAYMENT CARD */}
-            {isPending && (order.provider === 'qrph' || order.provider === 'gcash' || order.provider === 'maya') && (() => {
+            {isPending && !isPaymentSubmitted && (order.provider === 'qrph' || order.provider === 'gcash' || order.provider === 'maya') && (() => {
               const showGcash = order.provider === 'gcash' || (order.provider === 'qrph' && order.gcashEnabled !== false);
               const showMaya = order.provider === 'maya' || (order.provider === 'qrph' && order.mayaEnabled !== false);
               const singleCard = (showGcash && !showMaya) || (!showGcash && showMaya);
@@ -1081,7 +1136,10 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                       <input
                         type="text"
                         value={referenceInput}
-                        onChange={(e) => setReferenceInput(e.target.value)}
+                        onChange={(e) => {
+                          setReferenceInput(e.target.value);
+                          if (refError) setRefError(null);
+                        }}
                         placeholder="e.g. 102948291048"
                         className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
                       />
@@ -1093,6 +1151,12 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                         {refSuccess ? 'Submitted ✓' : submittingRef ? 'Saving...' : 'Submit Payment'}
                       </button>
                     </div>
+                    {refError && (
+                      <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-mono flex items-center gap-2">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                        <span>{refError}</span>
+                      </div>
+                    )}
                   </form>
                 </div>
               );

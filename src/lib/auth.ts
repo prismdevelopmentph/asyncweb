@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export interface AuthSuccess {
   user: User;
   discordId: string;
+  email: string | null;
 }
 
 export type AuthResult =
@@ -89,11 +90,14 @@ export async function requireUser(request: Request): Promise<AuthResult> {
     };
   }
 
+  const userEmail = user.email || user.user_metadata?.email || null;
+
   return {
     ok: true,
     data: {
       user,
       discordId,
+      email: userEmail,
     },
   };
 }
@@ -160,11 +164,14 @@ export async function requireOwner(request: Request): Promise<AuthResult> {
     };
   }
 
+  const userEmail = user.email || user.user_metadata?.email || null;
+
   return {
     ok: true,
     data: {
       user,
       discordId,
+      email: userEmail,
     },
   };
 }

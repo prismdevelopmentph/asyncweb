@@ -38,18 +38,19 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // 2. Reference replay protection: ensure reference isn't already used on another order
+    // 2. Reference replay protection: ensure reference isn't already used on another active order
     const { data: existingRefs } = await supabaseAdmin
       .from('orders')
       .select('id, status')
       .neq('id', id)
+      .not('status', 'in', '("cancelled")')
       .contains('payment_details', { customer_reference: cleanRef })
       .limit(1);
 
     if (existingRefs && existingRefs.length > 0) {
       return NextResponse.json({
         ok: false,
-        error: 'This payment reference has already been submitted for another order. Replaying references is prohibited.'
+        error: 'This payment reference has already been submitted for another active order. Replaying references is prohibited.'
       }, { status: 409 });
     }
 

@@ -3415,7 +3415,12 @@ export default function AdminPage() {
                           {/* Row 3: Customer & Verification Data */}
                           <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-zinc-400">
                             <div>
-                              Buyer: <span className="text-zinc-200">{ord.email}</span>
+                              Buyer:{' '}
+                              {ord.email?.includes('@discord.asyncdevph.xyz') || ord.email?.includes('@discord.user') ? (
+                                <span className="text-zinc-200">Discord Account</span>
+                              ) : (
+                                <span className="text-zinc-200">{ord.email}</span>
+                              )}
                               {ord.discord_id && <span className="text-zinc-500"> ({ord.discord_id})</span>}
                             </div>
 
@@ -5771,7 +5776,11 @@ export default function AdminPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5 font-mono text-xs">
                 <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Customer Information</span>
-                <div className="text-white font-semibold truncate">{selectedOrderForModal.email}</div>
+                <div className="text-white font-semibold truncate">
+                  {selectedOrderForModal.email?.includes('@discord.asyncdevph.xyz') || selectedOrderForModal.email?.includes('@discord.user')
+                    ? 'Discord Account'
+                    : selectedOrderForModal.email}
+                </div>
                 <div className="text-zinc-400 text-[11px]">Discord ID: {selectedOrderForModal.discord_id || 'Not linked / Web Buyer'}</div>
               </div>
 

@@ -23,18 +23,20 @@ export async function POST(req: NextRequest) {
 
     // Explicit Bearer token authentication:
     let verifiedDiscordId: string | null = null;
+    let verifiedUserEmail: string | null = null;
     const authHeader = req.headers.get('authorization');
     if (authHeader) {
       const auth = await requireUser(req);
       if (!auth.ok) return auth.response;
       verifiedDiscordId = auth.data.discordId;
+      verifiedUserEmail = auth.data.email;
     }
 
     if (orderType === 'balance_topup' && !verifiedDiscordId) {
       return NextResponse.json({ ok: false, error: 'Authentication required for balance top-up' }, { status: 401 });
     }
 
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = (email || verifiedUserEmail || '').trim().toLowerCase();
     if (!cleanEmail && !verifiedDiscordId) {
       return NextResponse.json({ ok: false, error: 'Customer email or Discord authentication is required' }, { status: 400 });
     }
