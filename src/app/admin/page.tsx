@@ -2150,55 +2150,105 @@ export default function AdminPage() {
   const activeBannedLockoutsCount = securityLockouts.filter((l: any) => l.is_banned).length;
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans selection:bg-purple-900/40 selection:text-white">
+    <div className="min-h-screen bg-black dev-grid-bg text-zinc-100 font-sans selection:bg-purple-600 selection:text-white flex flex-col justify-between">
       <Navbar />
 
       {/* Main Wide Canvas: Generous breathing room without clutter */}
-      <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 pt-28 pb-24">
+      <main className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-10 pt-24 sm:pt-28 pb-20">
 
-        {/* ── TOP HEADER BAR ── */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-zinc-800/80">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-purple-600/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/5">
-              <Crown className="w-6 h-6 text-amber-400" />
-            </div>
+        {/* ── TOP HERO HEADER & METRICS (ALIGNED WITH RESELLER & DASHBOARD) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch mb-8">
+          {/* Left Hero Card (2 cols) */}
+          <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-purple-500/20 rounded-3xl p-6 sm:p-8 backdrop-blur-md relative overflow-hidden flex flex-col justify-between shadow-xl">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+
             <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-bold tracking-tight text-white">
-                  System Administration
-                </h1>
-                <span className="text-[11px] uppercase font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 tracking-wider">
-                  Owner
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <span className="px-3 py-1 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Root Infrastructure Operations
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  Operational
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                  Owner Clearance
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 mt-1">
-                Centralized operations, security enforcement, generator licenses & support desk
+
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-100 mb-2">
+                System Administration
+              </h1>
+              <p className="text-xs sm:text-sm text-zinc-400 max-w-xl leading-relaxed">
+                Centralized telemetry command, automated key dispatch, security enforcement & live wholesale reseller liquidity.
               </p>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-zinc-800/80 flex flex-wrap items-center gap-5 text-xs font-mono text-zinc-400">
+              <div className="flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-zinc-500" />
+                <span>Authorized Resellers: <strong className="text-purple-300">{resellersList.length}</strong></span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-3.5 h-3.5 text-zinc-500" />
+                <span>
+                  Pending Orders:{' '}
+                  <strong className={ordersList.filter((o) => o.status === 'pending').length > 0 ? 'text-amber-400 font-bold animate-pulse' : 'text-zinc-200'}>
+                    {ordersList.filter((o) => o.status === 'pending').length}
+                  </strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-3.5 h-3.5 text-zinc-500" />
+                <span>Active Lockouts: <strong className="text-rose-400">{activeBannedLockoutsCount}</strong></span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
-            <a
-              href="https://asyncdevph.xyz/dashboard"
-              className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Store</span>
-            </a>
+          {/* Right Hero Card: Total Captured Volume & Global Action Buttons */}
+          <div className="bg-gradient-to-br from-purple-950/40 via-zinc-900/90 to-zinc-950/90 border border-purple-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-md flex flex-col justify-between shadow-xl relative overflow-hidden">
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl pointer-events-none" />
 
-            <button
-              onClick={() => {
-                fetchAdminData(true);
-                fetchProducts();
-                fetchOrders();
-              }}
-              disabled={dataLoading}
-              className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
-              title="Refresh all metrics"
-            >
-              <RefreshCw className={`w-4 h-4 ${dataLoading ? 'animate-spin text-purple-400' : 'text-zinc-400'}`} />
-              <span>Sync Data</span>
-            </button>
+            <div>
+              <div className="flex items-center justify-between text-zinc-400 mb-2">
+                <span className="text-xs font-mono uppercase tracking-wider font-semibold">Total Captured Volume</span>
+                <Coins className="w-4 h-4 text-purple-400" />
+              </div>
+              <div className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight mt-1">
+                ₱{ordersList
+                  .filter((o) => o.status === 'delivered')
+                  .reduce((sum, o) => sum + Number(o.amount || 0), 0)
+                  .toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <p className="text-[11px] text-zinc-400 mt-2">
+                Fulfilled gross transaction volume across store retail & wholesale pools.
+              </p>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-purple-500/20 flex items-center gap-2.5">
+              <button
+                onClick={() => {
+                  fetchAdminData(true);
+                  fetchProducts();
+                  fetchOrders();
+                }}
+                disabled={dataLoading}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/30 cursor-pointer disabled:opacity-50"
+                title="Refresh all metrics"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin text-white' : 'text-purple-200'}`} />
+                <span>Sync Telemetry</span>
+              </button>
+
+              <a
+                href="https://asyncdevph.xyz/dashboard"
+                className="py-2.5 px-3.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+                title="Return to Customer Storefront"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Store</span>
+              </a>
+            </div>
           </div>
         </div>
 
@@ -2227,9 +2277,10 @@ export default function AdminPage() {
         <div className="flex flex-col lg:flex-row items-start gap-8">
           {/* ── LEFT SIDEBAR NAVIGATION ── */}
           <aside className="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-28 space-y-4">
-            <div className="p-3 rounded-3xl bg-zinc-900/90 border border-zinc-800/80 backdrop-blur-xl shadow-xl space-y-1.5">
-              <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-zinc-500 font-semibold">
-                Admin Console
+            <div className="p-3.5 rounded-3xl bg-zinc-950/80 border border-purple-500/20 backdrop-blur-xl shadow-xl space-y-1.5">
+              <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-purple-400 font-bold flex items-center justify-between">
+                <span>Navigation Deck</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
 
               {/* Navigation Items */}
@@ -2237,13 +2288,13 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('security')}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'security'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'security' ? 'bg-rose-500/20 text-rose-300' : 'bg-zinc-800/60 text-rose-400 group-hover:bg-zinc-800'
+                    activeTab === 'security' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-rose-400 group-hover:bg-zinc-800'
                   }`}>
                     <ShieldAlert className="w-4 h-4" />
                   </div>
@@ -2251,8 +2302,8 @@ export default function AdminPage() {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
                   activeTab === 'security'
-                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                    ? 'bg-white/20 text-white border-white/30'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-800'
                 }`}>
                   {activeBannedLockoutsCount}
                 </span>
@@ -2265,13 +2316,13 @@ export default function AdminPage() {
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'generator'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'generator' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-800/60 text-amber-400 group-hover:bg-zinc-800'
+                    activeTab === 'generator' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-amber-400 group-hover:bg-zinc-800'
                   }`}>
                     <Layers className="w-4 h-4" />
                   </div>
@@ -2279,8 +2330,8 @@ export default function AdminPage() {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
                   activeTab === 'generator'
-                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                    ? 'bg-white/20 text-white border-white/30'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-800'
                 }`}>
                   {services.length}
                 </span>
@@ -2293,13 +2344,13 @@ export default function AdminPage() {
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'licenses'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'licenses' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                    activeTab === 'licenses' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-purple-400 group-hover:bg-zinc-800'
                   }`}>
                     <Key className="w-4 h-4" />
                   </div>
@@ -2307,8 +2358,8 @@ export default function AdminPage() {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
                   activeTab === 'licenses'
-                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                    ? 'bg-white/20 text-white border-white/30'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-800'
                 }`}>
                   {generatorLicenses.length}
                 </span>
@@ -2321,13 +2372,13 @@ export default function AdminPage() {
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'products'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'products' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800/60 text-emerald-400 group-hover:bg-zinc-800'
+                    activeTab === 'products' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-emerald-400 group-hover:bg-zinc-800'
                   }`}>
                     <Package className="w-4 h-4" />
                   </div>
@@ -2335,8 +2386,8 @@ export default function AdminPage() {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
                   activeTab === 'products'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                    ? 'bg-white/20 text-white border-white/30'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-800'
                 }`}>
                   {productsList.length}
                 </span>
@@ -2350,24 +2401,28 @@ export default function AdminPage() {
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'orders'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'orders' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                    activeTab === 'orders' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-purple-400 group-hover:bg-zinc-800'
                   }`}>
                     <CreditCard className="w-4 h-4" />
                   </div>
                   <span>Orders & Payments</span>
                 </div>
                 {ordersList.filter((o) => o.status === 'pending').length > 0 ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30 animate-pulse">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border animate-pulse ${
+                    activeTab === 'orders' ? 'bg-white/20 text-white border-white/30' : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  }`}>
                     {ordersList.filter((o) => o.status === 'pending').length}
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                    activeTab === 'orders' ? 'bg-white/20 text-white border-white/30' : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                  }`}>
                     {ordersList.length}
                   </span>
                 )}
@@ -2380,19 +2435,21 @@ export default function AdminPage() {
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'payments'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'payments' ? 'bg-amber-500/20 text-amber-300' : 'bg-zinc-800/60 text-amber-400 group-hover:bg-zinc-800'
+                    activeTab === 'payments' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-amber-400 group-hover:bg-zinc-800'
                   }`}>
                     <Sliders className="w-4 h-4" />
                   </div>
                   <span>Payment Gateways</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'payments' ? 'bg-white/20 text-white border-white/30' : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                }`}>
                   5 Rails
                 </span>
               </button>
@@ -2404,19 +2461,21 @@ export default function AdminPage() {
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'coupons'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'coupons' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800/60 text-emerald-400 group-hover:bg-zinc-800'
+                    activeTab === 'coupons' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-emerald-400 group-hover:bg-zinc-800'
                   }`}>
                     <Tag className="w-4 h-4" />
                   </div>
                   <span>Coupons & Promos</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'coupons' ? 'bg-white/20 text-white border-white/30' : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                }`}>
                   {couponsList.length}
                 </span>
               </button>
@@ -2428,19 +2487,21 @@ export default function AdminPage() {
                 }}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'resellers'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'resellers' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                    activeTab === 'resellers' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-purple-400 group-hover:bg-zinc-800'
                   }`}>
                     <Users className="w-4 h-4" />
                   </div>
                   <span>Resellers</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  activeTab === 'resellers' ? 'bg-white/20 text-white border-white/30' : 'bg-zinc-900 text-zinc-400 border-zinc-800'
+                }`}>
                   {resellersList.length}
                 </span>
               </button>
@@ -2449,13 +2510,13 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('audit')}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'audit'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'audit' ? 'bg-blue-500/20 text-blue-300' : 'bg-zinc-800/60 text-blue-400 group-hover:bg-zinc-800'
+                    activeTab === 'audit' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-blue-400 group-hover:bg-zinc-800'
                   }`}>
                     <Activity className="w-4 h-4" />
                   </div>
@@ -2463,8 +2524,8 @@ export default function AdminPage() {
                 </div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
                   activeTab === 'audit'
-                    ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                    : 'bg-zinc-800 text-zinc-400 border-zinc-700/60'
+                    ? 'bg-white/20 text-white border-white/30'
+                    : 'bg-zinc-900 text-zinc-400 border-zinc-800'
                 }`}>
                   {claimLogs.length + downloadLogs.length}
                 </span>
@@ -2474,13 +2535,13 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('chat')}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'chat'
-                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30 font-bold border border-purple-500/40'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900/80 border border-transparent'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-xl transition-colors ${
-                    activeTab === 'chat' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                    activeTab === 'chat' ? 'bg-white/20 text-white' : 'bg-zinc-900 text-purple-400 group-hover:bg-zinc-800'
                   }`}>
                     <MessageSquare className="w-4 h-4" />
                   </div>
@@ -2490,10 +2551,10 @@ export default function AdminPage() {
             </div>
 
             {/* Quick System Badge in Sidebar */}
-            <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800/60 text-xs font-mono space-y-2">
+            <div className="p-4 rounded-2xl bg-zinc-950/80 border border-purple-500/20 text-xs font-mono space-y-2 backdrop-blur-xl">
               <div className="flex items-center justify-between text-zinc-400">
                 <span>Infrastructure</span>
-                <span className="flex items-center gap-1.5 text-emerald-400">
+                <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   Online
                 </span>
@@ -4226,11 +4287,11 @@ export default function AdminPage() {
         {activeTab === 'payments' && (
           <form onSubmit={handleSavePaymentSettings} className="space-y-6">
             {/* Header with Quick Save */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-zinc-900/90 border border-amber-500/30 backdrop-blur-xl relative overflow-hidden shadow-2xl">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-zinc-950/80 border border-purple-500/30 backdrop-blur-xl relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
 
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <div className="p-3 rounded-2xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   <Sliders className="w-6 h-6" />
                 </div>
                 <div>
@@ -4254,7 +4315,7 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   disabled={savingPayConfig}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white font-mono text-xs font-bold flex items-center gap-2 shadow-lg shadow-amber-950/40 transition-all cursor-pointer disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-bold flex items-center gap-2 shadow-lg shadow-purple-600/30 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {savingPayConfig ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
