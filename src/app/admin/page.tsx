@@ -153,11 +153,26 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'licenses' | 'products' | 'orders' | 'payments' | 'coupons' | 'audit' | 'chat'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'licenses' | 'products' | 'orders' | 'payments' | 'coupons' | 'audit' | 'chat' | 'resellers'>('security');
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered' | 'awaiting_payment' | 'rejected'>('all');
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+
+  // Resellers Management State
+  const [resellersList, setResellersList] = useState<any[]>([]);
+  const [wholesalePricingList, setWholesalePricingList] = useState<any[]>([]);
+  const [resellersLoading, setResellersLoading] = useState(false);
+  const [resellerModalOpen, setResellerModalOpen] = useState(false);
+  const [resellerDiscordId, setResellerDiscordId] = useState('');
+  const [resellerCompanyName, setResellerCompanyName] = useState('');
+  const [resellerInitialCredit, setResellerInitialCredit] = useState('0');
+  const [balanceModalOpen, setBalanceModalOpen] = useState(false);
+  const [selectedResellerForBalance, setSelectedResellerForBalance] = useState<any>(null);
+  const [balanceAdjustAmount, setBalanceAdjustAmount] = useState('');
+  const [balanceAdjustNote, setBalanceAdjustNote] = useState('');
+  const [editingWholesalePricing, setEditingWholesalePricing] = useState<Record<string, string>>({});
+  const [savingWholesalePricing, setSavingWholesalePricing] = useState(false);
 
   // Order Detail Inspection Modal State
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<any | null>(null);
@@ -761,6 +776,152 @@ export default function AdminPage() {
       }
     } catch (e) {
       console.warn('[Admin] fetchPaymentSettings:', e);
+    }
+  };
+
+  const fetchResellers = async () => {
+    setResellersLoading(true);
+    try {
+      const res = await adminFetch('/api/admin/resellers');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          setResellersList(data.resellers || []);
+          setWholesalePricingList(data.wholesalePricing || []);
+          const priceMap: Record<string, string> = {};
+          (data.wholesalePricing || []).forEach((wp: any) => {
+            const key = `${wp.product_id}:${(wp.tier_key || '').toLowerCase().trim()}`;
+            priceMap[key] = String(wp.wholesale_price_php);
+          });
+          setEditingWholesalePricing(priceMap);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load resellers', err);
+    } finally {
+      setResellersLoading(false);
+    }
+  };
+
+  const handleCreateReseller = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resellerDiscordId.trim() || !resellerCompanyName.trim()) return;
+    try {
+      const res = await adminFetch('/api/admin/resellers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_reseller',
+          discordId: resellerDiscordId.trim(),
+          companyName: resellerCompanyName.trim(),
+          initialCredit: parseFloat(resellerInitialCredit) || 0,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        setResellerModalOpen(false);
+        setResellerDiscordId('');
+        setResellerCompanyName('');
+        setResellerInitialCredit('0');
+        fetchResellers();
+      } else {
+        alert(data.error || 'Failed to create reseller');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error creating reseller');
+    }
+  };
+
+  const handleAdjustBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedResellerForBalance) return;
+    const amountNum = parseFloat(balanceAdjustAmount);
+    if (isNaN(amountNum) || amountNum === 0) {
+      alert('Please enter a non-zero adjustment amount (e.g. +500 or -200).');
+      return;
+    }
+    try {
+      const res = await adminFetch('/api/admin/resellers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'adjust_balance',
+          resellerId: selectedResellerForBalance.id,
+          amount: amountNum,
+          note: balanceAdjustNote.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        setBalanceModalOpen(false);
+        setSelectedResellerForBalance(null);
+        setBalanceAdjustAmount('');
+        setBalanceAdjustNote('');
+        fetchResellers();
+      } else {
+        alert(data.error || 'Failed to adjust balance');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error adjusting balance');
+    }
+  };
+
+  const handleToggleResellerStatus = async (resellerId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'active' ? 'suspended' : 'active';
+    if (!confirm(`Are you sure you want to change this reseller status to ${nextStatus.toUpperCase()}?`)) return;
+    try {
+      const res = await adminFetch('/api/admin/resellers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_status',
+          resellerId,
+          status: nextStatus,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        fetchResellers();
+      } else {
+        alert(data.error || 'Failed to update reseller status');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error toggling reseller status');
+    }
+  };
+
+  const handleSaveWholesalePricing = async () => {
+    setSavingWholesalePricing(true);
+    try {
+      const pricingPayload = Object.entries(editingWholesalePricing).map(([key, priceStr]) => {
+        const [productId, tierKey] = key.split(':');
+        return {
+          productId,
+          tierKey,
+          wholesalePricePHP: parseFloat(priceStr) || 0,
+        };
+      });
+
+      const res = await adminFetch('/api/admin/resellers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_wholesale_pricing',
+          pricing: pricingPayload,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        alert('Uniform wholesale pricing matrix saved successfully.');
+        fetchResellers();
+      } else {
+        alert(data.error || 'Failed to save wholesale pricing');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error saving wholesale pricing');
+    } finally {
+      setSavingWholesalePricing(false);
     }
   };
 
@@ -2258,6 +2419,30 @@ export default function AdminPage() {
               </button>
 
               <button
+                onClick={() => {
+                  setActiveTab('resellers');
+                  fetchResellers();
+                }}
+                className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
+                  activeTab === 'resellers'
+                    ? 'bg-zinc-800 text-white shadow-md border border-zinc-700/70'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    activeTab === 'resellers' ? 'bg-purple-500/20 text-purple-300' : 'bg-zinc-800/60 text-purple-400 group-hover:bg-zinc-800'
+                  }`}>
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <span>Resellers</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+                  {resellersList.length}
+                </span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('audit')}
                 className={`w-full px-3.5 py-3 rounded-2xl text-xs font-semibold transition-all flex items-center justify-between group cursor-pointer ${
                   activeTab === 'audit'
@@ -2379,6 +2564,16 @@ export default function AdminPage() {
                   >
                     <PlusCircle className="w-4 h-4" />
                     <span>Add Product</span>
+                  </button>
+                )}
+
+                {activeTab === 'resellers' && (
+                  <button
+                    onClick={() => setResellerModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all shadow-md shrink-0 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Authorize Reseller</span>
                   </button>
                 )}
               </div>
@@ -4629,6 +4824,291 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ── TAB: RESELLERS & WHOLESALE PRICING ── */}
+        {activeTab === 'resellers' && (
+          <div className="space-y-8">
+            {/* Header Strip & Stats */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-zinc-900/90 border border-purple-500/30 backdrop-blur-xl relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    Wholesale Subdomain: reseller.asyncdevph.xyz
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  Wholesale Reseller Network & Pricing
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1 max-w-xl">
+                  Manage authorized external distributors, credit balance pools, and configure global uniform wholesale pricing.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => fetchResellers()}
+                  disabled={resellersLoading}
+                  className="px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-mono text-xs flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${resellersLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  onClick={() => setResellerModalOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-lg shadow-purple-600/30 cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Authorize Reseller</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
+              <div className="p-5 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+                <div className="text-zinc-500 text-[11px] uppercase tracking-wider mb-1">Active Resellers</div>
+                <div className="text-2xl font-black text-white">
+                  {resellersList.filter((r) => r.status === 'active').length} / {resellersList.length}
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+                <div className="text-zinc-500 text-[11px] uppercase tracking-wider mb-1">Credit In Circulation</div>
+                <div className="text-2xl font-black text-purple-400">
+                  ₱{resellersList.reduce((acc, r) => acc + (Number(r.credit_balance) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-zinc-900/50 border border-zinc-800">
+                <div className="text-zinc-500 text-[11px] uppercase tracking-wider mb-1">Wholesale Keys Issued</div>
+                <div className="text-2xl font-black text-emerald-400">
+                  {resellersList.reduce((acc, r) => acc + (r.keys_issued_count || 0), 0)}
+                </div>
+              </div>
+            </div>
+
+            {/* Section 1: Authorized Reseller Roster */}
+            <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
+              <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 font-mono text-xs text-purple-300 font-semibold">
+                  <Users className="w-4 h-4 text-purple-400" />
+                  <span>AUTHORIZED RESELLERS ROSTER ({resellersList.length})</span>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-zinc-950/60 font-mono text-zinc-400">
+                      <th className="py-4 px-6 font-semibold">Company / Partner</th>
+                      <th className="py-4 px-6 font-semibold">Discord Identity</th>
+                      <th className="py-4 px-6 font-semibold">Credit Balance</th>
+                      <th className="py-4 px-6 font-semibold">Keys Minted</th>
+                      <th className="py-4 px-6 font-semibold">Status</th>
+                      <th className="py-4 px-6 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 font-mono">
+                    {resellersLoading ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-zinc-500">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
+                          <span>Loading authorized resellers...</span>
+                        </td>
+                      </tr>
+                    ) : resellersList.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-12 text-center text-zinc-500 font-sans">
+                          No authorized wholesale resellers registered yet. Click &quot;Authorize Reseller&quot; above.
+                        </td>
+                      </tr>
+                    ) : (
+                      resellersList.map((reseller: any) => (
+                        <tr key={reseller.id} className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="py-4 px-6">
+                            <div className="font-bold text-white text-sm">{reseller.company_name}</div>
+                            <div className="text-[10px] text-zinc-500">ID: {reseller.id.slice(0, 8)}...</div>
+                          </td>
+                          <td className="py-4 px-6">
+                            <DiscordUserBadge
+                              userId={reseller.discord_id}
+                              userProfiles={userProfiles}
+                              onCopy={copyToClipboard}
+                              copiedKey={copiedKey}
+                            />
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="text-sm font-bold text-emerald-400">
+                              ₱{Number(reseller.credit_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-zinc-300">
+                            {reseller.keys_issued_count || 0} keys
+                          </td>
+                          <td className="py-4 px-6">
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                reseller.status === 'active'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-red-500/10 text-red-400 border-red-500/30'
+                              }`}
+                            >
+                              {reseller.status}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedResellerForBalance(reseller);
+                                  setBalanceAdjustAmount('');
+                                  setBalanceAdjustNote('');
+                                  setBalanceModalOpen(true);
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-zinc-700/60"
+                                title="Adjust credit balance pool"
+                              >
+                                <Coins className="w-3.5 h-3.5 text-purple-400" />
+                                <span>Adjust Balance</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleToggleResellerStatus(reseller.id, reseller.status)}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer border ${
+                                  reseller.status === 'active'
+                                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                }`}
+                              >
+                                {reseller.status === 'active' ? 'Suspend' : 'Activate'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Section 2: Global Uniform Wholesale Pricing Rate Sheet */}
+            <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
+              <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2.5 font-mono text-xs text-purple-300 font-semibold">
+                    <Tag className="w-4 h-4 text-purple-400" />
+                    <span>UNIFORM WHOLESALE PRICING MATRIX</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mt-1">
+                    Wholesale prices configured here apply uniformly to all active resellers when batch minting keys.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleSaveWholesalePricing}
+                  disabled={savingWholesalePricing}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-mono text-xs font-bold transition-all shadow-lg shadow-emerald-600/20 cursor-pointer flex items-center gap-2"
+                >
+                  {savingWholesalePricing ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Matrix...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save Wholesale Rate Sheet</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 bg-zinc-950/60 font-mono text-zinc-400">
+                      <th className="py-3.5 px-6 font-semibold">Product Title</th>
+                      <th className="py-3.5 px-6 font-semibold">Target Scope</th>
+                      <th className="py-3.5 px-6 font-semibold">Duration Tier</th>
+                      <th className="py-3.5 px-6 font-semibold">Retail Price (PHP)</th>
+                      <th className="py-3.5 px-6 font-semibold">Wholesale Price (PHP)</th>
+                      <th className="py-3.5 px-6 font-semibold text-right">Reseller Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 font-mono">
+                    {productsList.filter((p) => p.isActive !== false).map((prod: any) => {
+                      const tiers: any[] = Array.isArray(prod.tiers) ? prod.tiers : (Array.isArray(prod.tierOptions) ? prod.tierOptions : []);
+                      const effectiveTiers = tiers.length > 0 ? tiers : [{ tierKey: 'daily', name: 'Standard', price_php: prod.pricePHP || 0 }];
+
+                      return effectiveTiers.map((t: any, idx: number) => {
+                        const tierKey = (t.tier_key || t.tierKey || 'daily').toLowerCase();
+                        const key = `${prod.id}:${tierKey}`;
+                        const retail = Number(t.price || t.price_php || prod.pricePHP || 0);
+                        const currentWholesaleStr = editingWholesalePricing[key] ?? String(retail);
+                        const wholesaleVal = parseFloat(currentWholesaleStr) || 0;
+                        const margin = retail > wholesaleVal ? retail - wholesaleVal : 0;
+
+                        return (
+                          <tr key={`${prod.id}-${tierKey}`} className="hover:bg-zinc-800/30 transition-colors">
+                            <td className="py-3.5 px-6">
+                              {idx === 0 ? (
+                                <div className="font-bold text-white text-sm">{prod.title}</div>
+                              ) : (
+                                <span className="text-zinc-600 font-sans text-[11px]">— {prod.title}</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-6 text-zinc-400">
+                              <span className="px-2 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-300">
+                                {prod.serviceScope || prod.service_scope || 'all'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-6">
+                              <span className="px-2.5 py-1 rounded text-[11px] uppercase font-bold bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                                {tierKey}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-6 text-zinc-400">
+                              ₱{retail.toFixed(2)}
+                            </td>
+                            <td className="py-3.5 px-6">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-zinc-500 font-bold">₱</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={currentWholesaleStr}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditingWholesalePricing((prev) => ({ ...prev, [key]: val }));
+                                  }}
+                                  className="w-32 px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-emerald-400 font-bold font-mono focus:outline-none focus:border-emerald-500"
+                                />
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-6 text-right">
+                              {margin > 0 ? (
+                                <span className="text-emerald-400 font-bold">
+                                  +₱{margin.toFixed(2)} ({((margin / retail) * 100).toFixed(0)}%)
+                                </span>
+                              ) : (
+                                <span className="text-zinc-500">₱0.00</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── TAB 5: AUDIT TRAIL ── */}
         {activeTab === 'audit' && (
           <div className="space-y-6">
@@ -6442,6 +6922,171 @@ export default function AdminPage() {
                   className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-mono font-bold transition-all cursor-pointer"
                 >
                   {savingCoupon ? 'Creating...' : 'Save Coupon'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: AUTHORIZE WHOLESALE RESELLER ── */}
+      {resellerModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-purple-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-purple-400" />
+                <span>Authorize Wholesale Reseller</span>
+              </h3>
+              <button onClick={() => setResellerModalOpen(false)} className="text-zinc-500 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateReseller} className="space-y-4">
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">
+                  Reseller Discord User ID (17-20 Digit Snowflake)
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 719482630633947166"
+                  value={resellerDiscordId}
+                  onChange={(e) => setResellerDiscordId(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">
+                  Company / Organization Trade Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Hyperion Digital Store"
+                  value={resellerCompanyName}
+                  onChange={(e) => setResellerCompanyName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">
+                  Initial Credit Pool Deposit (₱ PHP)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={resellerInitialCredit}
+                  onChange={(e) => setResellerInitialCredit(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setResellerModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/30"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Authorize & Save</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: ADJUST RESELLER BALANCE ── */}
+      {balanceModalOpen && selectedResellerForBalance && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-purple-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Coins className="w-5 h-5 text-purple-400" />
+                  <span>Adjust Credit Balance</span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">{selectedResellerForBalance.company_name}</p>
+              </div>
+              <button onClick={() => setBalanceModalOpen(false)} className="text-zinc-500 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdjustBalance} className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs font-mono flex justify-between items-center">
+                <span className="text-zinc-400">Current Balance:</span>
+                <span className="text-emerald-400 font-bold text-sm">
+                  ₱{Number(selectedResellerForBalance.credit_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">
+                  Adjustment Amount (₱ PHP)
+                </label>
+                <p className="text-[11px] text-zinc-500 mb-2">
+                  Enter positive number to deposit (e.g. <code>500</code>), or negative to deduct (e.g. <code>-200</code>).
+                </p>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="+1000 or -250"
+                  value={balanceAdjustAmount}
+                  onChange={(e) => setBalanceAdjustAmount(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              {balanceAdjustAmount && !isNaN(parseFloat(balanceAdjustAmount)) && (
+                <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-500/30 text-xs font-mono flex justify-between items-center text-purple-300">
+                  <span>Resulting Balance:</span>
+                  <span className="font-bold">
+                    ₱{(Number(selectedResellerForBalance.credit_balance || 0) + parseFloat(balanceAdjustAmount)).toFixed(2)}
+                  </span>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">
+                  Audit Reference / Note
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. GCash Ref #9928374 or promo bonus"
+                  value={balanceAdjustNote}
+                  onChange={(e) => setBalanceAdjustNote(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBalanceModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/30"
+                >
+                  <Coins className="w-4 h-4" />
+                  <span>Apply Balance</span>
                 </button>
               </div>
             </form>

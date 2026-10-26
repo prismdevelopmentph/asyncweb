@@ -176,3 +176,91 @@ export async function requireOwner(request: Request): Promise<AuthResult> {
   };
 }
 
+export interface ResellerRow {
+  id: string;
+  discord_id: string;
+  company_name: string;
+  credit_balance: number;
+  currency: string;
+  status: 'active' | 'suspended';
+  created_at: string;
+  updated_at: string;
+}
+
+export type ResellerAuthResult =
+  | { ok: true; data: { user: User; discordId: string; email: string | null; reseller: ResellerRow } }
+  | { ok: false; response: NextResponse };
+
+/**
+ * Validates the caller's session token and verifies that their Discord ID
+ * is registered as an active reseller in the resellers table.
+ * If caller is in OWNER_DISCORD_IDS, auto-provisions or permits owner access.
+ */
+export async function requireReseller(request: Request): Promise<ResellerAuthResult> {
+  const authUser = await requireUser(request);
+  if (!authUser.ok) {
+    return authUser;
+  }
+
+  const { user, discordId, email } = authUser.data;
+  const isOwner = isOwnerDiscordId(discordId);
+
+  let { data: reseller, error } = await supabaseAdmin
+    .from('resellers')
+    .select('*')
+    .eq('discord_id', discordId)
+    .maybeSingle();
+
+  // If user is owner and no reseller record exists yet, auto-provision master owner record
+  if (!reseller && isOwner) {
+    const { data: created, error: createErr } = await supabaseAdmin
+      .from('resellers')
+      .insert({
+        discord_id: discordId,
+        company_name: 'ASYNC HQ (Owner)',
+        credit_balance: 100000.00,
+        currency: 'PHP',
+        status: 'active',
+      })
+      .select('*')
+      .single();
+
+    if (!createErr && created) {
+      reseller = created;
+    }
+  }
+
+  if (error || !reseller) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Forbidden: You are not registered as an authorized reseller.' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  if (reseller.status !== 'active') {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Forbidden: Your reseller account has been suspended. Please contact staff.' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    data: {
+      user,
+      discordId,
+      email,
+      reseller: {
+        ...reseller,
+        credit_balance: Number(reseller.credit_balance) || 0,
+      } as ResellerRow,
+    },
+  };
+}
+

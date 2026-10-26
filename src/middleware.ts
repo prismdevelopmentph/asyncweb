@@ -129,6 +129,7 @@ export async function middleware(req: NextRequest) {
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
   const isGenSubdomain = host.startsWith('gen.') || host.includes('gen.asyncdevph.xyz');
   const isAdminSubdomain = host.startsWith('admin.') || host.includes('admin.asyncdevph.xyz');
+  const isResellerSubdomain = host.startsWith('reseller.') || host.includes('reseller.asyncdevph.xyz');
   const isProd = host.includes('asyncdevph.xyz');
   const cookieDomain = isProd ? '.asyncdevph.xyz' : undefined;
 
@@ -168,6 +169,24 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  if (isResellerSubdomain) {
+    if (req.nextUrl.pathname === '/') {
+      const rewriteUrl = req.nextUrl.clone();
+      rewriteUrl.pathname = '/reseller';
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('x-subdomain', 'reseller');
+      res.cookies.set('async_subdomain', 'reseller', { path: '/', domain: cookieDomain });
+      return res;
+    }
+    if (req.nextUrl.pathname === '/reseller') {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.set('async_subdomain', 'reseller', { path: '/', domain: cookieDomain });
+      return res;
+    }
+  }
+
   if (!isAdminSubdomain && req.nextUrl.pathname === '/admin' && isProd) {
     const protocol = req.headers.get('x-forwarded-proto') || 'https';
     return NextResponse.redirect(`${protocol}://admin.asyncdevph.xyz/`);
@@ -176,6 +195,11 @@ export async function middleware(req: NextRequest) {
   if (!isGenSubdomain && req.nextUrl.pathname === '/generator' && isProd) {
     const protocol = req.headers.get('x-forwarded-proto') || 'https';
     return NextResponse.redirect(`${protocol}://gen.asyncdevph.xyz/`);
+  }
+
+  if (!isResellerSubdomain && req.nextUrl.pathname === '/reseller' && isProd) {
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    return NextResponse.redirect(`${protocol}://reseller.asyncdevph.xyz/`);
   }
 
   // 2. Security Lockout Enforcement (HTML PAGE LOADS ONLY)
@@ -279,7 +303,7 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  const subdomainTag = isGenSubdomain ? 'gen' : isAdminSubdomain ? 'admin' : 'main';
+  const subdomainTag = isGenSubdomain ? 'gen' : isAdminSubdomain ? 'admin' : isResellerSubdomain ? 'reseller' : 'main';
   const response = NextResponse.next();
   response.headers.set('x-subdomain', subdomainTag);
   response.cookies.set('async_subdomain', subdomainTag, { path: '/', domain: cookieDomain });
