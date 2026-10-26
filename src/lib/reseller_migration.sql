@@ -21,7 +21,7 @@ CREATE INDEX IF NOT EXISTS idx_resellers_status ON public.resellers(status);
 -- 2. Uniform Wholesale Pricing Matrix (Global rates applied to all approved resellers)
 CREATE TABLE IF NOT EXISTS public.reseller_wholesale_pricing (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
+  product_id TEXT REFERENCES public.products(id) ON DELETE CASCADE,
   tier_key TEXT NOT NULL, -- 'daily', 'weekly', 'monthly', 'lifetime'
   wholesale_price_php NUMERIC(10, 2) NOT NULL CHECK (wholesale_price_php >= 0),
   created_at TIMESTAMPTZ DEFAULT NOW(),
