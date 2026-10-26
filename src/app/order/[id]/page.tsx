@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { supabase } from '@/lib/supabase';
 import {
   Clock,
   CheckCircle2,
@@ -223,8 +224,24 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
         formData.append('receipt', receiptFile);
       }
 
+      const headers: Record<string, string> = {};
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.access_token) {
+          headers['Authorization'] = `Bearer ${sessionData.session.access_token}`;
+        }
+      } catch {}
+
+      try {
+        const storedToken = localStorage.getItem(`order_token_${id}`);
+        if (storedToken) {
+          headers['x-order-token'] = storedToken;
+        }
+      } catch {}
+
       const res = await fetch(`/api/order/${id}/submit-ref`, {
         method: 'POST',
+        headers,
         body: formData
       });
       const data = await res.json().catch(() => ({}));

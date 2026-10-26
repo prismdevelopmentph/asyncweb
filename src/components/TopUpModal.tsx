@@ -61,6 +61,12 @@ export default function TopUpModal({ isOpen, onClose }: TopUpModalProps) {
         return;
       }
 
+      if (data.orderId && data.orderToken) {
+        try {
+          localStorage.setItem(`order_token_${data.orderId}`, data.orderToken);
+        } catch {}
+      }
+
       // Navigate directly to the GCash order verification screen
       window.location.href = `/order/${data.orderId}`;
     } catch (err: any) {

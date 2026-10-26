@@ -203,6 +203,12 @@ export default function CartCheckoutModal({
         return;
       }
 
+      if (data.orderId && data.orderToken) {
+        try {
+          localStorage.setItem(`order_token_${data.orderId}`, data.orderToken);
+        } catch {}
+      }
+
       // 3. Clear cart, close drawer, and redirect to order tracking screen
       clearCart();
       closeCart();

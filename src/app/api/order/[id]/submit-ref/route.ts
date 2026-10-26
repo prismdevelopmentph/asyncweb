@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { verifyOrderAccessToken } from '@/lib/order-auth';
+import { getVerifiedDiscordIdFromToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +37,7 @@ export async function POST(
     // 1. Fetch current order
     const { data: order, error } = await supabaseAdmin
       .from('orders')
-      .select('id, status, payment_details, order_type, amount, currency, provider, provider_label, discord_id, email, product_id, tier_key, products(title)')
+      .select('id, created_at, status, payment_details, order_type, amount, currency, provider, provider_label, discord_id, email, product_id, tier_key, products(title)')
       .eq('id', id)
       .maybeSingle();
 
@@ -43,13 +45,85 @@ export async function POST(
       return NextResponse.json({ ok: false, error: 'Order not found' }, { status: 404 });
     }
 
-    // Only allow submission on orders awaiting payment or in pending/rejected review
-    const allowedStatuses = ['awaiting_payment', 'pending', 'rejected'];
+    // 2. Hard state lock: prevent submission if already pending staff review or terminal
+    if (order.status === 'pending') {
+      return NextResponse.json({
+        ok: false,
+        error: 'Payment reference has already been submitted and is currently awaiting staff verification.'
+      }, { status: 400 });
+    }
+
+    const allowedStatuses = ['awaiting_payment', 'rejected'];
     if (!allowedStatuses.includes(order.status)) {
       return NextResponse.json({
         ok: false,
         error: `Cannot submit reference for order in '${order.status}' state.`
       }, { status: 400 });
+    }
+
+    // 3. Order Ownership / Authorization Guard
+    let isAuthorized = false;
+
+    // A. Check Bearer token if supplied
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+    let bearerToken: string | null = null;
+    if (authHeader) {
+      const match = authHeader.match(/^Bearer\s+(.+)$/i);
+      if (match) bearerToken = match[1].trim();
+    }
+
+    let callerDiscordId: string | null = null;
+    if (bearerToken) {
+      callerDiscordId = await getVerifiedDiscordIdFromToken(bearerToken);
+    }
+
+    const ownerId = (
+      process.env.OWNER_USER_ID ||
+      process.env.NEXT_PUBLIC_OWNER_USER_ID ||
+      '719482630633947166'
+    ).trim();
+
+    // Staff override
+    if (callerDiscordId && callerDiscordId === ownerId) {
+      isAuthorized = true;
+    }
+
+    // Discord session match
+    if (!isAuthorized && order.discord_id) {
+      if (callerDiscordId && callerDiscordId === order.discord_id) {
+        isAuthorized = true;
+      }
+    }
+
+    // Signed HMAC Session Cookie check (set during order creation)
+    if (!isAuthorized) {
+      const cookieToken = req.cookies.get(`order_access_${id}`)?.value;
+      if (cookieToken && verifyOrderAccessToken(order.id, order.created_at, cookieToken)) {
+        isAuthorized = true;
+      }
+    }
+
+    // Signed HMAC Header check (stored in localStorage by checkout client)
+    if (!isAuthorized) {
+      const headerToken = req.headers.get('x-order-token');
+      if (headerToken && verifyOrderAccessToken(order.id, order.created_at, headerToken)) {
+        isAuthorized = true;
+      }
+    }
+
+    // Customer email claim fallback
+    if (!isAuthorized && order.email) {
+      const headerEmail = req.headers.get('x-order-email')?.trim().toLowerCase();
+      if (headerEmail && headerEmail === order.email.trim().toLowerCase()) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json({
+        ok: false,
+        error: 'Unauthorized: You are not authorized to submit payment references for this order.'
+      }, { status: 403 });
     }
 
     // 2. Receipt screenshot requirement for GCash and Maya payments

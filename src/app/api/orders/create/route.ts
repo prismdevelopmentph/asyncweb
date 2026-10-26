@@ -6,6 +6,19 @@ import { getPaymentSettings } from '@/lib/payment-settings';
 import { fulfillProductOrder } from '@/lib/fulfillment';
 import { getUsdToPhpRate } from '@/lib/currency';
 import { getPayMongoConfig, createPayMongoCheckoutSession } from '@/lib/paymongo';
+import { generateOrderAccessToken } from '@/lib/order-auth';
+
+function attachOrderAccessCookie(res: NextResponse, orderId: string, createdAt: string) {
+  const token = generateOrderAccessToken(orderId, createdAt);
+  res.cookies.set(`order_access_${orderId}`, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 3600,
+  });
+  return token;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -458,12 +471,16 @@ export async function POST(req: NextRequest) {
           console.warn('[Orders Create] PayMongo automated session creation warning, falling back to static QR:', pmErr);
         }
 
-        return NextResponse.json({
+        const token = generateOrderAccessToken(newOrder.id, newOrder.created_at);
+        const res = NextResponse.json({
           ok: true,
           orderId: newOrder.id,
+          orderToken: token,
           status: 'awaiting_payment',
           checkoutUrl: paymongoCheckoutUrl
         });
+        attachOrderAccessCookie(res, newOrder.id, newOrder.created_at);
+        return res;
       }
 
       // ── SUB-ROUTE: GCASH DIRECT ──
@@ -503,7 +520,10 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (orderErr || !newOrder) throw orderErr || new Error('Failed to create GCash order');
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+        const token = generateOrderAccessToken(newOrder.id, newOrder.created_at);
+        const res = NextResponse.json({ ok: true, orderId: newOrder.id, orderToken: token, status: 'awaiting_payment' });
+        attachOrderAccessCookie(res, newOrder.id, newOrder.created_at);
+        return res;
       }
 
       // ── SUB-ROUTE: MAYA DIRECT ──
@@ -543,7 +563,10 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (orderErr || !newOrder) throw orderErr || new Error('Failed to create Maya order');
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+        const token = generateOrderAccessToken(newOrder.id, newOrder.created_at);
+        const res = NextResponse.json({ ok: true, orderId: newOrder.id, orderToken: token, status: 'awaiting_payment' });
+        attachOrderAccessCookie(res, newOrder.id, newOrder.created_at);
+        return res;
       }
 
       // ── SUB-ROUTE: PAYPAL (Friends & Family) ──
@@ -582,7 +605,10 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (orderErr || !newOrder) throw orderErr || new Error('Failed to create PayPal order');
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+        const token = generateOrderAccessToken(newOrder.id, newOrder.created_at);
+        const res = NextResponse.json({ ok: true, orderId: newOrder.id, orderToken: token, status: 'awaiting_payment' });
+        attachOrderAccessCookie(res, newOrder.id, newOrder.created_at);
+        return res;
       }
 
       // ── SUB-ROUTE: CRYPTO (LTC / USDT) ──
@@ -622,7 +648,10 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (orderErr || !newOrder) throw orderErr || new Error('Failed to create Crypto order');
-        return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+        const token = generateOrderAccessToken(newOrder.id, newOrder.created_at);
+        const res = NextResponse.json({ ok: true, orderId: newOrder.id, orderToken: token, status: 'awaiting_payment' });
+        attachOrderAccessCookie(res, newOrder.id, newOrder.created_at);
+        return res;
       }
     }
 
@@ -657,7 +686,10 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (orderErr || !newOrder) throw orderErr || new Error('Failed to create GCash top-up order');
-      return NextResponse.json({ ok: true, orderId: newOrder.id, status: 'awaiting_payment' });
+      const token = generateOrderAccessToken(newOrder.id, newOrder.created_at);
+      const res = NextResponse.json({ ok: true, orderId: newOrder.id, orderToken: token, status: 'awaiting_payment' });
+      attachOrderAccessCookie(res, newOrder.id, newOrder.created_at);
+      return res;
     }
 
     return NextResponse.json({ ok: false, error: 'Unsupported provider or order configuration' }, { status: 400 });

@@ -228,6 +228,12 @@ export default function CheckoutModal({
         return;
       }
 
+      if (data.orderId && data.orderToken) {
+        try {
+          localStorage.setItem(`order_token_${data.orderId}`, data.orderToken);
+        } catch {}
+      }
+
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
         return;
