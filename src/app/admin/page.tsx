@@ -46,6 +46,7 @@ import {
   ExternalLink,
   Laptop,
   CheckCircle,
+  AlertCircle,
   AlertTriangle,
   LogIn,
   ArrowUpRight,
@@ -312,6 +313,16 @@ export default function AdminPage() {
   const [actionError, setActionError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Client Download GoFile Configuration State
+  const [clientGofileInput, setClientGofileInput] = useState('');
+  const [clientGofileCode, setClientGofileCode] = useState('');
+  const [clientGofileStatus, setClientGofileStatus] = useState<string>('unknown');
+  const [clientGofileFileName, setClientGofileFileName] = useState<string | null>(null);
+  const [clientGofileFileSize, setClientGofileFileSize] = useState<number | null>(null);
+  const [clientGofileLoading, setClientGofileLoading] = useState(false);
+  const [clientGofileSaving, setClientGofileSaving] = useState(false);
+  const [clientGofileMsg, setClientGofileMsg] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
   // 1. Session & Auth Check
   useEffect(() => {
     const fetchSession = async () => {
@@ -389,13 +400,79 @@ export default function AdminPage() {
     }
   };
 
+  const fetchClientDownloadConfig = async () => {
+    setClientGofileLoading(true);
+    try {
+      const res = await adminFetch('/api/admin/client-download');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          setClientGofileCode(data.code || '');
+          setClientGofileInput(data.link || (data.code ? `https://gofile.io/d/${data.code}` : ''));
+          setClientGofileStatus(data.gofileStatus || 'unknown');
+          setClientGofileFileName(data.fileName || null);
+          setClientGofileFileSize(data.fileSize || null);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching client download config:', err);
+    } finally {
+      setClientGofileLoading(false);
+    }
+  };
+
+  const handleSaveClientDownload = async () => {
+    if (!clientGofileInput.trim()) return;
+    setClientGofileSaving(true);
+    setClientGofileMsg(null);
+    try {
+      const res = await adminFetch('/api/admin/client-download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urlOrCode: clientGofileInput.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setClientGofileCode(data.code);
+        setClientGofileInput(data.link);
+        setClientGofileStatus(data.gofileStatus);
+        setClientGofileFileName(data.fileName || null);
+        setClientGofileFileSize(data.fileSize || null);
+        if (data.gofileStatus === 'ok') {
+          setClientGofileMsg({
+            text: `GoFile link verified and saved! Live archive: "${data.fileName || 'asyncgen.zip'}"`,
+            type: 'success',
+          });
+        } else {
+          setClientGofileMsg({
+            text: `GoFile link saved (${data.code}), but upstream returned status "${data.gofileStatus}". Please verify the folder is public on GoFile.`,
+            type: 'warning',
+          });
+        }
+      } else {
+        setClientGofileMsg({ text: data.error || 'Failed to save GoFile link.', type: 'error' });
+      }
+    } catch (err: any) {
+      setClientGofileMsg({ text: err?.message || 'Network error.', type: 'error' });
+    } finally {
+      setClientGofileSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (user && isOwner) {
       fetchAdminData();
       fetchProducts();
       fetchOrders();
+      fetchClientDownloadConfig();
     }
   }, [user, isOwner]);
+
+  useEffect(() => {
+    if (activeTab === 'generator' && isOwner) {
+      fetchClientDownloadConfig();
+    }
+  }, [activeTab, isOwner]);
 
   // Digital Products Handlers
   const fetchProducts = async (isBackground = false) => {
@@ -2295,6 +2372,114 @@ export default function AdminPage() {
         {/* ── TAB 2: GENERATOR & STOCK ── */}
         {activeTab === 'generator' && (
           <div className="space-y-8">
+            {/* Client Binary Download Package Configuration */}
+            <div className="bg-zinc-900/60 rounded-3xl p-6 border border-zinc-800/80 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                    <Download className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">Client Binary App Package</h3>
+                    <p className="text-xs text-zinc-400 font-mono">
+                      Controls the upstream GoFile download link served to all customers on the Dashboard & Generator
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold border flex items-center gap-1.5 ${
+                    clientGofileStatus === 'ok'
+                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                      : clientGofileStatus === 'error-notFound'
+                      ? 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+                      : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      clientGofileStatus === 'ok' ? 'bg-emerald-400 animate-pulse' : clientGofileStatus === 'error-notFound' ? 'bg-rose-500' : 'bg-amber-400'
+                    }`} />
+                    <span>
+                      {clientGofileStatus === 'ok'
+                        ? 'GOFILE LIVE'
+                        : clientGofileStatus === 'error-notFound'
+                        ? 'FILE EXPIRED / NOT FOUND'
+                        : `STATUS: ${clientGofileStatus.toUpperCase()}`}
+                    </span>
+                  </span>
+
+                  <button
+                    onClick={fetchClientDownloadConfig}
+                    disabled={clientGofileLoading}
+                    className="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                    title="Test & Refresh Status"
+                  >
+                    <RefreshCw className={`w-4 h-4 text-zinc-400 ${clientGofileLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+              </div>
+
+              {clientGofileFileName && clientGofileStatus === 'ok' && (
+                <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-zinc-400 bg-zinc-950/60 p-3 rounded-2xl border border-zinc-800/60">
+                  <div>
+                    Active File: <strong className="text-white">{clientGofileFileName}</strong>
+                  </div>
+                  {clientGofileFileSize && (
+                    <div>
+                      Size: <span className="text-zinc-300">{(clientGofileFileSize / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
+                  )}
+                  <div>
+                    Active Code: <code className="text-purple-300 bg-purple-950/30 px-1.5 py-0.5 rounded border border-purple-500/20">{clientGofileCode}</code>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-xs font-mono text-zinc-400 block">
+                  New GoFile URL or Content Code:
+                </label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <input
+                    type="text"
+                    value={clientGofileInput}
+                    onChange={(e) => setClientGofileInput(e.target.value)}
+                    placeholder="https://gofile.io/d/XXXXXX or XXXXXX"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    onClick={handleSaveClientDownload}
+                    disabled={clientGofileSaving || !clientGofileInput.trim()}
+                    className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-mono font-bold text-white transition-all cursor-pointer shadow-md shadow-purple-950/40 flex items-center justify-center gap-2 shrink-0"
+                  >
+                    {clientGofileSaving ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying & Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Save & Verify Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {clientGofileMsg && (
+                <div className={`p-3 rounded-xl border text-xs font-mono flex items-center gap-2 ${
+                  clientGofileMsg.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : clientGofileMsg.type === 'warning'
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                }`}>
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{clientGofileMsg.text}</span>
+                </div>
+              )}
+            </div>
+
             {/* Service Stock Cards */}
             <div>
               <div className="flex items-center justify-between mb-4">

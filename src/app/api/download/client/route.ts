@@ -126,7 +126,22 @@ export async function GET(request: Request) {
     }
 
     // 5. Resolve live direct download URL from GoFile API
-    const metaRes = await fetch(`https://api.gofile.io/contents/${GOFILE_CODE}?wt=4fd6sg89d7s6`, {
+    let activeGofileCode = GOFILE_CODE;
+    try {
+      const { data: configRow } = await supabaseAdmin
+        .from('config')
+        .select('value')
+        .eq('key', 'client_download_gofile_code')
+        .maybeSingle();
+
+      if (configRow?.value && configRow.value.trim()) {
+        activeGofileCode = configRow.value.trim();
+      }
+    } catch (confErr) {
+      console.warn('[Download Route Config Lookup Warning]:', confErr);
+    }
+
+    const metaRes = await fetch(`https://api.gofile.io/contents/${activeGofileCode}?wt=4fd6sg89d7s6`, {
       headers: {
         Authorization: `Bearer ${GOFILE_API_KEY}`,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
