@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import DiscordLoginButton from '@/components/DiscordLoginButton';
 import { supabase } from '@/lib/supabase';
 import {
   Key,
@@ -18,6 +17,7 @@ import {
   RotateCcw,
   ShieldCheck,
   ShieldAlert,
+  Shield,
   Layers,
   ArrowUpRight,
   ExternalLink,
@@ -32,8 +32,15 @@ import {
   Plus,
   Wallet,
   Loader2,
-  ArrowRight
+  ArrowRight,
+  LogIn
 } from 'lucide-react';
+
+const DiscordIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.057a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.793 8.18 1.793 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z" />
+  </svg>
+);
 
 interface TierOption {
   tier_key: string;
@@ -400,102 +407,220 @@ export default function ResellerPortalPage() {
     );
   }, [licenses, licenseSearch]);
 
-  if (authChecking) {
+  if (authChecking || !user || isAuthorized === false) {
     return (
-      <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between">
+      <div className="min-h-screen bg-black text-zinc-100 relative overflow-hidden font-sans selection:bg-purple-600 selection:text-white dev-grid-bg flex flex-col justify-between">
         <Navbar />
-        <div className="flex-1 flex items-center justify-center pt-28 pb-16">
-          <div className="flex items-center gap-3 text-purple-400">
-            <RefreshCw className="w-5 h-5 animate-spin" />
-            <span className="font-mono text-sm tracking-widest uppercase">Authenticating Operator...</span>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
 
-  // ── Unauthenticated State ──
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
-          <div className="max-w-md w-full bg-zinc-900/80 border border-purple-500/30 rounded-3xl p-8 text-center shadow-2xl backdrop-blur-xl relative overflow-hidden">
-            <div className="absolute -top-24 -left-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="w-14 h-14 mx-auto mb-6 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-              <Lock className="w-7 h-7" />
+        <main className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full py-12">
+          {authChecking ? (
+            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+              <div className="w-10 h-10 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mb-4" />
+              <span className="text-xs font-mono text-zinc-400 tracking-wider">
+                Verifying distributor credentials...
+              </span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight mb-2">Wholesale Reseller Access</h1>
-            <p className="text-sm text-zinc-400 mb-8 leading-relaxed">
-              Login with your authorized Discord account to access the wholesale credit pool, batch minter, and customer license ledger.
-            </p>
-            <div className="flex justify-center">
-              <DiscordLoginButton />
-            </div>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
+          ) : (
+            /* Dedicated Split-Screen Showcase & Authentication Gateway */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              {/* Left Column: Wholesale Infrastructure Showcase */}
+              <div className="lg:col-span-7 flex flex-col justify-center">
+                {/* Status Pill */}
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-mono mb-5 w-fit">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="tracking-wider uppercase">ASYNC WHOLESALE // DISTRIBUTOR PORTAL</span>
+                </div>
 
-  // ── Unauthorized State (Not an approved reseller) ──
-  if (isAuthorized === false) {
-    return (
-      <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center px-4 pt-28 pb-16">
-          <div className="max-w-md w-full bg-zinc-900/80 border border-red-500/30 rounded-3xl p-8 text-center shadow-2xl backdrop-blur-xl">
-            <div className="w-14 h-14 mx-auto mb-6 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
-              <ShieldAlert className="w-7 h-7" />
+                {/* Main Headline */}
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 text-white font-sans leading-[1.15]">
+                  Wholesale License <br className="hidden sm:inline" />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-200 to-zinc-400">
+                    Distribution Hub
+                  </span>
+                </h1>
+
+                {/* Subtitle */}
+                <p className="max-w-xl text-zinc-400 text-sm sm:text-base mb-2 leading-relaxed font-normal">
+                  Access wholesale tier pricing, automated balance reloading, batch key generation, and real-time client license management. Dedicated distributor infrastructure built for volume partners.
+                </p>
+
+                {/* Operational Modules Showcase */}
+                <div className="mt-8 pt-6 border-t border-zinc-800/80">
+                  <div className="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
+                    Wholesale Infrastructure & Partner Systems
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0 text-purple-400">
+                        <Coins className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Wholesale Credit Pool</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Automated PHP/USD reload rails</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-emerald-400">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Batch Key Minter</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Multi-tier volume issuance</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-blue-400">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Client License Ledger</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Real-time activation tracking</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+                      <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 text-amber-400">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-zinc-200">Partner Telemetry</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Discount tiers & volume audit</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Return Link to Storefront */}
+                <a
+                  href="https://asyncdevph.xyz"
+                  className="mt-6 flex items-center justify-between gap-4 p-5 rounded-3xl bg-zinc-950/80 border border-zinc-800 hover:border-purple-500/50 hover:bg-zinc-900/50 transition-all duration-200 group shadow-lg shadow-purple-950/10 cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400 group-hover:border-purple-500/40 transition-colors shrink-0">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-semibold text-white group-hover:text-purple-300 transition-colors flex items-center gap-1.5">
+                        <span>Looking for customer storefront? Visit asyncdevph.xyz</span>
+                        <span className="text-purple-400 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+                      </div>
+                      <div className="text-[11px] text-zinc-400 font-mono">
+                        Return to public product marketplace and retail digital goods
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-zinc-500 group-hover:text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all shrink-0" />
+                </a>
+
+                {/* Left Showcase Footer */}
+                <div className="mt-8 text-xs text-zinc-600 font-mono">
+                  &copy; 2026 ASYNC DEVELOPMENT. All rights reserved.
+                </div>
+              </div>
+
+              {/* Right Column: Reseller Auth Gateway */}
+              <div className="lg:col-span-5">
+                <div className="relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600/15 via-zinc-900/10 to-transparent rounded-3xl blur-2xl opacity-75" />
+
+                  <div className="relative bg-zinc-950/90 border border-zinc-800 hover:border-zinc-700/80 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl shadow-purple-950/10 transition-colors">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-purple-400">
+                        <Key className="w-5 h-5 text-purple-400" />
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-mono">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Reseller Gateway
+                      </div>
+                    </div>
+
+                    <h2 className="text-xl font-bold tracking-tight text-white mb-2">
+                      Sign in to your account
+                    </h2>
+                    <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
+                      Authenticate with an authorized Discord account to access your wholesale credit pool, batch key minter, and client ledger.
+                    </p>
+
+                    {!user ? (
+                      /* Continue with Discord Button */
+                      <button
+                        onClick={() => {
+                          window.location.href = '/api/auth/discord/login';
+                        }}
+                        className="w-full py-3 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all duration-150 shadow-[0_0_20px_rgba(88,101,242,0.35)] hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] active:scale-[0.99] cursor-pointer"
+                      >
+                        <DiscordIcon className="w-5 h-5 fill-current" />
+                        <span>Continue with Discord</span>
+                      </button>
+                    ) : (
+                      /* Unauthorized Session Display + Switch Account & Support */
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-800/60 text-left">
+                          <div className="flex items-center gap-2 text-rose-300 text-xs font-semibold mb-1">
+                            <ShieldAlert className="w-4 h-4 text-rose-400" />
+                            <span>Unauthorized Reseller Account</span>
+                          </div>
+                          <p className="text-[11px] text-zinc-400 leading-relaxed">
+                            {authError || 'Your Discord account is not enrolled as an active wholesale distributor for ASYNC DEVELOPMENT.'}
+                          </p>
+                          <div className="mt-3 pt-3 border-t border-rose-800/40 text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+                            <span className="text-zinc-500">Discord ID:</span>
+                            <span className="text-zinc-200">{user?.user_metadata?.provider_id || user?.id}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                          <button
+                            onClick={async () => {
+                              await supabase.auth.signOut();
+                              window.location.href = '/api/auth/discord/login';
+                            }}
+                            className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                          >
+                            <LogIn className="w-4 h-4" />
+                            <span>Switch Account</span>
+                          </button>
+                          <a
+                            href="https://discord.gg/asyncdev"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/30 text-center"
+                          >
+                            <span>Discord Support</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Security Notice */}
+                    <div className="mt-6 pt-5 border-t border-zinc-800/80 space-y-2.5">
+                      <div className="flex items-start gap-2 text-[11px] text-zinc-400 leading-relaxed">
+                        <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+                        <span>Secured distributor session</span>
+                      </div>
+                      <p className="text-[10px] text-zinc-600 leading-relaxed font-mono">
+                        Access is strictly restricted to verified wholesale partners. All unauthorized attempts are logged.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <h1 className="text-2xl font-black tracking-tight mb-2">Access Denied</h1>
-            <p className="text-sm text-zinc-400 mb-6 leading-relaxed">
-              {authError || 'Your Discord account is not registered as an authorized reseller for ASYNC DEVELOPMENT.'}
-            </p>
-            <div className="p-4 rounded-xl bg-zinc-950/70 border border-zinc-800 text-xs text-zinc-400 mb-6 font-mono text-left space-y-1">
-              <div><span className="text-zinc-600">Discord User ID:</span> <span className="text-zinc-200">{user?.user_metadata?.provider_id || user?.id}</span></div>
-              <div><span className="text-zinc-600">Subdomain:</span> <span className="text-purple-400">reseller.asyncdevph.xyz</span></div>
-            </div>
-            <p className="text-xs text-zinc-500 mb-6">
-              To request a wholesale distributor partnership, please open a ticket in our official Discord community.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  window.location.href = '/api/auth/discord/login';
-                }}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition-colors cursor-pointer"
-              >
-                Switch Account
-              </button>
-              <a
-                href="https://asyncdevph.xyz"
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs transition-colors text-center"
-              >
-                Return to Store
-              </a>
-              <a
-                href="https://discord.gg/asyncdev"
-                target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs transition-all shadow-lg shadow-purple-600/30"
-              >
-                <span>Discord Support</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-        </div>
+          )}
+        </main>
+
         <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#05030a] text-white flex flex-col justify-between selection:bg-purple-600 selection:text-white">
+    <div className="min-h-screen bg-black dev-grid-bg text-zinc-100 flex flex-col justify-between selection:bg-purple-600 selection:text-white">
       <Navbar />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-16 space-y-8 relative z-10">
