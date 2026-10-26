@@ -412,7 +412,7 @@ export default function ResellerPortalPage() {
       <div className="min-h-screen bg-black text-zinc-100 relative overflow-hidden font-sans selection:bg-purple-600 selection:text-white dev-grid-bg flex flex-col justify-between">
         <Navbar />
 
-        <main className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full py-12">
+        <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32 pb-16 flex-1 flex flex-col justify-center w-full">
           {authChecking ? (
             <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
               <div className="w-10 h-10 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mb-4" />
@@ -426,7 +426,7 @@ export default function ResellerPortalPage() {
               {/* Left Column: Wholesale Infrastructure Showcase */}
               <div className="lg:col-span-7 flex flex-col justify-center">
                 {/* Status Pill */}
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-mono mb-5 w-fit">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/90 border border-zinc-800 text-zinc-300 text-[11px] font-mono mb-6 w-fit shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="tracking-wider uppercase">ASYNC WHOLESALE // DISTRIBUTOR PORTAL</span>
                 </div>
