@@ -3979,7 +3979,7 @@ export default function AdminPage() {
                         : 'text-zinc-400 hover:text-white'
                     }`}
                   >
-                    <span>🛒 Product Licenses</span>
+                    <span>Product Licenses</span>
                     <span className="text-[10px] opacity-75">
                       ({ordersList.filter((o) => !o.order_type || o.order_type === 'product_purchase').length})
                     </span>
@@ -3992,7 +3992,7 @@ export default function AdminPage() {
                         : 'text-zinc-400 hover:text-white'
                     }`}
                   >
-                    <span>💳 Dashboard Top-Ups</span>
+                    <span>Dashboard Top-Ups</span>
                     <span className="text-[10px] opacity-75">
                       ({ordersList.filter((o) => o.order_type === 'balance_topup').length})
                     </span>
@@ -4005,7 +4005,7 @@ export default function AdminPage() {
                         : 'text-zinc-400 hover:text-white'
                     }`}
                   >
-                    <span>👑 Reseller Top-Ups</span>
+                    <span>Reseller Top-Ups</span>
                     <span className="text-[10px] opacity-75">
                       ({ordersList.filter((o) => o.order_type === 'reseller_topup').length})
                     </span>
@@ -4116,16 +4116,16 @@ export default function AdminPage() {
 
                             {/* Type Badge */}
                             {isResellerTopup ? (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold flex items-center gap-1">
-                                <span>👑</span> RESELLER TOP-UP
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold">
+                                RESELLER TOP-UP
                               </span>
                             ) : isDashboardTopup ? (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold flex items-center gap-1">
-                                <span>💳</span> DASHBOARD TOP-UP
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold">
+                                DASHBOARD TOP-UP
                               </span>
                             ) : (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-bold flex items-center gap-1">
-                                <span>🛒</span> PRODUCT ORDER
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-bold">
+                                PRODUCT ORDER
                               </span>
                             )}
 
@@ -7454,8 +7454,8 @@ export default function AdminPage() {
                     {/* Category 1: Products */}
                     <div className="p-4 rounded-2xl bg-zinc-900/70 border border-blue-500/30 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-mono text-blue-400 font-bold flex items-center gap-1">
-                          <span>🛒</span> Product Licenses
+                        <span className="text-[11px] font-mono text-blue-400 font-bold">
+                          Product Licenses
                         </span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">
                           {productDelivered.length} orders
@@ -7472,8 +7472,8 @@ export default function AdminPage() {
                     {/* Category 2: Dashboard Top-Ups */}
                     <div className="p-4 rounded-2xl bg-zinc-900/70 border border-emerald-500/30 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-mono text-emerald-400 font-bold flex items-center gap-1">
-                          <span>💳</span> Dashboard Top-Ups
+                        <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                          Dashboard Top-Ups
                         </span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
                           {dashboardTopupDelivered.length} orders
@@ -7490,8 +7490,8 @@ export default function AdminPage() {
                     {/* Category 3: Reseller Top-Ups */}
                     <div className="p-4 rounded-2xl bg-zinc-900/70 border border-purple-500/30 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-mono text-purple-400 font-bold flex items-center gap-1">
-                          <span>👑</span> Reseller Top-Ups
+                        <span className="text-[11px] font-mono text-purple-400 font-bold">
+                          Reseller Top-Ups
                         </span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
                           {resellerTopupDelivered.length} orders
