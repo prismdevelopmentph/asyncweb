@@ -26,12 +26,14 @@ export async function GET(request: Request) {
 
   const response = NextResponse.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
   
-  // Set host-only HttpOnly SameSite=Lax cookie with 10 minute expiration
+  const isProd = host.includes('asyncdevph.xyz');
+  // Set host-only or root-domain HttpOnly SameSite=Lax cookie with 10 minute expiration
   response.cookies.set('discord_oauth_nonce', nonce, {
     httpOnly: true,
     secure: !isLocal,
     sameSite: 'lax',
     path: '/',
+    domain: isProd ? '.asyncdevph.xyz' : undefined,
     maxAge: 600,
   });
 

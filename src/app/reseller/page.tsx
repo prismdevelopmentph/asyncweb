@@ -461,15 +461,32 @@ export default function ResellerPortalPage() {
             <p className="text-xs text-zinc-500 mb-6">
               To request a wholesale distributor partnership, please open a ticket in our official Discord community.
             </p>
-            <a
-              href="https://discord.gg/asyncdev"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs transition-all shadow-lg shadow-purple-600/30"
-            >
-              <span>Join Discord Support</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  window.location.href = '/api/auth/discord/login';
+                }}
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs transition-colors cursor-pointer"
+              >
+                Switch Account
+              </button>
+              <a
+                href="https://asyncdevph.xyz"
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs transition-colors text-center"
+              >
+                Return to Store
+              </a>
+              <a
+                href="https://discord.gg/asyncdev"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs transition-all shadow-lg shadow-purple-600/30"
+              >
+                <span>Discord Support</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
           </div>
         </div>
         <Footer />

@@ -16,6 +16,10 @@ export async function GET(request: Request) {
   const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.asyncdevph.xyz';
   // Force HTTPS everywhere except localhost
   const protocol = host.includes('localhost') ? 'http' : 'https';
+  const isProd = host.includes('asyncdevph.xyz');
+  const cookieDomain = isProd ? '.asyncdevph.xyz' : undefined;
+  const isSubdomain = host.startsWith('gen.') || host.startsWith('admin.') || host.startsWith('reseller.') || host.includes('gen.asyncdevph.xyz') || host.includes('admin.asyncdevph.xyz') || host.includes('reseller.asyncdevph.xyz');
+  const errorBasePath = isSubdomain ? '/' : '/generator';
   const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
 
   // Parse state and validate CSRF nonce
@@ -34,14 +38,14 @@ export async function GET(request: Request) {
 
   if (!storedNonce || !stateNonce || storedNonce !== stateNonce) {
     console.warn('[SECURITY] OAuth CSRF state mismatch or missing nonce.');
-    const errorRes = NextResponse.redirect(`${protocol}://${host}/generator?error=auth_csrf_mismatch`);
-    errorRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    const errorRes = NextResponse.redirect(`${protocol}://${host}${errorBasePath}?error=auth_csrf_mismatch`);
+    errorRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
     return errorRes;
   }
 
   if (!code) {
-    const errorRes = NextResponse.redirect(`${protocol}://${host}/generator?error=missing_code`);
-    errorRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    const errorRes = NextResponse.redirect(`${protocol}://${host}${errorBasePath}?error=missing_code`);
+    errorRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
     return errorRes;
   }
 
@@ -91,7 +95,7 @@ export async function GET(request: Request) {
       if (!tokenRes.ok) {
         const errJson = await tokenRes.json().catch(() => ({}));
         console.error('[Discord OAuth Token Error]:', errJson);
-        return NextResponse.redirect(`${protocol}://${host}/generator?error=token_exchange_failed&err_details=${encodeURIComponent(JSON.stringify(errJson))}`);
+        return NextResponse.redirect(`${protocol}://${host}${errorBasePath}?error=token_exchange_failed&err_details=${encodeURIComponent(JSON.stringify(errJson))}`);
       }
 
       const tokenData = await tokenRes.json();
@@ -217,7 +221,7 @@ export async function GET(request: Request) {
 
       if (createErr || !newUser.user) {
         console.error('[Discord Callback User Create Error]:', createErr);
-        return NextResponse.redirect(`${protocol}://${host}/generator?error=user_create_failed`);
+        return NextResponse.redirect(`${protocol}://${host}${errorBasePath}?error=user_create_failed`);
       }
       targetUser = newUser.user;
     } else {
@@ -225,7 +229,7 @@ export async function GET(request: Request) {
       const boundDiscordId = targetUser.app_metadata?.discord_id;
       if (boundDiscordId && boundDiscordId !== String(discordUser.id)) {
         console.error(`[SECURITY COLLISION] Discord ID conflict: Account ${targetUser.id} (${targetUser.email}) is bound to ${boundDiscordId}, attempted login with ${discordUser.id}`);
-        return NextResponse.redirect(`${protocol}://${host}/generator?error=auth_identity_collision`);
+        return NextResponse.redirect(`${protocol}://${host}${errorBasePath}?error=auth_identity_collision`);
       }
 
       const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(targetUser.id, {
@@ -255,6 +259,7 @@ export async function GET(request: Request) {
       'www.asyncdevph.xyz',
       'gen.asyncdevph.xyz',
       'admin.asyncdevph.xyz',
+      'reseller.asyncdevph.xyz',
       ...(process.env.NODE_ENV !== 'production' ? ['localhost:3000', 'localhost:3001'] : [])
     ];
 
@@ -268,7 +273,8 @@ export async function GET(request: Request) {
 
     const isGenHost = targetHost.startsWith('gen.') || targetHost.includes('gen.asyncdevph.xyz');
     const isAdminHost = targetHost.startsWith('admin.') || targetHost.includes('admin.asyncdevph.xyz');
-    const redirectTarget = (isGenHost || isAdminHost)
+    const isResellerHost = targetHost.startsWith('reseller.') || targetHost.includes('reseller.asyncdevph.xyz');
+    const redirectTarget = (isGenHost || isAdminHost || isResellerHost)
       ? `${targetProtocol}://${targetHost}/`
       : `${targetProtocol}://${targetHost}/generator`;
 
@@ -276,8 +282,8 @@ export async function GET(request: Request) {
     const sessionEmail = targetUser?.email;
     if (!sessionEmail) {
       console.error('[Discord Callback Critical Error]: Matched target account has no email address.');
-      const errRes = NextResponse.redirect(`${protocol}://${host}/generator?error=auth_missing_account_email`);
-      errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+      const errRes = NextResponse.redirect(`${protocol}://${host}${errorBasePath}?error=auth_missing_account_email`);
+      errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
       return errRes;
     }
 
@@ -295,12 +301,12 @@ export async function GET(request: Request) {
 
     const finalUrl = magicLink?.properties?.action_link || redirectTarget;
     const finalRes = NextResponse.redirect(finalUrl);
-    finalRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    finalRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
     return finalRes;
   } catch (err: any) {
     console.error('[Discord OAuth Callback Error]:', err);
-    const errRes = NextResponse.redirect(`${protocol}://${host}/generator?error=auth_error`);
-    errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/' });
+    const errRes = NextResponse.redirect(`${protocol}://${host}${errorBasePath}?error=auth_error`);
+    errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
     return errRes;
   }
 }
