@@ -341,6 +341,17 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // 1b. Deep-link parameter navigation from Discord Alert (?orderId=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderIdParam = urlParams.get('orderId');
+    if (orderIdParam) {
+      setActiveTab('orders');
+      setSearchQuery(orderIdParam);
+    }
+  }, []);
+
   const ownerUserId = (user?.app_metadata as Record<string, any> | undefined)?.discord_id || user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id;
   const isOwner = Boolean(ownerUserId && (ownerUserId === '719482630633947166' || ownerUserId === process.env.NEXT_PUBLIC_OWNER_USER_ID));
 

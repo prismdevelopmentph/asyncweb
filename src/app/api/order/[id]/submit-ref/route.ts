@@ -21,7 +21,7 @@ export async function POST(
     // 1. Fetch current order
     const { data: order, error } = await supabaseAdmin
       .from('orders')
-      .select('id, status, payment_details')
+      .select('id, status, payment_details, order_type, amount, currency, provider, provider_label, discord_id, email, product_id, tier_key, products(title)')
       .eq('id', id)
       .maybeSingle();
 
@@ -71,6 +71,114 @@ export async function POST(
 
     if (updateErr) {
       throw updateErr;
+    }
+
+    // 4. Dispatch Discord Bot alert to staff verification channel with owner mention
+    try {
+      const botToken = (
+        process.env.DISCORD_BOT_TOKEN ||
+        process.env.Discord_bot_token ||
+        process.env.discord_bot_token ||
+        process.env.DISCORD_TOKEN
+      )?.trim();
+
+      let logChannelId = (
+        process.env.DISCORD_PAYMENT_LOG_CHANNEL_ID ||
+        process.env.DISCORD_LOG_CHANNEL_ID
+      )?.trim();
+
+      if (!logChannelId) {
+        const { data: cfgRow } = await supabaseAdmin
+          .from('config')
+          .select('value')
+          .eq('key', 'payment_log_channel_id')
+          .maybeSingle();
+        if (cfgRow?.value?.trim()) {
+          logChannelId = cfgRow.value.trim();
+        }
+      }
+
+      const ownerId = (
+        process.env.OWNER_USER_ID ||
+        process.env.NEXT_PUBLIC_OWNER_USER_ID ||
+        '719482630633947166'
+      ).trim();
+
+      if (botToken && logChannelId) {
+        const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'asyncdevph.xyz';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const adminOrderUrl = `${protocol}://${host}/admin?orderId=${encodeURIComponent(id)}`;
+        const orderViewUrl = `${protocol}://${host}/order/${encodeURIComponent(id)}`;
+
+        let orderTypeLabel = 'Storefront Purchase';
+        const orderProd = order as any;
+        if (order.order_type === 'balance_topup') {
+          orderTypeLabel = '💳 Web Balance Top-Up';
+        } else if (orderProd?.products?.title) {
+          orderTypeLabel = `📦 ${orderProd.products.title} (${(order.tier_key || 'Direct Access').toUpperCase()})`;
+        } else if (order.payment_details?.cart_items && Array.isArray(order.payment_details.cart_items)) {
+          orderTypeLabel = `🛒 Cart (${order.payment_details.cart_items.length} items)`;
+        }
+
+        const customerLabel = order.discord_id
+          ? `<@${order.discord_id}> (${order.discord_id})`
+          : (order.email || 'Web Buyer');
+
+        const embed = {
+          title: '⚡ Payment Reference Submitted // Verification Required',
+          description: 'A customer has submitted a payment reference that requires manual verification in the ledger.',
+          color: 0xf59e0b, // Amber
+          fields: [
+            {
+              name: 'Order Type',
+              value: orderTypeLabel,
+              inline: true,
+            },
+            {
+              name: 'Amount to Verify',
+              value: `**${order.currency === 'PHP' ? '₱' : '$'}${Number(order.amount).toFixed(2)} ${order.currency}** (${order.provider_label || order.provider})`,
+              inline: true,
+            },
+            {
+              name: 'Customer',
+              value: customerLabel,
+              inline: true,
+            },
+            {
+              name: 'Submitted Reference #',
+              value: `\`\`\`${cleanRef}\`\`\``,
+              inline: false,
+            },
+            {
+              name: 'Quick Actions',
+              value: `👉 **[Review & Approve in Admin Console](${adminOrderUrl})**\n👉 **[View Customer Order Page](${orderViewUrl})**`,
+              inline: false,
+            },
+          ],
+          footer: {
+            text: `Order ID: ${id}`,
+          },
+          timestamp: new Date().toISOString(),
+        };
+
+        // Fire and await dispatch to guarantee delivery
+        await fetch(`https://discord.com/api/v10/channels/${logChannelId}/messages`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bot ${botToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: `<@${ownerId}>`,
+            embeds: [embed],
+            allowed_mentions: {
+              users: [ownerId],
+            },
+          }),
+        });
+      }
+    } catch (notifyErr) {
+      console.warn('[Submit Ref Discord Alert Error]:', notifyErr);
     }
 
     return NextResponse.json({ ok: true, message: 'Reference number saved successfully. Your order is under verification.' });
