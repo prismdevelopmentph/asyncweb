@@ -348,6 +348,11 @@ export default function AdminPage() {
   const [savingServiceChannelId, setSavingServiceChannelId] = useState<string | null>(null);
   const [serviceChannelMsg, setServiceChannelMsg] = useState<{ id: string; text: string; error?: boolean } | null>(null);
 
+  // 0. Browser Tab Title
+  useEffect(() => {
+    document.title = 'Admin Panel | ASYNC DEVELOPMENT';
+  }, []);
+
   // 1. Session & Auth Check
   useEffect(() => {
     const fetchSession = async () => {

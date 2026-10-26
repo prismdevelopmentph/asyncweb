@@ -273,6 +273,11 @@ export default function AccountGeneratorPage() {
   const [totpCode, setTotpCode] = useState('');
   const [totpSecondsLeft, setTotpSecondsLeft] = useState(30);
 
+  // Browser Tab Title
+  useEffect(() => {
+    document.title = 'Generator Panel | ASYNC DEVELOPMENT';
+  }, []);
+
   // Real-time 2FA Code generator & countdown ticker
   useEffect(() => {
     let mounted = true;

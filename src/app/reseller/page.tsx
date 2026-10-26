@@ -129,6 +129,11 @@ export default function ResellerPortalPage() {
   const [licenseSearch, setLicenseSearch] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
+  // 0. Browser Tab Title
+  useEffect(() => {
+    document.title = 'Reseller Panel | ASYNC DEVELOPMENT';
+  }, []);
+
   // 1. Session & Auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

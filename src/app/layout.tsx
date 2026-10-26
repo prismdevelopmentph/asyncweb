@@ -34,7 +34,7 @@ import CartDrawer from "@/components/CartDrawer";
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const host = (headersList.get("x-forwarded-host") || headersList.get("host") || "").toLowerCase();
-  const subdomain = host.startsWith("gen.") ? "gen" : host.startsWith("admin.") ? "admin" : "main";
+  const subdomain = host.startsWith("gen.") ? "gen" : host.startsWith("admin.") ? "admin" : host.startsWith("reseller.") ? "reseller" : "main";
 
   return (
     <html
