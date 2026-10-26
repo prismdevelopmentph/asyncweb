@@ -47,13 +47,11 @@ export async function GET(request: NextRequest) {
         supabaseAdmin
           .from('security_lockouts')
           .select('*')
-          .order('created_at', { ascending: false })
-          .limit(150),
+          .order('created_at', { ascending: false }),
         supabaseAdmin
           .from('licenses')
           .select('*')
-          .order('created_at', { ascending: false })
-          .limit(150),
+          .order('created_at', { ascending: false }),
         supabaseAdmin
           .from('services')
           .select('*')
@@ -78,13 +76,11 @@ export async function GET(request: NextRequest) {
         supabaseAdmin
           .from('website_claim_logs')
           .select('*')
-          .order('claimed_at', { ascending: false })
-          .limit(200),
+          .order('claimed_at', { ascending: false }),
         supabaseAdmin
           .from('client_download_logs')
           .select('*')
-          .order('downloaded_at', { ascending: false })
-          .limit(100),
+          .order('downloaded_at', { ascending: false }),
         Promise.resolve(supabaseAdmin.from('discord_users').select('*')).catch(() => ({ data: [], error: null })),
         supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }).catch(() => ({ data: { users: [] }, error: null })),
         supabaseAdmin.from('license_services').select('license_id, service_id, services(name)'),

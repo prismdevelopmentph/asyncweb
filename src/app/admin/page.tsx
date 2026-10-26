@@ -408,7 +408,7 @@ export default function AdminPage() {
   const fetchAdminData = async (forceRefresh = false) => {
     if (!ownerUserId) return;
 
-    const cacheKey = `async_admin_cache_v5_${ownerUserId}`;
+    const cacheKey = `async_admin_cache_v6_${ownerUserId}`;
 
     if (!forceRefresh) {
       try {
