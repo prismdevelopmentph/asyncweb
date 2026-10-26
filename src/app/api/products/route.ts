@@ -72,6 +72,22 @@ export async function GET() {
       const flatDiscount = Number(p.discount_percent ?? p.discountPercent ?? (defaultTier ? defaultTier.discountPercent : 0));
       const primaryPricing = defaultTier || computePricing(flatPhp, flatDiscount, liveRate);
 
+      let parsedSpecs: any = null;
+      if (p.delivery_type && typeof p.delivery_type === 'string' && p.delivery_type.trim().startsWith('{')) {
+        try {
+          parsedSpecs = JSON.parse(p.delivery_type);
+        } catch {
+          parsedSpecs = null;
+        }
+      } else if (p.specs && typeof p.specs === 'object') {
+        parsedSpecs = p.specs;
+      }
+
+      const cleanDeliveryLabel =
+        parsedSpecs?.deliveryLabel ||
+        (p.delivery_type && !p.delivery_type.startsWith('{') ? p.delivery_type : null) ||
+        (isStockPool ? 'Instant Credential Dispatch' : 'Instant Cryptographic Key');
+
       return {
         id: p.id,
         title: p.title,
@@ -82,7 +98,8 @@ export async function GET() {
         badge: p.badge || '',
         imageUrl: p.image_url || p.imageUrl || '',
         deliveryMode: isStockPool ? 'stock_pool' : 'automated_license',
-        deliveryType: p.delivery_type || p.deliveryType || (isStockPool ? 'Instant Credential Dispatch' : 'Instant Cryptographic Key'),
+        deliveryType: cleanDeliveryLabel,
+        specs: parsedSpecs,
         serviceScope: p.service_scope || p.serviceScope || 'all',
         tiers: computedTiers,
         tierOptions: computedTiers,

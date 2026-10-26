@@ -222,7 +222,9 @@ export default function StorefrontClient({
             description: p.description || '',
             details: p.details || '',
             features: Array.isArray(p.features) ? p.features : [],
-            deliveryType: p.deliveryType || 'Instant Cryptographic Key',
+            deliveryType: typeof p.deliveryType === 'string' && p.deliveryType.trim().startsWith('{')
+              ? (() => { try { return JSON.parse(p.deliveryType).deliveryLabel || 'Instant License'; } catch { return 'Instant License'; } })()
+              : (p.deliveryType || 'Instant Cryptographic Key'),
             deliveryTime: 'Instant Delivery',
             icon: p.category?.toLowerCase().includes('bundle') ? Sparkles : Key,
             gradient: p.highlight

@@ -235,12 +235,7 @@ export async function middleware(req: NextRequest) {
             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zlieavdkbphzplpdycbp.supabase.co';
             const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-            let queryFilter = 'is_banned=eq.true';
-            if (searchTargets.length > 1) {
-              queryFilter += `&or=(${searchTargets.join(',')})`;
-            } else {
-              queryFilter += `&${searchTargets[0]}`;
-            }
+            const queryFilter = `is_banned=eq.true&or=(${searchTargets.join(',')})`;
 
             const checkRes = await fetch(
               `${supabaseUrl}/rest/v1/security_lockouts?${queryFilter}&select=id,reason,ip_address,discord_user_id&limit=1`,
@@ -255,8 +250,16 @@ export async function middleware(req: NextRequest) {
 
             if (checkRes.ok) {
               const rows = await checkRes.json();
-              const isBanned = Array.isArray(rows) && rows.length > 0;
-              const reason = isBanned ? (rows[0].reason || 'Security Lockout Active') : undefined;
+              const matchedRow = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+              const isBanned = Boolean(
+                matchedRow &&
+                (
+                  (matchedRow.ip_address && ip && matchedRow.ip_address === ip) ||
+                  (discordUserId && matchedRow.discord_user_id === discordUserId) ||
+                  (deviceId && matchedRow.discord_user_id === deviceId)
+                )
+              );
+              const reason = isBanned ? (matchedRow?.reason || 'Security Lockout Active') : undefined;
 
               // Cache result for 3 minutes
               setCachedBanStatus(cacheKeys, isBanned, reason);

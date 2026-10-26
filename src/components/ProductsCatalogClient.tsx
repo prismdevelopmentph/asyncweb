@@ -291,7 +291,11 @@ export default function ProductsCatalogClient({
 
                     {/* Bottom Media Bar */}
                     <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-zinc-300 backdrop-blur-xs">
-                      <span>{license.deliveryType}</span>
+                      <span>
+                        {typeof license.deliveryType === 'string' && license.deliveryType.trim().startsWith('{')
+                          ? (() => { try { return JSON.parse(license.deliveryType).deliveryLabel || 'Instant License'; } catch { return 'Instant License'; } })()
+                          : (license.deliveryType || 'Instant Cryptographic Key')}
+                      </span>
                       <span className="text-zinc-400">
                         {license.deliveryMode === 'stock_pool'
                           ? (license.isOutOfStock ? 'Out of stock' : `${license.stockCount} in stock`)
