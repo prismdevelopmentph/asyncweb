@@ -59,7 +59,8 @@ import {
   Percent,
   Eye,
   Tag,
-  ShoppingBag
+  ShoppingBag,
+  ArrowRight
 } from 'lucide-react';
 
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -179,6 +180,7 @@ export default function AdminPage() {
 
   // Order Detail Inspection Modal State
   const [selectedOrderForModal, setSelectedOrderForModal] = useState<any | null>(null);
+  const [showVolumeModal, setShowVolumeModal] = useState(false);
   const [rejectReasonInput, setRejectReasonInput] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
 
@@ -2212,7 +2214,18 @@ export default function AdminPage() {
             <div>
               <div className="flex items-center justify-between text-zinc-400 mb-2">
                 <span className="text-xs font-mono uppercase tracking-wider font-semibold">Total Captured Volume</span>
-                <Coins className="w-4 h-4 text-purple-400" />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowVolumeModal(true)}
+                    className="p-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 hover:text-white transition-all cursor-pointer shadow-sm flex items-center gap-1 px-2"
+                    title="Inspect Volume Financial Breakdown"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-[10px] font-mono font-bold">Inspect</span>
+                  </button>
+                  <Coins className="w-4 h-4 text-purple-400" />
+                </div>
               </div>
               <div className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight mt-1">
                 ₱{ordersList
@@ -7352,6 +7365,256 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ── MODAL 10: TOTAL CAPTURED VOLUME FINANCIAL BREAKDOWN ── */}
+      {showVolumeModal && (() => {
+        const deliveredOrders = ordersList.filter((o) => o.status === 'delivered');
+        const totalDeliveredVolume = deliveredOrders.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+
+        const productDelivered = deliveredOrders.filter((o) => !o.order_type || o.order_type === 'product_purchase');
+        const productVolume = productDelivered.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+
+        const dashboardTopupDelivered = deliveredOrders.filter((o) => o.order_type === 'balance_topup');
+        const dashboardTopupVolume = dashboardTopupDelivered.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+
+        const resellerTopupDelivered = deliveredOrders.filter((o) => o.order_type === 'reseller_topup');
+        const resellerTopupVolume = resellerTopupDelivered.reduce((sum, o) => sum + Number(o.amount || 0), 0);
+
+        // Group by provider
+        const providerMap: Record<string, { label: string; count: number; volume: number }> = {};
+        deliveredOrders.forEach((ord) => {
+          const key = ord.provider || 'other';
+          const label = ord.provider_label || ord.provider || 'Other';
+          if (!providerMap[key]) {
+            providerMap[key] = { label, count: 0, volume: 0 };
+          }
+          providerMap[key].count += 1;
+          providerMap[key].volume += Number(ord.amount || 0);
+        });
+
+        const providerBreakdown = Object.values(providerMap).sort((a, b) => b.volume - a.volume);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+            <div
+              className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl bg-zinc-950 border border-purple-500/30 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-zinc-800/80 bg-zinc-900/40 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                    <Coins className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white font-mono flex items-center gap-2">
+                      <span>Captured Volume Financial Breakdown</span>
+                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+                        Fulfilled
+                      </span>
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      Audited gross revenue aggregated across delivered store products, user top-ups & wholesale distributor pools.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowVolumeModal(false)}
+                  className="p-1.5 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body: Scrollable */}
+              <div className="p-6 space-y-6 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-800">
+                {/* Grand Total Hero Box */}
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-950/40 via-zinc-900/80 to-zinc-950 border border-purple-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <span className="text-xs font-mono uppercase text-zinc-400 font-semibold block">Total Delivered Revenue</span>
+                    <span className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight mt-1">
+                      ₱{totalDeliveredVolume.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="text-left sm:text-right font-mono text-xs">
+                    <span className="text-zinc-400 block">Total Transactions</span>
+                    <span className="text-lg font-bold text-purple-300 font-mono">
+                      {deliveredOrders.length} Completed
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3 Categories Breakdown */}
+                <div>
+                  <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold mb-3 flex items-center gap-1.5">
+                    <span>Revenue Allocation by Category</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    {/* Category 1: Products */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/70 border border-blue-500/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-blue-400 font-bold flex items-center gap-1">
+                          <span>🛒</span> Product Licenses
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                          {productDelivered.length} orders
+                        </span>
+                      </div>
+                      <div className="text-xl font-mono font-bold text-white">
+                        ₱{productVolume.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500">
+                        {totalDeliveredVolume > 0 ? ((productVolume / totalDeliveredVolume) * 100).toFixed(1) : 0}% of volume
+                      </div>
+                    </div>
+
+                    {/* Category 2: Dashboard Top-Ups */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/70 border border-emerald-500/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-emerald-400 font-bold flex items-center gap-1">
+                          <span>💳</span> Dashboard Top-Ups
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                          {dashboardTopupDelivered.length} orders
+                        </span>
+                      </div>
+                      <div className="text-xl font-mono font-bold text-white">
+                        ₱{dashboardTopupVolume.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500">
+                        {totalDeliveredVolume > 0 ? ((dashboardTopupVolume / totalDeliveredVolume) * 100).toFixed(1) : 0}% of volume
+                      </div>
+                    </div>
+
+                    {/* Category 3: Reseller Top-Ups */}
+                    <div className="p-4 rounded-2xl bg-zinc-900/70 border border-purple-500/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-purple-400 font-bold flex items-center gap-1">
+                          <span>👑</span> Reseller Top-Ups
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                          {resellerTopupDelivered.length} orders
+                        </span>
+                      </div>
+                      <div className="text-xl font-mono font-bold text-white">
+                        ₱{resellerTopupVolume.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500">
+                        {totalDeliveredVolume > 0 ? ((resellerTopupVolume / totalDeliveredVolume) * 100).toFixed(1) : 0}% of volume
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Gateway Distribution */}
+                <div>
+                  <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold mb-3 flex items-center gap-1.5">
+                    <span>Payment Gateway Distribution</span>
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {providerBreakdown.map((pb) => {
+                      const sharePct = totalDeliveredVolume > 0 ? ((pb.volume / totalDeliveredVolume) * 100).toFixed(1) : '0';
+                      return (
+                        <div key={pb.label} className="p-3.5 rounded-xl bg-zinc-900/50 border border-zinc-800 text-xs font-mono space-y-1">
+                          <div className="text-zinc-400 truncate font-semibold">{pb.label}</div>
+                          <div className="text-white font-bold text-sm">₱{pb.volume.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                          <div className="text-[10px] text-purple-400 flex justify-between items-center">
+                            <span>{sharePct}% share</span>
+                            <span className="text-zinc-500">({pb.count})</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Recent Delivered Ledger Table */}
+                <div>
+                  <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold mb-3 flex items-center justify-between">
+                    <span>Delivered Transactions Ledger ({deliveredOrders.length})</span>
+                    <span className="text-[11px] text-zinc-500 lowercase">showing latest entries</span>
+                  </h4>
+                  <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-950/60 max-h-64 overflow-y-auto">
+                    <table className="w-full text-left font-mono text-xs">
+                      <thead className="bg-zinc-900 text-zinc-400 text-[10px] uppercase sticky top-0 border-b border-zinc-800">
+                        <tr>
+                          <th className="py-2.5 px-3">Date</th>
+                          <th className="py-2.5 px-3">Buyer</th>
+                          <th className="py-2.5 px-3">Type</th>
+                          <th className="py-2.5 px-3">Gateway</th>
+                          <th className="py-2.5 px-3 text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-800/60 text-zinc-300">
+                        {deliveredOrders.slice(0, 25).map((ord) => {
+                          const isRes = ord.order_type === 'reseller_topup';
+                          const isDash = ord.order_type === 'balance_topup';
+                          return (
+                            <tr key={ord.id} className="hover:bg-zinc-900/50 transition-colors">
+                              <td className="py-2 px-3 text-[11px] text-zinc-500">
+                                {new Date(ord.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                              </td>
+                              <td className="py-2 px-3 truncate max-w-[140px] text-[11px]">
+                                {ord.email?.includes('@discord.asyncdevph.xyz') ? 'Discord User' : ord.email}
+                              </td>
+                              <td className="py-2 px-3">
+                                {isRes ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    Reseller
+                                  </span>
+                                ) : isDash ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    Top-Up
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                    Product
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-[11px] text-zinc-400">
+                                {ord.provider_label || ord.provider}
+                              </td>
+                              <td className="py-2 px-3 text-right font-bold text-white text-[11px]">
+                                ₱{Number(ord.amount || 0).toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Actions */}
+              <div className="p-4 border-t border-zinc-800 bg-zinc-900/60 flex items-center justify-between gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowVolumeModal(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono font-medium transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVolumeModal(false);
+                    setActiveTab('orders');
+                    setOrderFilter('delivered');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow-md shadow-purple-600/30 cursor-pointer"
+                >
+                  <span>Filter Delivered in Orders Tab</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <Footer />
     </div>
