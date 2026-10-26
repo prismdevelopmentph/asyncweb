@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
           const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-          // Fetch Admin Log channel (text column) and raw guild_config without JS float precision loss
-          const [adminLogRes, rawGuildRes] = await Promise.all([
+          // Fetch Admin Log channel, Public guild restock channel, and Dedicated service stock file channel
+          const [adminLogRes, rawGuildRes, dedicatedStockRes] = await Promise.all([
             supabaseAdmin.from('config').select('value').eq('key', 'log_restock_channel_id').limit(1).maybeSingle(),
             fetch(`${supabaseUrl}/rest/v1/guild_config?select=guild_id,restock_channel_id&restock_channel_id=not.is.null&limit=1`, {
               headers: {
@@ -128,9 +128,11 @@ export async function POST(request: NextRequest) {
                 'Authorization': `Bearer ${supabaseKey}`,
               },
             }),
+            supabaseAdmin.from('config').select('value').eq('key', `service_stock_channel_${svcData.id}`).limit(1).maybeSingle(),
           ]);
 
           const adminChannelId = adminLogRes.data?.value ? String(adminLogRes.data.value).trim() : null;
+          const dedicatedStockChannelId = dedicatedStockRes.data?.value ? String(dedicatedStockRes.data.value).trim() : null;
           let userChannelId: string | null = null;
 
           if (rawGuildRes.ok) {
@@ -218,6 +220,50 @@ export async function POST(request: NextRequest) {
                 })
                 .catch((err) => console.error('[Discord User Alert Error]:', err))
             );
+          }
+
+          // 5c. Dedicated Per-Service Stock .txt File Delivery
+          if (dedicatedStockChannelId) {
+            try {
+              const fileContent = uniqueLines.join('\n');
+              const fileBuffer = Buffer.from(fileContent, 'utf-8');
+              const safeSvcSlug = svcData.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+              const fileName = `${safeSvcSlug}_restock_${addedCount}x_${Date.now()}.txt`;
+
+              const serviceFormData = new FormData();
+              serviceFormData.append(
+                'payload_json',
+                JSON.stringify({
+                  content: `📁 **${svcData.name}** // Restock File Delivered (\`${addedCount}\` deduplicated accounts)\n• **Restocked by:** <@${ownerUserId}>\n• **Total in Database:** \`${newStockCount || 0}\``,
+                })
+              );
+              serviceFormData.append(
+                'files[0]',
+                new Blob([fileBuffer], { type: 'text/plain' }),
+                fileName
+              );
+
+              postPromises.push(
+                fetch(`https://discord.com/api/v10/channels/${dedicatedStockChannelId}/messages`, {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bot ${botToken}`,
+                  },
+                  body: serviceFormData,
+                })
+                  .then(async (r) => {
+                    if (r.ok) {
+                      console.log(`[Discord Dedicated Stock File] Dispatched file ${fileName} to channel ${dedicatedStockChannelId}`);
+                    } else {
+                      const errText = await r.text();
+                      console.error(`[Discord Dedicated Stock File] HTTP ${r.status} posting to channel ${dedicatedStockChannelId}:`, errText);
+                    }
+                  })
+                  .catch((err) => console.error('[Discord Dedicated Stock File Error]:', err))
+              );
+            } catch (filePrepErr) {
+              console.error('[Discord Dedicated Stock File Prep Error]:', filePrepErr);
+            }
           }
 
           if (postPromises.length > 0) {

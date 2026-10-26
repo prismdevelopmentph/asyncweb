@@ -323,6 +323,11 @@ export default function AdminPage() {
   const [clientGofileSaving, setClientGofileSaving] = useState(false);
   const [clientGofileMsg, setClientGofileMsg] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
+  // Dedicated Service Stock Channel States
+  const [serviceStockChannels, setServiceStockChannels] = useState<Record<string, string>>({});
+  const [savingServiceChannelId, setSavingServiceChannelId] = useState<string | null>(null);
+  const [serviceChannelMsg, setServiceChannelMsg] = useState<{ id: string; text: string; error?: boolean } | null>(null);
+
   // 1. Session & Auth Check
   useEffect(() => {
     const fetchSession = async () => {
@@ -432,6 +437,47 @@ export default function AdminPage() {
     }
   };
 
+  const fetchServiceStockChannels = async () => {
+    try {
+      const res = await adminFetch('/api/admin/services-channel');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.channels) {
+          setServiceStockChannels(data.channels);
+        }
+      }
+    } catch (err) {
+      console.warn('[Admin] Failed to fetch service channels:', err);
+    }
+  };
+
+  const handleSaveServiceStockChannel = async (serviceId: string | number) => {
+    const sId = String(serviceId);
+    const targetChannel = (serviceStockChannels[sId] || '').trim();
+    setSavingServiceChannelId(sId);
+    setServiceChannelMsg(null);
+    try {
+      const res = await adminFetch('/api/admin/services-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId: sId, channelId: targetChannel }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setServiceChannelMsg({ id: sId, text: targetChannel ? 'Channel linked!' : 'Channel unlinked' });
+        setTimeout(() => setServiceChannelMsg(null), 3000);
+      } else {
+        setServiceChannelMsg({ id: sId, text: data.error || 'Failed to save', error: true });
+        setTimeout(() => setServiceChannelMsg(null), 4000);
+      }
+    } catch (err: any) {
+      setServiceChannelMsg({ id: sId, text: err?.message || 'Error', error: true });
+      setTimeout(() => setServiceChannelMsg(null), 4000);
+    } finally {
+      setSavingServiceChannelId(null);
+    }
+  };
+
   const handleSaveClientDownload = async () => {
     if (!clientGofileInput.trim()) return;
     setClientGofileSaving(true);
@@ -476,12 +522,14 @@ export default function AdminPage() {
       fetchProducts();
       fetchOrders();
       fetchClientDownloadConfig();
+      fetchServiceStockChannels();
     }
   }, [user, isOwner]);
 
   useEffect(() => {
     if (activeTab === 'generator' && isOwner) {
       fetchClientDownloadConfig();
+      fetchServiceStockChannels();
     }
   }, [activeTab, isOwner]);
 
@@ -2469,6 +2517,44 @@ export default function AdminPage() {
                           }`}>
                             {inStock ? 'AVAILABLE' : 'OUT OF STOCK'}
                           </span>
+                        </div>
+
+                        {/* Dedicated Discord Stock File Channel */}
+                        <div className="mb-4 p-3 rounded-2xl bg-zinc-950/70 border border-zinc-800/80">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <MessageSquare className="w-3 h-3 text-purple-400" />
+                              <span>Stock .txt Channel ID</span>
+                            </span>
+                            {serviceChannelMsg?.id === String(svc.id) && (
+                              <span className={`text-[10px] font-mono font-bold ${serviceChannelMsg.error ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                {serviceChannelMsg.text}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              placeholder="Channel Snowflake ID"
+                              value={serviceStockChannels[String(svc.id)] ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setServiceStockChannels((prev) => ({ ...prev, [String(svc.id)]: val }));
+                              }}
+                              className="flex-1 px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-200 focus:outline-none focus:border-purple-500 placeholder:text-zinc-600"
+                            />
+                            <button
+                              disabled={savingServiceChannelId === String(svc.id)}
+                              onClick={() => handleSaveServiceStockChannel(svc.id)}
+                              className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-mono text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1"
+                            >
+                              {savingServiceChannelId === String(svc.id) ? (
+                                <RefreshCw className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <span>Save</span>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
