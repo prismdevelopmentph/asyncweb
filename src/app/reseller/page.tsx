@@ -433,15 +433,15 @@ export default function ResellerPortalPage() {
 
                 {/* Main Headline */}
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 text-white font-sans leading-[1.15]">
-                  Wholesale License <br className="hidden sm:inline" />
+                  License Reseller <br className="hidden sm:inline" />
                   <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-200 to-zinc-400">
-                    Distribution Hub
+                    Hub
                   </span>
                 </h1>
 
                 {/* Subtitle */}
                 <p className="max-w-xl text-zinc-400 text-sm sm:text-base mb-2 leading-relaxed font-normal">
-                  Access wholesale tier pricing, automated balance reloading, batch key generation, and real-time client license management. Dedicated distributor infrastructure built for volume partners.
+                  Access wholesale tier pricing, automated balance reloading, batch key generation, and real-time client license management through the ASYNC License Reseller Hub. Dedicated distribution infrastructure engineered for volume partners.
                 </p>
 
                 {/* Operational Modules Showcase */}
