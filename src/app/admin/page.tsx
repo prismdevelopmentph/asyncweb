@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -328,8 +328,34 @@ export default function AdminPage() {
   const [bundleDescription, setBundleDescription] = useState('');
   const [bundleSelectedServices, setBundleSelectedServices] = useState<number[]>([]);
 
-  const [actionMessage, setActionMessage] = useState('');
-  const [actionError, setActionError] = useState('');
+  // ── Unified Floating Admin Toast Notification System ──
+  interface AdminToast {
+    id: string;
+    type: 'success' | 'error' | 'info';
+    message: string;
+  }
+
+  const [toast, setToast] = useState<AdminToast | null>(null);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ id: String(Date.now()), type, message });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+    }, 4500);
+  }, []);
+
+  const setActionMessage = useCallback((msg: string) => {
+    if (msg) showToast(msg, 'success');
+    else setToast(null);
+  }, [showToast]);
+
+  const setActionError = useCallback((err: string) => {
+    if (err) showToast(err, 'error');
+    else setToast(null);
+  }, [showToast]);
+
   const [submitting, setSubmitting] = useState(false);
 
   // Client Download GoFile Configuration State
@@ -614,13 +640,14 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (data.ok) {
+        showToast('Order approved and fulfilled successfully.', 'success');
         fetchOrders();
         fetchAdminData(true);
       } else {
-        alert(data.error || 'Failed to approve order');
+        showToast(data.error || 'Failed to approve order', 'error');
       }
     } catch (e: any) {
-      alert(e?.message || 'Error approving order');
+      showToast(e?.message || 'Error approving order', 'error');
     } finally {
       setProcessingOrderId(null);
     }
@@ -637,12 +664,13 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (data.ok) {
+        showToast('Order cancelled.', 'info');
         fetchOrders();
       } else {
-        alert(data.error || 'Failed to cancel order');
+        showToast(data.error || 'Failed to cancel order', 'error');
       }
     } catch (e: any) {
-      alert(e?.message || 'Error cancelling order');
+      showToast(e?.message || 'Error cancelling order', 'error');
     } finally {
       setProcessingOrderId(null);
     }
@@ -660,12 +688,13 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (data.ok) {
+        showToast('Order rejected.', 'info');
         fetchOrders();
       } else {
-        alert(data.error || 'Failed to reject order');
+        showToast(data.error || 'Failed to reject order', 'error');
       }
     } catch (e: any) {
-      alert(e?.message || 'Error rejecting order');
+      showToast(e?.message || 'Error rejecting order', 'error');
     } finally {
       setProcessingOrderId(null);
     }
@@ -828,16 +857,17 @@ export default function AdminPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (data.ok) {
+        showToast('Reseller account enrolled successfully.', 'success');
         setResellerModalOpen(false);
         setResellerDiscordId('');
         setResellerCompanyName('');
         setResellerInitialCredit('0');
         fetchResellers();
       } else {
-        alert(data.error || 'Failed to create reseller');
+        showToast(data.error || 'Failed to create reseller', 'error');
       }
     } catch (err: any) {
-      alert(err?.message || 'Error creating reseller');
+      showToast(err?.message || 'Error creating reseller', 'error');
     }
   };
 
@@ -846,7 +876,7 @@ export default function AdminPage() {
     if (!selectedResellerForBalance) return;
     const amountNum = parseFloat(balanceAdjustAmount);
     if (isNaN(amountNum) || amountNum === 0) {
-      alert('Please enter a non-zero adjustment amount (e.g. +500 or -200).');
+      showToast('Please enter a non-zero adjustment amount (e.g. +500 or -200).', 'error');
       return;
     }
     try {
@@ -862,16 +892,17 @@ export default function AdminPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (data.ok) {
+        showToast('Reseller balance adjusted successfully.', 'success');
         setBalanceModalOpen(false);
         setSelectedResellerForBalance(null);
         setBalanceAdjustAmount('');
         setBalanceAdjustNote('');
         fetchResellers();
       } else {
-        alert(data.error || 'Failed to adjust balance');
+        showToast(data.error || 'Failed to adjust balance', 'error');
       }
     } catch (err: any) {
-      alert(err?.message || 'Error adjusting balance');
+      showToast(err?.message || 'Error adjusting balance', 'error');
     }
   };
 
@@ -890,12 +921,13 @@ export default function AdminPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (data.ok) {
+        showToast(`Reseller status updated to ${nextStatus.toUpperCase()}.`, 'success');
         fetchResellers();
       } else {
-        alert(data.error || 'Failed to update reseller status');
+        showToast(data.error || 'Failed to update reseller status', 'error');
       }
     } catch (err: any) {
-      alert(err?.message || 'Error toggling reseller status');
+      showToast(err?.message || 'Error toggling reseller status', 'error');
     }
   };
 
@@ -922,13 +954,13 @@ export default function AdminPage() {
 
       const data = await res.json().catch(() => ({}));
       if (data.ok) {
-        alert('Uniform wholesale pricing matrix saved successfully.');
+        showToast('Uniform wholesale pricing matrix saved successfully.', 'success');
         fetchResellers();
       } else {
-        alert(data.error || 'Failed to save wholesale pricing');
+        showToast(data.error || 'Failed to save wholesale pricing', 'error');
       }
     } catch (err: any) {
-      alert(err?.message || 'Error saving wholesale pricing');
+      showToast(err?.message || 'Error saving wholesale pricing', 'error');
     } finally {
       setSavingWholesalePricing(false);
     }
@@ -953,11 +985,12 @@ export default function AdminPage() {
         if (type === 'paymongo') setPayConfigPaymongoQrUrl(data.url);
         else if (type === 'gcash') setPayConfigGcashQrUrl(data.url);
         else setPayConfigMayaQrUrl(data.url);
+        showToast(`${type.toUpperCase()} QR code uploaded successfully.`, 'success');
       } else {
-        alert(data.error || 'Failed to upload QR');
+        showToast(data.error || 'Failed to upload QR', 'error');
       }
     } catch (e: any) {
-      alert(e?.message || 'Error uploading QR');
+      showToast(e?.message || 'Error uploading QR', 'error');
     } finally {
       if (type === 'paymongo') setUploadingPaymongoQr(false);
       else if (type === 'gcash') setUploadingGcashQr(false);
@@ -1022,13 +1055,14 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (data.ok) {
+        showToast('Payment settings saved successfully.', 'success');
         setPayConfigSavedSuccess(true);
         setTimeout(() => setPayConfigSavedSuccess(false), 3000);
       } else {
-        alert(data.error || 'Failed to save settings');
+        showToast(data.error || 'Failed to save settings', 'error');
       }
     } catch (e: any) {
-      alert(e?.message || 'Error saving settings');
+      showToast(e?.message || 'Error saving settings', 'error');
     } finally {
       setSavingPayConfig(false);
     }
@@ -1133,14 +1167,15 @@ export default function AdminPage() {
 
       const data = await res.json();
       if (!res.ok || !data.url) {
-        alert(data.error || 'Failed to upload image.');
+        showToast(data.error || 'Failed to upload image.', 'error');
         return;
       }
 
       setProdImageUrl(data.url);
+      showToast('Product cover image uploaded.', 'success');
     } catch (err: any) {
       console.error('[Admin] Image upload error:', err);
-      alert('Network error while uploading image.');
+      showToast('Network error while uploading image.', 'error');
     } finally {
       setUploadingImage(false);
     }
@@ -1149,7 +1184,7 @@ export default function AdminPage() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodTitle.trim()) {
-      alert('Please enter a product title.');
+      showToast('Please enter a product title.', 'error');
       return;
     }
 
@@ -1214,15 +1249,16 @@ export default function AdminPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || 'Failed to save product.');
+        showToast(data.error || 'Failed to save product.', 'error');
         return;
       }
 
+      showToast('Product saved successfully.', 'success');
       await fetchProducts();
       setShowProductModal(false);
     } catch (err) {
       console.error('[Admin] Error saving product:', err);
-      alert('Network error while saving product.');
+      showToast('Network error while saving product.', 'error');
     } finally {
       setSavingProduct(false);
     }
@@ -1258,10 +1294,11 @@ export default function AdminPage() {
         { method: 'DELETE' }
       );
       if (res.ok) {
+        showToast(`Product "${title}" deleted.`, 'info');
         setProductsList((prev) => prev.filter((p) => p.id !== productId));
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to delete product.');
+        showToast(data.error || 'Failed to delete product.', 'error');
       }
     } catch (err) {
       console.error('[Admin] Error deleting product:', err);
@@ -2261,24 +2298,44 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* ── NOTIFICATIONS ── */}
-        {actionMessage && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 text-emerald-300 text-sm flex items-center justify-between gap-3 shadow-lg">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
-              <span className="font-medium">{actionMessage}</span>
-            </div>
-            <button onClick={() => setActionMessage('')} className="text-emerald-400 hover:text-white text-xs">Dismiss</button>
-          </div>
-        )}
+        {/* ── UNIFIED FLOATING ADMIN TOAST NOTIFICATION ── */}
+        {toast && (
+          <div className="fixed top-6 right-6 z-[99999] max-w-md w-full pointer-events-auto transition-all duration-300">
+            <div
+              className={`p-4 rounded-2xl border backdrop-blur-xl shadow-2xl flex items-start justify-between gap-3 ${
+                toast.type === 'error'
+                  ? 'bg-rose-950/90 border-rose-500/40 text-rose-100 shadow-[0_10px_40px_rgba(244,63,94,0.25)]'
+                  : toast.type === 'info'
+                  ? 'bg-purple-950/90 border-purple-500/40 text-purple-100 shadow-[0_10px_40px_rgba(168,85,247,0.25)]'
+                  : 'bg-emerald-950/90 border-emerald-500/40 text-emerald-100 shadow-[0_10px_40px_rgba(16,185,129,0.25)]'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                {toast.type === 'error' ? (
+                  <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                ) : toast.type === 'info' ? (
+                  <AlertCircle className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                )}
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-mono uppercase font-bold tracking-wider opacity-70">
+                    {toast.type === 'error' ? 'Security & System Alert' : toast.type === 'info' ? 'Notification' : 'Action Confirmed'}
+                  </span>
+                  <span className="text-xs font-mono font-medium leading-relaxed break-words mt-0.5 select-text">
+                    {toast.message}
+                  </span>
+                </div>
+              </div>
 
-        {actionError && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-sm flex items-center justify-between gap-3 shadow-lg">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
-              <span className="font-medium">{actionError}</span>
+              <button
+                onClick={() => setToast(null)}
+                className="p-1 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-white transition-colors shrink-0 cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <button onClick={() => setActionError('')} className="text-rose-400 hover:text-white text-xs">Dismiss</button>
           </div>
         )}
 
@@ -6961,7 +7018,7 @@ export default function AdminPage() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(selectedOrderForModal.license_key);
-                        alert('License key copied to clipboard!');
+                        showToast('License key copied to clipboard!', 'success');
                       }}
                       className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] cursor-pointer"
                     >
