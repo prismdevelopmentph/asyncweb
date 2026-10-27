@@ -24,7 +24,8 @@ DECLARE
     v_account_data JSONB;
     v_account_raw TEXT;
     v_now TIMESTAMPTZ := NOW();
-    v_today DATE := CURRENT_DATE;
+    -- Synchronized to Philippine Standard Time (PHT, UTC+8) for 12:00 AM Midnight reset
+    v_today DATE := (NOW() AT TIME ZONE 'Asia/Manila')::DATE;
     v_lic RECORD;
     v_covers BOOLEAN;
     v_used_count INT;

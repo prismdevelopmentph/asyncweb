@@ -108,7 +108,8 @@ export async function GET(request: NextRequest) {
       if (!userId) return;
       try {
         const now = new Date();
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Synchronized with Philippine Standard Time (PHT, UTC+8) for 12:00 AM Midnight reset
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
         const [
           { data: lockData },

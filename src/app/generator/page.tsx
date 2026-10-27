@@ -1430,7 +1430,7 @@ export default function AccountGeneratorPage() {
                 <div className="font-medium">
                   Daily: <span className="text-white">{userPlan.dailyUsed}/{userPlan.dailyLimit}</span>
                 </div>
-                <div className="font-medium text-zinc-500">Resets at midnight</div>
+                <div className="font-medium text-zinc-500">Resets at 12AM PHT</div>
               </div>
             </section>
 

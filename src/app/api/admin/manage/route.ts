@@ -461,8 +461,8 @@ export async function POST(request: NextRequest) {
       }
 
       const nowIso = new Date().toISOString();
-
-      const todayStr = new Date().toISOString().split('T')[0];
+      // Synchronized with Philippine Standard Time (PHT, UTC+8) for 12:00 AM Midnight reset
+      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
       if (licenseId) {
         await supabaseAdmin
           .from('license_daily_usages')
