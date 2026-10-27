@@ -205,12 +205,26 @@ export async function GET(request: Request) {
     if (linkUserId) {
       const { data: linkUserData } = await supabaseAdmin.auth.admin.getUserById(linkUserId);
       if (linkUserData?.user) {
-        // Prevent collision: Discord ID must not already belong to a different registered account
+        // Handle collision vs. legacy Discord user migration
         if (targetUser && targetUser.id !== linkUserData.user.id) {
-          console.warn(`[Discord Callback] Discord ID ${discordUser.id} is already linked to account ${targetUser.id}`);
-          const errRes = NextResponse.redirect(`${protocol}://${host}/login?error=discord_already_linked`);
-          errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
-          return errRes;
+          const hasExistingUsername = targetUser.app_metadata?.username;
+          if (hasExistingUsername) {
+            // Real collision: This Discord ID was already bound to an active credentialed username
+            console.warn(`[Discord Callback] Discord ID ${discordUser.id} is already linked to username ${hasExistingUsername}`);
+            const errRes = NextResponse.redirect(`${protocol}://${host}/login?error=discord_already_linked`);
+            errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
+            return errRes;
+          }
+
+          // Legacy Account Migration:
+          // targetUser was an old passwordless Discord OAuth placeholder.
+          // Delete old placeholder so the new username/password account claims this Discord ID cleanly.
+          try {
+            console.log(`[Discord Callback Migration] Migrating legacy Discord OAuth user ${targetUser.id} to new account ${linkUserData.user.id}`);
+            await supabaseAdmin.auth.admin.deleteUser(targetUser.id);
+          } catch (delErr) {
+            console.warn('[Discord Callback Migration] Notice deleting legacy user:', delErr);
+          }
         }
         targetUser = linkUserData.user;
       }

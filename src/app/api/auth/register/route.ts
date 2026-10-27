@@ -46,6 +46,20 @@ export async function POST(request: NextRequest) {
 
       for (const u of pageData.users) {
         if (u.email && u.email.toLowerCase() === cleanEmail) {
+          // If this account was created but hasn't linked Discord yet, allow resuming registration
+          if (!u.app_metadata?.discord_id) {
+            await supabaseAdmin.auth.admin.updateUserById(u.id, {
+              password: password,
+              user_metadata: { ...u.user_metadata, username: cleanUsername },
+              app_metadata: { ...u.app_metadata, username: cleanUsername }
+            });
+            return NextResponse.json({
+              success: true,
+              userId: u.id,
+              redirectUrl: `/api/auth/discord/login?link_user_id=${u.id}`
+            });
+          }
+
           return NextResponse.json({
             error: 'This email is already registered. Please sign in or use another email.'
           }, { status: 409 });
@@ -53,6 +67,16 @@ export async function POST(request: NextRequest) {
 
         const existingUsername = (u.app_metadata?.username || u.user_metadata?.username || '').toLowerCase();
         if (existingUsername === cleanUsername) {
+          // If this username was reserved but has no Discord linked, check if it's the same unlinked user
+          if (!u.app_metadata?.discord_id && u.email?.toLowerCase() === cleanEmail) {
+            await supabaseAdmin.auth.admin.updateUserById(u.id, { password });
+            return NextResponse.json({
+              success: true,
+              userId: u.id,
+              redirectUrl: `/api/auth/discord/login?link_user_id=${u.id}`
+            });
+          }
+
           return NextResponse.json({
             error: 'This username is already taken. Please choose another username.'
           }, { status: 409 });

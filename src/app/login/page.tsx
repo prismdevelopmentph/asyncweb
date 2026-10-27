@@ -82,6 +82,13 @@ function LoginForm() {
       }
 
       if (data.session) {
+        const userDiscordId = data.session.user.app_metadata?.discord_id;
+        if (!userDiscordId) {
+          // Account registered but Discord identity not linked yet — finish 1-click link
+          window.location.href = `/api/auth/discord/login?link_user_id=${data.session.user.id}`;
+          return;
+        }
+
         const redirectTo = searchParams.get('redirect') || '/generator';
         router.push(redirectTo);
         router.refresh();
