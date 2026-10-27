@@ -262,13 +262,13 @@ export default function Navbar() {
               </button>
             </div>
           ) : !isSubdomain ? (
-            <button
-              onClick={handleDiscordLogin}
+            <Link
+              href="/login"
               className="nav-storefront-item flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-semibold text-xs sm:text-sm transition-colors shadow-sm"
             >
               <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>Login</span>
-            </button>
+            </Link>
           ) : null}
 
           {/* Mobile Hamburger Button (Only on apex domain) */}

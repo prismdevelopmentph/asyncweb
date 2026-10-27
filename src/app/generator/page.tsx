@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
@@ -588,10 +589,10 @@ export default function AccountGeneratorPage() {
     };
   }, [fetchStatus]);
 
-  // Discord OAuth Login Handler
+  // User Login Handler
   const handleDiscordLogin = () => {
     setAuthLoading(true);
-    window.location.href = '/api/auth/discord/login';
+    window.location.href = '/login?redirect=/generator';
   };
 
   const handleSubmitVouch = async (e: React.FormEvent) => {
@@ -904,17 +905,23 @@ export default function AccountGeneratorPage() {
                       Sign in to your account
                     </h2>
                     <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                      Authenticate with Discord to access your active generator keys, inventory queues, and account history.
+                      Sign in with your username or email to access your active generator keys, inventory queues, and account history.
                     </p>
 
-                    {/* Discord OAuth Login Button */}
                     <button
                       onClick={handleDiscordLogin}
-                      className="w-full py-3 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all duration-150 shadow-[0_0_20px_rgba(88,101,242,0.35)] hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] active:scale-[0.99] cursor-pointer"
+                      className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all duration-150 shadow-[0_0_20px_rgba(147,51,234,0.35)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] active:scale-[0.99] cursor-pointer font-mono"
                     >
-                      <DiscordIcon className="w-5 h-5 fill-current" />
-                      <span>Continue with Discord</span>
+                      <LogIn className="w-4 h-4" />
+                      <span>Sign In with Credentials</span>
                     </button>
+
+                    <p className="mt-3.5 text-center text-xs text-zinc-400">
+                      Don&apos;t have credentials?{' '}
+                      <Link href="/signup" className="text-purple-400 hover:text-purple-300 font-semibold transition-colors">
+                        Create an account
+                      </Link>
+                    </p>
 
                     {/* Security Notice */}
                     <div className="mt-6 pt-5 border-t border-zinc-800/80 space-y-2.5">

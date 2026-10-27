@@ -200,6 +200,22 @@ export async function GET(request: Request) {
       targetUser = fallbackEmailUser;
     }
 
+    // Handle explicit account linking from Username/Password registration
+    const linkUserId = parsedState?.link_user_id;
+    if (linkUserId) {
+      const { data: linkUserData } = await supabaseAdmin.auth.admin.getUserById(linkUserId);
+      if (linkUserData?.user) {
+        // Prevent collision: Discord ID must not already belong to a different registered account
+        if (targetUser && targetUser.id !== linkUserData.user.id) {
+          console.warn(`[Discord Callback] Discord ID ${discordUser.id} is already linked to account ${targetUser.id}`);
+          const errRes = NextResponse.redirect(`${protocol}://${host}/login?error=discord_already_linked`);
+          errRes.cookies.set('discord_oauth_nonce', '', { maxAge: 0, path: '/', domain: cookieDomain });
+          return errRes;
+        }
+        targetUser = linkUserData.user;
+      }
+    }
+
     if (!targetUser) {
       // Create new user record with verified app_metadata
       const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({

@@ -482,7 +482,7 @@ export default function CartCheckoutModal({
                       </span>
                     </div>
                     <div className="text-[10px] text-zinc-400">
-                      {discordId ? `Available: ₱${balancePHP.toLocaleString('en-PH')} PHP` : 'Requires Discord Login'}
+                      {discordId ? `Available: ₱${balancePHP.toLocaleString('en-PH')} PHP` : 'Requires Account Login'}
                     </div>
                   </div>
                 </div>

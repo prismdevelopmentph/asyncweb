@@ -9,11 +9,14 @@ export async function GET(request: Request) {
   const protocol = isLocal ? 'http' : 'https';
   const redirectUri = `${protocol}://${host}/api/auth/discord/callback`;
 
+  const { searchParams } = new URL(request.url);
+  const linkUserId = searchParams.get('link_user_id') || undefined;
+
   // Generate cryptographically random CSRF nonce
   const nonce = crypto.randomBytes(16).toString('hex');
 
-  // Preserve originating host through OAuth state parameter tied to nonce
-  const state = Buffer.from(JSON.stringify({ host, protocol, nonce })).toString('base64');
+  // Preserve originating host and optional link_user_id through OAuth state parameter tied to nonce
+  const state = Buffer.from(JSON.stringify({ host, protocol, nonce, link_user_id: linkUserId })).toString('base64');
 
   const params = new URLSearchParams({
     client_id: clientId,

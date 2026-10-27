@@ -1911,7 +1911,7 @@ export default function AdminPage() {
   // Security Gate: Non-owner access blocked
   if (!user || !isOwner) {
     const handleAdminDiscordLogin = () => {
-      window.location.href = '/api/auth/discord/login';
+      window.location.href = '/login?redirect=/admin';
     };
 
     return (
@@ -2069,7 +2069,7 @@ export default function AdminPage() {
                         <button
                           onClick={async () => {
                             await supabase.auth.signOut();
-                            window.location.href = '/api/auth/discord/login';
+                            window.location.href = '/login?redirect=/admin';
                           }}
                           className="w-full py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 hover:text-white font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                         >
