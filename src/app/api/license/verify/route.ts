@@ -62,7 +62,9 @@ export async function POST(request: Request) {
       valid: Boolean(license.is_active),
       tier: tierLabel,
       dailyLimit: license.daily_limit ?? 'Standard Limit',
-      expiresAt: license.expires_at ? new Date(license.expires_at).toLocaleDateString() : 'Lifetime Access',
+      expiresAt: license.expires_at
+        ? new Date(license.expires_at).toLocaleDateString()
+        : (license.redeemed_by ? 'Lifetime Access' : 'Starts upon activation'),
       createdAt: license.created_at ? new Date(license.created_at).toLocaleDateString() : 'N/A',
       isRedeemed: Boolean(license.redeemed_by),
       maskedOwner,

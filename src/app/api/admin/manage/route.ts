@@ -280,9 +280,11 @@ export async function POST(request: NextRequest) {
       }
 
       // 3. Expiry Calculation
+      // If targetUserId is set, license is bound immediately and countdown starts now.
+      // If targetUserId is not set (unredeemed raw key), expires_at remains null until manual activation.
       const durationDays = TIER_DURATIONS[normalizedTier];
       let expires_at: string | null = null;
-      if (durationDays) {
+      if (targetUserId && durationDays) {
         expires_at = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
       }
 

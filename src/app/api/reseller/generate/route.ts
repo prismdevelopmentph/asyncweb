@@ -121,11 +121,9 @@ export async function POST(request: NextRequest) {
     const newBalance = Number((currentBalance - totalCost).toFixed(2));
 
     // 4. Resolve scope & limits for key generation
-    const durationDays = cleanTierKey === 'lifetime' || cleanTierKey === 'flat' ? null : (TIER_DURATIONS[cleanTierKey] ?? 1);
-    let expiresAt: string | null = null;
-    if (durationDays !== null) {
-      expiresAt = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
-    }
+    // Duration countdown strictly begins upon manual redemption/activation.
+    // Unredeemed reseller stock is minted with expires_at: null and redeemed_by: null.
+    const expiresAt: string | null = null;
 
     let dailyLimit = 15;
     if (Array.isArray(product.tiers)) {
@@ -260,8 +258,9 @@ export async function POST(request: NextRequest) {
           tier: cleanTierKey,
           quota_mode: quotaMode,
           daily_limit: dailyLimit,
-          expires_at: expiresAt,
+          expires_at: null,
           redeemed_by: null,
+          redeemed_at: null,
           created_at: nowIso,
         })
         .select('id')

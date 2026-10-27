@@ -99,11 +99,9 @@ async function createLicenseForProduct(
   }
 
   const cleanTierKey = (tierKey || 'daily').toLowerCase();
-  const durationDays = cleanTierKey === 'lifetime' || cleanTierKey === 'flat' ? null : (TIER_DURATIONS[cleanTierKey] ?? 1);
-  let expiresAt: string | null = null;
-  if (durationDays !== null) {
-    expiresAt = new Date(Date.now() + durationDays * 24 * 3600 * 1000).toISOString();
-  }
+  // Duration countdown strictly begins upon manual redemption/activation.
+  // Unredeemed licenses are minted with expires_at: null and redeemed_by: null.
+  const expiresAt: string | null = null;
 
   let dailyLimit = 15;
   if (product && Array.isArray(product.tiers)) {
@@ -223,8 +221,9 @@ async function createLicenseForProduct(
       tier: cleanTierKey,
       quota_mode: quotaMode,
       daily_limit: dailyLimit,
-      expires_at: expiresAt,
-      redeemed_by: discordId || null,
+      expires_at: null,
+      redeemed_by: null,
+      redeemed_at: null,
       created_at: new Date().toISOString()
     })
     .select('id')
@@ -356,7 +355,7 @@ export async function fulfillProductOrder(orderId: string): Promise<FulfillmentR
         const lic = await createLicenseForProduct(
           item.productId,
           item.tierKey,
-          order.discord_id
+          null
         );
         deliveredVal = lic.licenseKey;
       }

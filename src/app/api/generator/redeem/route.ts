@@ -72,12 +72,27 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Calculate expiration starting strictly upon manual redemption
+    const TIER_DURATIONS: Record<string, number | null> = {
+      daily: 1,
+      weekly: 7,
+      monthly: 30,
+      lifetime: null,
+      flat: null,
+    };
+
+    const cleanTier = (license.tier || 'daily').toLowerCase();
+    const durationDays = cleanTier === 'lifetime' || cleanTier === 'flat' ? null : (TIER_DURATIONS[cleanTier] ?? 1);
+    const now = new Date();
+    const expiresAt = durationDays !== null ? new Date(now.getTime() + durationDays * 24 * 3600 * 1000).toISOString() : null;
+
     // 2. Atomically redeem license for caller (prevents concurrent race conditions)
     const { data: updatedLic, error: updateErr } = await supabaseAdmin
       .from('licenses')
       .update({
         redeemed_by: callerDiscordId,
-        redeemed_at: new Date().toISOString()
+        redeemed_at: now.toISOString(),
+        expires_at: expiresAt,
       })
       .eq('id', license.id)
       .is('redeemed_by', null)
@@ -96,10 +111,13 @@ export async function POST(request: NextRequest) {
     }
 
     const tierName = updatedLic.tier ? updatedLic.tier.toUpperCase() : 'STANDARD';
+    const expiryText = updatedLic.expires_at
+      ? `Valid until ${new Date(updatedLic.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      : 'Lifetime Access';
 
     return NextResponse.json({
       success: true,
-      message: `License activated successfully! ${tierName} access granted.`,
+      message: `License activated successfully! ${tierName} access granted (${expiryText}).`,
       license: updatedLic
     });
   } catch (error: any) {
