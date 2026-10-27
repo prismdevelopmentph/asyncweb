@@ -461,8 +461,13 @@ export async function POST(request: NextRequest) {
       }
 
       const nowIso = new Date().toISOString();
-      // Synchronized with Philippine Standard Time (PHT, UTC+8) for 12:00 AM Midnight reset
-      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      // Read current active reset date from config table
+      const { data: resetCfg } = await supabaseAdmin
+        .from('config')
+        .select('value')
+        .eq('key', 'last_reset_date')
+        .maybeSingle();
+      const todayStr = resetCfg?.value?.trim() || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
       if (licenseId) {
         await supabaseAdmin
           .from('license_daily_usages')

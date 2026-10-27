@@ -24,8 +24,8 @@ DECLARE
     v_account_data JSONB;
     v_account_raw TEXT;
     v_now TIMESTAMPTZ := NOW();
-    -- Synchronized to Philippine Standard Time (PHT, UTC+8) for 12:00 AM Midnight reset
     v_today DATE := (NOW() AT TIME ZONE 'Asia/Manila')::DATE;
+    v_reset_date_str TEXT;
     v_lic RECORD;
     v_covers BOOLEAN;
     v_used_count INT;
@@ -34,6 +34,15 @@ DECLARE
     v_candidate_maxed_out BOOLEAN := FALSE;
     v_candidate_max_limit INT := 0;
 BEGIN
+    -- Read master general reset date from config table
+    SELECT value INTO v_reset_date_str
+    FROM public.config
+    WHERE key = 'last_reset_date'
+    LIMIT 1;
+
+    IF v_reset_date_str IS NOT NULL AND v_reset_date_str ~ '^\d{4}-\d{2}-\d{2}$' THEN
+        v_today := v_reset_date_str::DATE;
+    END IF;
     SELECT id, name INTO v_service_id, v_service_name
     FROM public.services
     WHERE LOWER(name) = LOWER(TRIM(p_service_name))

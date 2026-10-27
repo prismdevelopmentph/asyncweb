@@ -108,8 +108,43 @@ export async function GET(request: NextRequest) {
       if (!userId) return;
       try {
         const now = new Date();
-        // Synchronized with Philippine Standard Time (PHT, UTC+8) for 12:00 AM Midnight reset
-        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+        const todayPht = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+
+        // Query master reset date from config table
+        const { data: resetCfg } = await supabaseAdmin
+          .from('config')
+          .select('value')
+          .eq('key', 'last_reset_date')
+          .maybeSingle();
+
+        let activeResetDate = resetCfg?.value?.trim() || todayPht;
+
+        // At or after 12:01 AM PHT: if a new calendar day started and last_reset_date is outdated, execute general reset
+        if (activeResetDate < todayPht) {
+          try {
+            await supabaseAdmin.from('config').upsert({
+              key: 'last_reset_date',
+              value: todayPht,
+              updated_at: new Date().toISOString()
+            });
+
+            await supabaseAdmin
+              .from('user_limits')
+              .update({ count: 0, updated_at: new Date().toISOString() })
+              .gte('count', 0);
+
+            await supabaseAdmin
+              .from('license_daily_usages')
+              .delete()
+              .lt('usage_date', todayPht);
+
+            activeResetDate = todayPht;
+          } catch (resetErr) {
+            console.warn('[Generator Status] Auto-reset sync exception:', resetErr);
+          }
+        }
+
+        const todayStr = activeResetDate;
 
         const [
           { data: lockData },
