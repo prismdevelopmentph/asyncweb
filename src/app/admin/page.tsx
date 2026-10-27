@@ -2041,17 +2041,17 @@ export default function AdminPage() {
                       Sign in to your account
                     </h2>
                     <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                      Authenticate with an authorized Discord Owner account to access core operations and generator administration.
+                      Authenticate with your Owner account to access core operations and generator administration.
                     </p>
 
                     {!user ? (
-                      /* Continue with Discord Button */
+                      /* Sign In with Credentials Button */
                       <button
                         onClick={handleAdminDiscordLogin}
-                        className="w-full py-3 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all duration-150 shadow-[0_0_20px_rgba(88,101,242,0.35)] hover:shadow-[0_0_25px_rgba(88,101,242,0.5)] active:scale-[0.99] cursor-pointer"
+                        className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all duration-150 shadow-[0_0_20px_rgba(147,51,234,0.35)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] active:scale-[0.99] cursor-pointer font-mono"
                       >
-                        <DiscordIcon className="w-5 h-5 fill-current" />
-                        <span>Continue with Discord</span>
+                        <LogIn className="w-4 h-4" />
+                        <span>Sign In with Credentials</span>
                       </button>
                     ) : (
                       /* Unauthorized Session Display + Switch Account */
