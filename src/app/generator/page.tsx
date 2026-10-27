@@ -27,6 +27,26 @@ import {
   MessageSquare
 } from 'lucide-react';
 
+// --- Redeem Key Configuration ---
+const REDEEM_BASE_URL = (process.env.NEXT_PUBLIC_REDEEM_TARGET_URL || 'https://netflix.com').replace(/\/+$/, '');
+
+function parseAndSortTokens(rawToken: unknown): string[] {
+  let list: string[] = [];
+  if (Array.isArray(rawToken)) {
+    list = rawToken.map((t) => String(t).trim()).filter(Boolean);
+  } else if (typeof rawToken === 'string') {
+    list = rawToken.split(/[\r\n]+/).map((t) => t.trim()).filter(Boolean);
+  }
+  return list.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function getDeviceUrl(token: string, device: 'pc' | 'phone' | 'tv'): string {
+  const enc = encodeURIComponent(token);
+  if (device === 'phone') return `${REDEEM_BASE_URL}/unsupported?nftoken=${enc}`;
+  if (device === 'tv') return `${REDEEM_BASE_URL}/tv2?nftoken=${enc}`;
+  return `${REDEEM_BASE_URL}/?nftoken=${enc}`;
+}
+
 // --- Official Brand Icon Components (SimpleIcons Vectors) ---
 const SteamIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -272,6 +292,83 @@ export default function AccountGeneratorPage() {
   const [totpSecret, setTotpSecret] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [totpSecondsLeft, setTotpSecondsLeft] = useState(30);
+
+  // Redeem Key States
+  const [redeemKeyInput, setRedeemKeyInput] = useState('');
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+  const [redeemSuccessData, setRedeemSuccessData] = useState<{
+    email_pass?: string;
+    key_code?: string;
+    expires_in?: string;
+    tokens: string[];
+  } | null>(null);
+  const [activeDevice, setActiveDevice] = useState<'pc' | 'phone' | 'tv'>('pc');
+
+  const handleRedeemKey = async () => {
+    const key = redeemKeyInput.trim().toUpperCase();
+    if (!key) return;
+
+    setRedeemLoading(true);
+    setRedeemError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setRedeemError('Please log in with Discord first.');
+        setRedeemLoading(false);
+        return;
+      }
+
+      const res = await fetch('/api/verify-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ key })
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setRedeemError('Session expired. Please log in again.');
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setRedeemError(errData.error || errData.message || 'Connection failed.');
+        }
+        setRedeemLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+      const isSuccess = data.success === true || String(data.success).toLowerCase() === 'true';
+
+      if (isSuccess && data.token) {
+        const sorted = parseAndSortTokens(data.token);
+        setRedeemSuccessData({
+          email_pass: data.email_pass,
+          key_code: data.key_code,
+          expires_in: data.expires_in,
+          tokens: sorted
+        });
+        setRedeemError(null);
+      } else {
+        setRedeemError(data.error || data.message || 'Invalid activation key.');
+      }
+    } catch {
+      setRedeemError('Connection failed.');
+    } finally {
+      setRedeemLoading(false);
+    }
+  };
+
+  const handleResetRedeem = () => {
+    setRedeemKeyInput('');
+    setRedeemSuccessData(null);
+    setRedeemError(null);
+    setActiveDevice('pc');
+  };
 
   // Browser Tab Title
   useEffect(() => {
@@ -1121,6 +1218,211 @@ export default function AccountGeneratorPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Redeem Key Card */}
+              <div className="mt-5 p-3 sm:p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 flex flex-col gap-3 shadow-inner">
+                {!redeemSuccessData ? (
+                  <>
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                      {/* Left: Title & Icon */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                          <Key className="w-4 h-4" />
+                        </div>
+                        <div className="text-xs font-bold text-white tracking-wide">
+                          Redeem Key
+                        </div>
+                      </div>
+
+                      {/* Middle: Input Box */}
+                      <div className="relative flex-1 max-w-xl">
+                        <input
+                          type="text"
+                          value={redeemKeyInput}
+                          onChange={(e) => setRedeemKeyInput(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleRedeemKey();
+                            }
+                          }}
+                          placeholder="KEY-XXXX-XXXX-XXXX"
+                          className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs font-mono text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-rose-500/50 transition-colors uppercase select-all"
+                          spellCheck={false}
+                          autoComplete="off"
+                          disabled={redeemLoading}
+                        />
+                        {redeemKeyInput && !redeemLoading && (
+                          <button
+                            type="button"
+                            onClick={() => setRedeemKeyInput('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                            title="Clear input"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Right: Submit Button */}
+                      <div className="flex items-center gap-2 shrink-0 justify-end">
+                        <button
+                          type="button"
+                          onClick={handleRedeemKey}
+                          disabled={redeemLoading || !redeemKeyInput.trim()}
+                          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:bg-zinc-900 disabled:text-zinc-600 border border-rose-500/30 disabled:border-zinc-800 text-xs text-white font-mono font-medium transition-colors shadow-sm disabled:cursor-not-allowed"
+                        >
+                          {redeemLoading ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Checking...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Key className="w-3.5 h-3.5" />
+                              <span>Redeem Key</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Inline Error Box */}
+                    {redeemError && (
+                      <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-center font-mono">
+                        <div className="text-xs font-bold text-rose-400 mb-0.5">Invalid KEY</div>
+                        <div className="text-[11px] text-zinc-300">{redeemError}</div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Success Header */}
+                    <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                          <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                        <div className="text-xs font-bold text-emerald-400 tracking-wide font-mono">
+                          Key Redeemed Successfully
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleResetRedeem}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/80 text-zinc-300 hover:text-white text-xs font-mono font-medium transition-colors"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Redeem another key</span>
+                      </button>
+                    </div>
+
+                    {/* Account Details Box */}
+                    <div className="w-full bg-zinc-950/80 border border-zinc-800 rounded-lg p-3 font-mono text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Account Credentials</div>
+                          <div className="text-zinc-200 text-xs font-mono break-all mt-0.5 select-all font-semibold">
+                            {redeemSuccessData.email_pass || 'N/A'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Your KEY</div>
+                          <div className="text-zinc-400 text-xs font-mono break-all mt-0.5 select-all">
+                            {redeemSuccessData.key_code || '—'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Device Selector */}
+                    <div className="grid grid-cols-3 gap-2 w-full">
+                      <button
+                        type="button"
+                        onClick={() => setActiveDevice('pc')}
+                        className={`py-2 px-3 rounded-lg border text-xs font-mono font-medium transition-colors text-center ${
+                          activeDevice === 'pc'
+                            ? 'bg-rose-500/10 border-rose-500/60 text-white font-bold'
+                            : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        }`}
+                      >
+                        Desktop
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveDevice('phone')}
+                        className={`py-2 px-3 rounded-lg border text-xs font-mono font-medium transition-colors text-center ${
+                          activeDevice === 'phone'
+                            ? 'bg-rose-500/10 border-rose-500/60 text-white font-bold'
+                            : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        }`}
+                      >
+                        Mobile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveDevice('tv')}
+                        className={`py-2 px-3 rounded-lg border text-xs font-mono font-medium transition-colors text-center ${
+                          activeDevice === 'tv'
+                            ? 'bg-rose-500/10 border-rose-500/60 text-white font-bold'
+                            : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        }`}
+                      >
+                        Smart TV
+                      </button>
+                    </div>
+
+                    {/* Token Nodes */}
+                    <div className="flex flex-col gap-2.5 w-full">
+                      {redeemSuccessData.tokens.map((token, idx) => {
+                        const url = getDeviceUrl(token, activeDevice);
+                        const tokenPreview = token.length > 16 ? `${token.substring(0, 16)}...` : token;
+                        return (
+                          <div key={idx} className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 font-mono flex flex-col gap-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-rose-500 tracking-wider text-[11px]">
+                                SESSION NODE {idx + 1}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 select-all">
+                                {tokenPreview}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-emerald-400 bg-zinc-900/80 border border-zinc-800/80 rounded px-2.5 py-1.5 break-all select-all font-mono">
+                              {url}
+                            </div>
+                            <div className="flex items-center gap-2 pt-0.5">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-1.5 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                              >
+                                Open
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyText(url, 'Link copied to clipboard!')}
+                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 hover:text-white text-xs font-medium transition-colors"
+                              >
+                                Copy Link
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Status Footer */}
+                    <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono w-full pt-1 border-t border-zinc-800/60">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>Valid until:</span>
+                        <span className="text-zinc-300 font-medium">{redeemSuccessData.expires_in || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Generator Panel Footer */}
