@@ -124,7 +124,7 @@ export default function SignUpPage() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                    placeholder="e.g. maik_dev"
+                    placeholder="e.g. username"
                     maxLength={20}
                     disabled={loading}
                     autoFocus
