@@ -2300,7 +2300,7 @@ export default function AdminPage() {
 
         {/* ── UNIFIED FLOATING ADMIN TOAST NOTIFICATION ── */}
         {toast && (
-          <div className="fixed top-6 right-6 z-[99999] max-w-md w-full pointer-events-auto transition-all duration-300">
+          <div className="fixed bottom-6 left-6 z-[99999] max-w-md w-[calc(100vw-3rem)] sm:w-full pointer-events-auto transition-all duration-300">
             <div
               className={`p-4 rounded-2xl border backdrop-blur-xl shadow-2xl flex items-start justify-between gap-3 ${
                 toast.type === 'error'
