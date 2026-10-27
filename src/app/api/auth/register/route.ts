@@ -46,7 +46,24 @@ export async function POST(request: NextRequest) {
 
       for (const u of pageData.users) {
         if (u.email && u.email.toLowerCase() === cleanEmail) {
-          // If this account was created but hasn't linked Discord yet, allow resuming registration
+          const hasUsername = u.app_metadata?.username || u.user_metadata?.username;
+
+          // Case 1: Legacy Discord OAuth user upgrading to Username/Password credentials
+          // The account was created in the past by Discord OAuth and has no username/password yet
+          if (!hasUsername) {
+            await supabaseAdmin.auth.admin.updateUserById(u.id, {
+              password: password,
+              user_metadata: { ...u.user_metadata, username: cleanUsername, display_name: username.trim() },
+              app_metadata: { ...u.app_metadata, username: cleanUsername }
+            });
+            return NextResponse.json({
+              success: true,
+              userId: u.id,
+              redirectUrl: `/api/auth/discord/login?link_user_id=${u.id}`
+            });
+          }
+
+          // Case 2: Resume unfinished registration (Discord identity not yet linked)
           if (!u.app_metadata?.discord_id) {
             await supabaseAdmin.auth.admin.updateUserById(u.id, {
               password: password,
@@ -61,7 +78,7 @@ export async function POST(request: NextRequest) {
           }
 
           return NextResponse.json({
-            error: 'This email is already registered. Please sign in or use another email.'
+            error: 'This email is already registered. Please sign in with your credentials or use another email.'
           }, { status: 409 });
         }
 
