@@ -607,9 +607,20 @@ export default function AccountGeneratorPage() {
     setVouchError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setVouchError('Session expired. Please sign in again.');
+        setIsSubmittingVouch(false);
+        return;
+      }
+
       const res = await fetch('/api/reviews', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           userId: discordUserId,
           licenseId: userPlan.licenseId,
