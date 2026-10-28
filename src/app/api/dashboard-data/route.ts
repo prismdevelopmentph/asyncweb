@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
         discordUsersRes,
         authUsersRes,
         licenseServicesRes,
-        packageServicesRes
+        packageServicesRes,
+        visitorLogsRes
       ] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
@@ -85,6 +86,7 @@ export async function GET(request: NextRequest) {
         supabaseAdmin.auth.admin.listUsers({ perPage: 1000 }).catch(() => ({ data: { users: [] }, error: null })),
         supabaseAdmin.from('license_services').select('license_id, service_id, services(name)'),
         supabaseAdmin.from('package_services').select('package_id, service_id, services(name)'),
+        Promise.resolve(supabaseAdmin.from('visitor_logs').select('*').order('visited_at', { ascending: false }).limit(100)).catch(() => ({ data: [], error: null })),
       ]);
 
       const limitsMap = new Map();
@@ -224,7 +226,7 @@ export async function GET(request: NextRequest) {
       );
 
       const stockMap = new Map<string, number>();
-      stockCounts.forEach((sc) => stockMap.set(String(sc.id), sc.count));
+      stockCounts.forEach((sc: any) => stockMap.set(String(sc.id), sc.count));
 
       const enrichedServices = (servicesRes.data || []).map((svc: any) => ({
         ...svc,
@@ -240,6 +242,7 @@ export async function GET(request: NextRequest) {
         licenses: apiLicensesRes.data || [],
         claimLogs: claimLogsRes.data || [],
         downloadLogs: downloadLogsRes.data || [],
+        visitorLogs: visitorLogsRes?.data || [],
         userProfiles,
       });
     }

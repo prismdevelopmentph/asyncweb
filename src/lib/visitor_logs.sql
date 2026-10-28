@@ -18,3 +18,4 @@ CREATE INDEX IF NOT EXISTS idx_visitor_logs_ip ON public.visitor_logs (ip_addres
 CREATE INDEX IF NOT EXISTS idx_visitor_logs_device ON public.visitor_logs (device_id);
 CREATE INDEX IF NOT EXISTS idx_visitor_logs_discord ON public.visitor_logs (discord_id);
 CREATE INDEX IF NOT EXISTS idx_visitor_logs_time ON public.visitor_logs (visited_at DESC);
+

@@ -2102,6 +2102,7 @@ export default function AdminPage() {
   }
 
   const securityLockouts = adminData?.securityLockouts || [];
+  const visitorLogs = adminData?.visitorLogs || [];
   const generatorLicenses = adminData?.generatorLicenses || [];
   const services = adminData?.services || [];
   const packages = adminData?.packages || [];
@@ -2125,6 +2126,13 @@ export default function AdminPage() {
     (l.ip_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (l.reason || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     matchDiscordUser(l.discord_user_id, searchQuery.toLowerCase())
+  );
+
+  const filteredVisitorLogs = visitorLogs.filter((v: any) =>
+    (v.ip_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.path || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.device_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(v.discord_id, searchQuery.toLowerCase())
   );
 
   const filteredGenLicenses = generatorLicenses.filter((lic: any) =>
@@ -2808,6 +2816,71 @@ export default function AdminPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* ── LIVE RECENT VISITORS SUB-SECTION ── */}
+            <div className="border-t border-zinc-800/80">
+              <div className="p-5 border-b border-zinc-800/80 bg-zinc-950/60 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 font-mono text-xs text-purple-300 font-semibold">
+                  <Activity className="w-4 h-4 text-purple-400" />
+                  <span>LIVE RECENT VISITORS ({filteredVisitorLogs.length})</span>
+                </div>
+                <span className="text-xs text-zinc-500 font-mono">Silent IP & Device Telemetry</span>
+              </div>
+
+              <div className="overflow-x-auto min-h-[320px] max-h-[380px] overflow-y-auto custom-scrollbar">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead className="sticky top-0 z-10 bg-zinc-950 shadow-sm">
+                    <tr className="border-b border-zinc-800/80 bg-zinc-950 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+                      <th className="py-3.5 px-6">Visitor IP</th>
+                      <th className="py-3.5 px-6">User / Account</th>
+                      <th className="py-3.5 px-6">Device Token</th>
+                      <th className="py-3.5 px-6">Page Visited</th>
+                      <th className="py-3.5 px-6 text-right">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/50 font-mono">
+                    {dataLoading ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-zinc-400">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
+                          <span>Loading visitor logs...</span>
+                        </td>
+                      </tr>
+                    ) : filteredVisitorLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-12 text-center text-zinc-500 font-sans">
+                          No visitor traffic recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredVisitorLogs.map((log: any) => (
+                        <tr key={log.id} className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="py-3.5 px-6 font-mono font-semibold text-zinc-200 select-all">
+                            {log.ip_address}
+                          </td>
+                          <td className="py-3.5 px-6">
+                            {log.discord_id ? (
+                              <DiscordUserBadge userId={log.discord_id} userProfiles={userProfiles} onCopy={(t) => showToast('Copied User ID', 'info')} />
+                            ) : (
+                              <span className="text-zinc-500 text-[11px]">Guest Visitor</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-6 text-zinc-400 select-all truncate max-w-[140px] text-[11px]">
+                            {log.device_id || '—'}
+                          </td>
+                          <td className="py-3.5 px-6 text-purple-300 font-mono text-[11px]">
+                            {log.path || '/'}
+                          </td>
+                          <td className="py-3.5 px-6 text-right text-zinc-400 text-[11px] whitespace-nowrap">
+                            {log.visited_at ? new Date(log.visited_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         )}
