@@ -46,6 +46,7 @@ export async function POST(request: Request) {
     const {
       path = '/',
       deviceId = null,
+      deviceInfo = null,
     } = body;
 
     // Resolve IP address
@@ -55,20 +56,32 @@ export async function POST(request: Request) {
     const token = extractBearerToken(request);
     const verifiedDiscordId = await getVerifiedDiscordIdFromToken(token);
 
-    const userAgent = (request.headers.get('user-agent') || '').slice(0, 255);
     const cleanDeviceId = typeof deviceId === 'string' ? deviceId.trim().slice(0, 64) : null;
     const cleanPath = typeof path === 'string' ? path.trim().slice(0, 128) : '/';
 
+    const insertPayload: any = {
+      ip_address: ip,
+      device_id: cleanDeviceId,
+      discord_id: verifiedDiscordId || null,
+      path: cleanPath,
+      visited_at: new Date().toISOString()
+    };
+
+    if (deviceInfo && typeof deviceInfo === 'object') {
+      insertPayload.device_info = deviceInfo;
+    }
+
     // Insert visit log into Supabase asynchronously
-    const { error } = await supabaseAdmin
+    let { error } = await supabaseAdmin
       .from('visitor_logs')
-      .insert({
-        ip_address: ip,
-        device_id: cleanDeviceId,
-        discord_id: verifiedDiscordId || null,
-        path: cleanPath,
-        visited_at: new Date().toISOString()
-      });
+      .insert(insertPayload);
+
+    // Schema resilience: if device_info column does not exist yet, retry without it
+    if (error && error.message?.toLowerCase().includes('device_info')) {
+      delete insertPayload.device_info;
+      const retry = await supabaseAdmin.from('visitor_logs').insert(insertPayload);
+      error = retry.error;
+    }
 
     if (error) {
       console.warn('[Visitor Logger] Insert warning:', error.message);

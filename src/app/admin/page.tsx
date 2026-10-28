@@ -2133,6 +2133,9 @@ export default function AdminPage() {
     (v.ip_address || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (v.path || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (v.device_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.device_info?.os || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.device_info?.browser || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (v.device_info?.gpu || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     matchDiscordUser(v.discord_id, searchQuery.toLowerCase())
   );
 
@@ -5559,7 +5562,8 @@ export default function AdminPage() {
                       <tr className="border-b border-zinc-800/80 bg-zinc-950 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                         <th className="py-4 px-6">Visitor IP</th>
                         <th className="py-4 px-6">User / Account</th>
-                        <th className="py-4 px-6">Device Identifier</th>
+                        <th className="py-4 px-6">Hardware Identifier</th>
+                        <th className="py-4 px-6">Device Specs</th>
                         <th className="py-4 px-6">Page Visited</th>
                         <th className="py-4 px-6 text-right">Timestamp</th>
                       </tr>
@@ -5567,7 +5571,7 @@ export default function AdminPage() {
                     <tbody className="divide-y divide-zinc-800/50 font-mono">
                       {filteredVisitorLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-16 text-center text-zinc-500 font-sans">
+                          <td colSpan={6} className="py-16 text-center text-zinc-500 font-sans">
                             No visitor logs recorded yet.
                           </td>
                         </tr>
@@ -5594,6 +5598,27 @@ export default function AdminPage() {
                                 </span>
                               ) : (
                                 <span className="text-zinc-500">—</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6">
+                              {v.device_info ? (
+                                <div className="flex flex-col gap-1 text-[11px]">
+                                  <div className="flex items-center gap-1.5 text-zinc-200 font-medium">
+                                    <span>{v.device_info.os || 'OS'}</span>
+                                    <span className="text-zinc-600">•</span>
+                                    <span className="text-zinc-400">{v.device_info.browser || 'Browser'}</span>
+                                  </div>
+                                  <div
+                                    className="text-[10px] text-zinc-400 font-mono flex items-center gap-1.5 truncate max-w-[240px]"
+                                    title={`${v.device_info.gpu || ''} | ${v.device_info.cores ? v.device_info.cores + ' Cores' : ''} | ${v.device_info.memory || ''} | ${v.device_info.screen || ''} | ${v.device_info.timezone || ''}`}
+                                  >
+                                    <span className="text-purple-400 truncate max-w-[130px]">{v.device_info.gpu || 'GPU'}</span>
+                                    {v.device_info.cores && <span className="text-zinc-500">{v.device_info.cores}C</span>}
+                                    {v.device_info.memory && <span className="text-zinc-500">{v.device_info.memory}</span>}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-zinc-600 text-[11px] font-mono">—</span>
                               )}
                             </td>
                             <td className="py-4 px-6">

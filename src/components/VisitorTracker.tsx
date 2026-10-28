@@ -40,6 +40,53 @@ function getCanvasSignature(): string {
   }
 }
 
+function getDeviceInfo() {
+  if (typeof window === 'undefined') return null;
+
+  const ua = navigator.userAgent;
+  let os = 'Unknown OS';
+  if (/Windows NT 10.0/i.test(ua)) os = 'Windows 10/11';
+  else if (/Windows NT 6.3/i.test(ua)) os = 'Windows 8.1';
+  else if (/Windows NT 6.1/i.test(ua)) os = 'Windows 7';
+  else if (/Macintosh|Mac OS X/i.test(ua)) os = 'macOS';
+  else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+  else if (/Android/i.test(ua)) os = 'Android';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+
+  let browser = 'Unknown Browser';
+  if (/Edg\//i.test(ua)) browser = 'Edge';
+  else if (/Chrome\//i.test(ua)) browser = 'Chrome';
+  else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+  else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
+  else if (/Opera|OPR\//i.test(ua)) browser = 'Opera';
+
+  let gpu = 'Integrated / Standard';
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+    if (gl) {
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) {
+        const raw = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+        if (raw) {
+          const match = raw.match(/ANGLE \([^,]+,\s*([^,]+)/i);
+          gpu = match && match[1] ? match[1].trim() : raw.split(',')[0].trim();
+        }
+      }
+    }
+  } catch {}
+
+  return {
+    os,
+    browser,
+    gpu,
+    cores: navigator.hardwareConcurrency || null,
+    memory: (navigator as any).deviceMemory ? `${(navigator as any).deviceMemory} GB` : null,
+    screen: `${window.screen.width}x${window.screen.height}`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  };
+}
+
 async function computeHardwareId(): Promise<string> {
   if (typeof window === 'undefined') return 'hw_server';
 
@@ -109,6 +156,7 @@ export default function VisitorTracker() {
     const logVisit = async () => {
       try {
         const deviceId = await computeHardwareId();
+        const deviceInfo = getDeviceInfo();
         let sessionToken: string | null = null;
 
         try {
@@ -127,6 +175,7 @@ export default function VisitorTracker() {
           body: JSON.stringify({
             path: pathname || '/',
             deviceId,
+            deviceInfo,
           }),
           keepalive: true,
         }).catch(() => {});
