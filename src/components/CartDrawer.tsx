@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import {
   X,
   ShoppingBag,
@@ -21,6 +22,7 @@ import CartCheckoutModal from '@/components/CartCheckoutModal';
 import { supabase } from '@/lib/supabase';
 
 export default function CartDrawer() {
+  const pathname = usePathname();
   const {
     items,
     isOpen,
@@ -34,6 +36,22 @@ export default function CartDrawer() {
     totalUSD,
     isHydrated
   } = useCart();
+
+  // Strict storefront routing guard: restrict Cart pull tab & drawer exclusively to the storefront
+  const isStorefront = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const host = window.location.host.toLowerCase();
+      if (host.startsWith('gen.') || host.startsWith('admin.') || host.startsWith('reseller.')) {
+        return false;
+      }
+    }
+    if (!pathname) return false;
+    return (
+      pathname === '/' ||
+      pathname.startsWith('/products') ||
+      pathname.startsWith('/order')
+    );
+  }, [pathname]);
 
   const [currency, setCurrency] = useState<'PHP' | 'USD'>('PHP');
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -109,7 +127,7 @@ export default function CartDrawer() {
     };
   }, [isOpen, closeCart]);
 
-  if (!isHydrated) return null;
+  if (!isHydrated || !isStorefront) return null;
 
   const formatPrice = (usd: number, php: number) => {
     if (currency === 'USD') return `$${Number(usd).toFixed(2)}`;
