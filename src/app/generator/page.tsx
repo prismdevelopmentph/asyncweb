@@ -808,7 +808,7 @@ export default function AccountGeneratorPage() {
           <div className="py-28 flex flex-col items-center justify-center text-center">
             <div className="w-9 h-9 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mb-4" />
             <span className="text-xs font-mono text-zinc-400 tracking-wider">
-              Verifying credentials...
+              Checking your account...
             </span>
           </div>
         ) : !user ? (
@@ -908,7 +908,7 @@ export default function AccountGeneratorPage() {
                       </div>
                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px] font-mono">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        OAuth Gateway
+                        Account Sign In
                       </div>
                     </div>
 
@@ -916,7 +916,7 @@ export default function AccountGeneratorPage() {
                       Sign in to your account
                     </h2>
                     <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                      Sign in with your username or email to access your active generator keys, inventory queues, and account history.
+                      Sign in with your username or email to access your account generator, license status, and history.
                     </p>
 
                     <button
@@ -924,11 +924,11 @@ export default function AccountGeneratorPage() {
                       className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all duration-150 shadow-[0_0_20px_rgba(147,51,234,0.35)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5)] active:scale-[0.99] cursor-pointer font-mono"
                     >
                       <LogIn className="w-4 h-4" />
-                      <span>Sign In with Credentials</span>
+                      <span>Sign In to Account</span>
                     </button>
 
                     <p className="mt-3.5 text-center text-xs text-zinc-400">
-                      Don&apos;t have credentials?{' '}
+                      Don&apos;t have an account?{' '}
                       <Link href="/signup" className="text-purple-400 hover:text-purple-300 font-semibold transition-colors">
                         Create an account
                       </Link>
@@ -972,7 +972,7 @@ export default function AccountGeneratorPage() {
               <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  <span className="font-mono text-[11px] uppercase tracking-wider">Engine Online</span>
+                  <span className="font-mono text-[11px] uppercase tracking-wider">Generator Ready</span>
                 </div>
 
                 {userPlan.hasPlan ? (
@@ -1340,7 +1340,7 @@ export default function AccountGeneratorPage() {
                     <div className="w-full bg-zinc-950/80 border border-zinc-800 rounded-lg p-3 font-mono text-xs">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Account Credentials</div>
+                          <div className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Account Details (User:Pass)</div>
                           <div className="text-zinc-200 text-xs font-mono break-all mt-0.5 select-all font-semibold">
                             {redeemSuccessData.email_pass || 'N/A'}
                           </div>
@@ -1677,7 +1677,7 @@ export default function AccountGeneratorPage() {
           />
 
           {/* Modal Container */}
-          <div className="relative z-10 w-full max-w-lg bg-zinc-950 rounded-2xl p-6 sm:p-7 border border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-left">
+          <div className="relative z-10 w-full max-w-lg max-h-[90dvh] flex flex-col bg-zinc-950 rounded-2xl p-6 sm:p-7 border border-zinc-800 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-left overflow-y-auto">
             
             {/* Top Close Icon Button */}
             <button
@@ -1689,30 +1689,33 @@ export default function AccountGeneratorPage() {
             </button>
 
             {/* Modal Title */}
-            <div className="pr-8 mb-4">
+            <div className="pr-8 mb-2">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                {generatedModal.service} Account Generated
+                Your {generatedModal.service} Account is Ready
               </h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                Copy and paste these login details directly into {generatedModal.service}.
+              </p>
             </div>
 
             {/* Inner Raw Account Code Box */}
-            <div className="bg-black border border-zinc-800 rounded-xl p-3.5 font-mono text-xs text-zinc-200 break-all select-all leading-relaxed my-4">
+            <div className="bg-black border border-zinc-800 rounded-xl p-3.5 font-mono text-xs text-emerald-400 break-all select-all leading-relaxed my-4">
               {generatedModal.dataText}
             </div>
 
             {/* Action Buttons: Copy & Close */}
             <div className="flex items-center gap-3 pt-2">
               <button
-                onClick={() => handleCopyText(generatedModal.dataText, 'Account credentials copied!')}
-                className="flex-1 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
+                onClick={() => handleCopyText(generatedModal.dataText, 'Account copied to clipboard!')}
+                className="flex-1 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-semibold text-xs flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
               >
                 <Copy size={14} />
-                Copy
+                Copy Account
               </button>
 
               <button
                 onClick={() => setGeneratedModal(null)}
-                className="flex-1 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-medium text-xs flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-medium text-xs flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
               >
                 Close
               </button>
