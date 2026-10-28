@@ -3130,10 +3130,10 @@ export default function AdminPage() {
                 </div>
 
                 {/* View Switcher Pills */}
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-950 border border-zinc-800/80 self-start sm:self-center font-mono text-xs">
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-950 border border-zinc-800/80 w-full sm:w-auto font-mono text-xs">
                   <button
                     onClick={() => setGenViewMode('users')}
-                    className={`px-3 py-1 rounded-lg transition-all ${
+                    className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-1 rounded-lg transition-all ${
                       genViewMode === 'users'
                         ? 'bg-purple-600 text-white font-bold shadow-sm'
                         : 'text-zinc-400 hover:text-white'
@@ -3143,7 +3143,7 @@ export default function AdminPage() {
                   </button>
                   <button
                     onClick={() => setGenViewMode('keys')}
-                    className={`px-3 py-1 rounded-lg transition-all ${
+                    className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-1 rounded-lg transition-all ${
                       genViewMode === 'keys'
                         ? 'bg-zinc-800 text-white font-bold shadow-sm'
                         : 'text-zinc-400 hover:text-white'
@@ -3156,8 +3156,9 @@ export default function AdminPage() {
 
               <div className="overflow-x-auto min-h-[540px] max-h-[540px] overflow-y-auto custom-scrollbar relative">
                 {genViewMode === 'users' ? (
-                  /* ── USER-CENTRIC FORMAT ── */
-                  <table className="w-full min-w-[1000px] text-left border-collapse text-xs">
+                  <>
+                    {/* ── DESKTOP USER-CENTRIC FORMAT ── */}
+                    <table className="hidden md:table w-full min-w-[1000px] text-left border-collapse text-xs">
                     <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                       <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                         <th className="py-4 px-6 min-w-[200px]">User / Owner</th>
@@ -3445,9 +3446,150 @@ export default function AdminPage() {
                       )}
                     </tbody>
                   </table>
-                ) : (
-                  /* ── RAW KEYS FORMAT (FALLBACK) ── */
-                  <table className="w-full min-w-[1100px] text-left border-collapse text-xs">
+
+                  {/* ── MOBILE USER CARDS (block md:hidden) ── */}
+                  <div className="block md:hidden p-3.5 space-y-3 font-mono">
+                    {groupedGenUserList.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-500 font-sans text-xs">
+                        No active subscriber users found matching search.
+                      </div>
+                    ) : (
+                      groupedGenUserList.map((group: any) => {
+                        const pct = group.totalLimit > 0 ? Math.min(100, Math.round((group.totalUsed / group.totalLimit) * 100)) : 0;
+                        const primaryLic = group.licenses[0];
+
+                        return (
+                          <div key={group.userId} className="p-4 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-3 shadow-sm">
+                            {/* Header: User Badge + Status */}
+                            <div className="flex items-center justify-between gap-2">
+                              <DiscordUserBadge
+                                userId={group.userId}
+                                userProfiles={userProfiles}
+                                onCopy={copyToClipboard}
+                                copiedKey={copiedKey}
+                              />
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0 ${
+                                group.hasActive
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                  : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                              }`}>
+                                {group.hasActive ? 'ACTIVE' : 'INACTIVE'}
+                              </span>
+                            </div>
+
+                            {/* Assigned Services Pills */}
+                            <div className="space-y-1">
+                              <div className="text-[10px] font-mono uppercase text-zinc-500 font-semibold">Assigned Services:</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {group.licenses.map((lic: any) => {
+                                  const scopeLabel = lic.scope_label || 'All Services';
+                                  const isPkg = scopeLabel.startsWith('[Package]');
+                                  const isAll = scopeLabel === 'All Services';
+
+                                  return (
+                                    <span
+                                      key={lic.id}
+                                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-mono font-medium border ${
+                                        isPkg
+                                          ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                                          : isAll
+                                          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                          : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                                      }`}
+                                    >
+                                      {scopeLabel.replace('[Package] ', '')}
+                                      <span className="opacity-75 text-[10px] ml-1">({lic.tier || 'lifetime'})</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Daily Quota Progress */}
+                            <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/60 space-y-1.5">
+                              <div className="flex items-center justify-between text-xs font-mono">
+                                <span className="text-zinc-400 text-[11px]">Daily Quota</span>
+                                <span className={`font-semibold ${group.totalUsed >= group.totalLimit ? 'text-rose-400 font-bold' : 'text-zinc-200'}`}>
+                                  {group.totalUsed} / {group.totalLimit} used ({pct}%)
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                                <div
+                                  className={`h-full transition-all ${pct >= 100 ? 'bg-rose-500' : pct >= 75 ? 'bg-amber-400' : 'bg-purple-500'}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* HWID Lock */}
+                            <div className="flex items-center justify-between text-xs font-mono pt-1 border-t border-zinc-900">
+                              <span className="text-zinc-500 text-[11px]">Device Lock:</span>
+                              {group.hwid ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded truncate max-w-[140px]">
+                                    {group.hwid}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      const licWithHwid = group.licenses.find((l: any) => l.hwid);
+                                      if (licWithHwid) handleResetGenHwid(licWithHwid);
+                                    }}
+                                    className="p-1 rounded bg-zinc-900 text-zinc-400 hover:text-rose-400 border border-zinc-800 cursor-pointer"
+                                    title="Reset HWID"
+                                  >
+                                    <Unlock className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
+                                  UNBOUND
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Touch Action Buttons */}
+                            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800/80">
+                              <button
+                                onClick={() => {
+                                  setEditingLic(primaryLic);
+                                  setEditLimitValue(String(primaryLic.effective_limit ?? primaryLic.daily_limit ?? 15));
+                                  setEditQuotaMode((primaryLic.quota_mode || 'shared') as 'isolated' | 'shared');
+                                  setShowEditLimitModal(true);
+                                }}
+                                className="py-2 px-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-purple-400" />
+                                <span>Limit</span>
+                              </button>
+                              <button
+                                onClick={() => handleResetGenUsage(primaryLic)}
+                                className="py-2 px-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Reset</span>
+                              </button>
+                              <button
+                                onClick={() => handleToggleGenLicense(primaryLic.id, primaryLic.is_active)}
+                                className={`py-2 px-2.5 rounded-xl border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                                  primaryLic.is_active
+                                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                }`}
+                              >
+                                <Shield className="w-3.5 h-3.5" />
+                                <span>{primaryLic.is_active ? 'Disable' : 'Enable'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* ── DESKTOP RAW KEYS FORMAT ── */}
+                  <table className="hidden md:table w-full min-w-[1100px] text-left border-collapse text-xs">
                     <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                       <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                         <th className="py-4 px-6">License Key</th>
@@ -3633,7 +3775,131 @@ export default function AdminPage() {
                       )}
                     </tbody>
                   </table>
-                )}
+
+                  {/* ── MOBILE RAW KEYS CARDS (block md:hidden) ── */}
+                  <div className="block md:hidden p-3.5 space-y-3 font-mono">
+                    {filteredGenLicenses.length === 0 ? (
+                      <div className="py-12 text-center text-zinc-500 font-sans text-xs">
+                        No generator licenses found matching search.
+                      </div>
+                    ) : (
+                      filteredGenLicenses.map((lic: any) => (
+                        <div key={lic.id} className="p-4 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 space-y-3 shadow-sm">
+                          {/* Header: Scope Badge + Status */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-medium ${
+                                lic.scope_label?.startsWith('[Package]')
+                                  ? 'bg-purple-500/10 text-purple-300 border border-purple-500/30'
+                                  : lic.scope_label === 'All Services'
+                                  ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                                  : 'bg-blue-500/10 text-blue-300 border border-blue-500/30'
+                              }`}
+                            >
+                              {lic.scope_label || 'All Services'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                              lic.is_active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                            }`}>
+                              {lic.is_active ? 'ACTIVE' : 'INACTIVE'}
+                            </span>
+                          </div>
+
+                          {/* License Key with 1-tap Copy */}
+                          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/60 flex items-center justify-between gap-2">
+                            <span className="font-mono text-xs font-semibold text-white truncate select-all">{lic.license_key}</span>
+                            <button
+                              onClick={() => copyToClipboard(lic.license_key)}
+                              className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors shrink-0 cursor-pointer"
+                              title="Copy License Key"
+                            >
+                              {copiedKey === lic.license_key ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+
+                          {/* Redeemed By & Daily Usage */}
+                          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                            <div>
+                              <div className="text-[10px] text-zinc-500 uppercase font-semibold">Redeemed By:</div>
+                              <div className="mt-1">
+                                {lic.redeemed_by ? (
+                                  <DiscordUserBadge userId={lic.redeemed_by} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
+                                ) : (
+                                  <span className="text-zinc-500 text-[11px]">UNREDEEMED</span>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-[10px] text-zinc-500 uppercase font-semibold">Daily Usage:</div>
+                              <div className="mt-1 font-semibold text-zinc-200 text-xs">
+                                {lic.used_today || 0} / {lic.effective_limit ?? lic.daily_limit ?? 15}
+                                <span className="text-[10px] text-zinc-500 ml-1">({lic.tier || 'lifetime'})</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* HWID Lock */}
+                          <div className="flex items-center justify-between text-xs font-mono pt-1 border-t border-zinc-900">
+                            <span className="text-zinc-500 text-[11px]">HWID Binding:</span>
+                            {lic.hwid ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded truncate max-w-[140px]">
+                                  {lic.hwid}
+                                </span>
+                                <button
+                                  onClick={() => handleResetGenHwid(lic)}
+                                  className="p-1 rounded bg-zinc-900 text-zinc-400 hover:text-rose-400 border border-zinc-800 cursor-pointer"
+                                  title="Reset HWID"
+                                >
+                                  <Unlock className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-zinc-500 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
+                                UNBOUND
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800/80">
+                            <button
+                              onClick={() => {
+                                setEditingLic(lic);
+                                setEditLimitValue(String(lic.effective_limit ?? lic.daily_limit ?? 15));
+                                setEditQuotaMode((lic.quota_mode || 'isolated') as 'isolated' | 'shared');
+                                setShowEditLimitModal(true);
+                              }}
+                              className="py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-purple-400" />
+                              <span>Limit</span>
+                            </button>
+                            <button
+                              onClick={() => handleResetGenUsage(lic)}
+                              className="py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Reset</span>
+                            </button>
+                            <button
+                              onClick={() => handleToggleGenLicense(lic.id, lic.is_active)}
+                              className={`py-2 px-2 rounded-xl border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                                lic.is_active
+                                  ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                  : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                              }`}
+                            >
+                              <Shield className="w-3.5 h-3.5" />
+                              <span>{lic.is_active ? 'Disable' : 'Enable'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
               </div>
             </div>
           </div>
