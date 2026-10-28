@@ -2201,7 +2201,7 @@ export default function AdminPage() {
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <span className="px-3 py-1 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  Root Infrastructure Operations
+                  Operations & Management
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Operational
@@ -2215,7 +2215,7 @@ export default function AdminPage() {
                 System Administration
               </h1>
               <p className="text-xs sm:text-sm text-zinc-400 max-w-xl leading-relaxed">
-                Centralized telemetry command, automated key dispatch, security enforcement & live wholesale reseller liquidity.
+                Manage users, stock inventory, retail orders, payment gateways, and wholesale resellers.
               </p>
             </div>
 
@@ -2283,7 +2283,7 @@ export default function AdminPage() {
                 title="Refresh all metrics"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin text-white' : 'text-purple-200'}`} />
-                <span>Sync Telemetry</span>
+                <span>Refresh Data</span>
               </button>
 
               <a
@@ -2345,7 +2345,7 @@ export default function AdminPage() {
           <aside className="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-28 space-y-4">
             <div className="p-3.5 rounded-3xl bg-zinc-950/80 border border-purple-500/20 backdrop-blur-xl shadow-xl space-y-1.5">
               <div className="px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-purple-400 font-bold flex items-center justify-between">
-                <span>Navigation Deck</span>
+                <span>Admin Menu</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
 
@@ -3142,9 +3142,9 @@ export default function AdminPage() {
                     <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                       <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                         <th className="py-4 px-6 min-w-[200px]">User / Owner</th>
-                        <th className="py-4 px-6 min-w-[320px]">Active Scopes (Hover for License)</th>
+                        <th className="py-4 px-6 min-w-[320px]">Assigned Services</th>
                         <th className="py-4 px-6">Daily Quota</th>
-                        <th className="py-4 px-6">Hardware ID</th>
+                        <th className="py-4 px-6">Device Lock (HWID)</th>
                         <th className="py-4 px-6">Status</th>
                         <th className="py-4 px-6 text-right">Actions</th>
                       </tr>
@@ -3432,10 +3432,10 @@ export default function AdminPage() {
                     <thead className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800/80 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                       <tr className="border-b border-zinc-800/80 bg-zinc-950/40 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
                         <th className="py-4 px-6">License Key</th>
-                        <th className="py-4 px-6">Scope</th>
+                        <th className="py-4 px-6">Services</th>
                         <th className="py-4 px-6">Tier</th>
                         <th className="py-4 px-6">Redeemed By</th>
-                        <th className="py-4 px-6">Hardware ID</th>
+                        <th className="py-4 px-6">Device Lock (HWID)</th>
                         <th className="py-4 px-6">Daily Usage</th>
                         <th className="py-4 px-6">Created</th>
                         <th className="py-4 px-6">Status</th>
@@ -7049,7 +7049,7 @@ export default function AdminPage() {
                       className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/50 disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{selectedOrderForModal.order_type === 'reseller_topup' ? 'Approve & Credit Wholesale Pool' : selectedOrderForModal.order_type === 'balance_topup' ? 'Approve & Credit Balance' : 'Approve & Dispatch Key'}</span>
+                      <span>{selectedOrderForModal.order_type === 'reseller_topup' ? 'Approve & Credit Reseller Pool' : selectedOrderForModal.order_type === 'balance_topup' ? 'Approve & Credit Balance' : 'Approve & Deliver Key'}</span>
                     </button>
 
                     <button
