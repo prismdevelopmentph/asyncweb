@@ -1834,9 +1834,9 @@ export default function AccountGeneratorPage() {
         </div>
       )}
 
-      {/* Floating Toast Notification */}
+      {/* Floating Toast Notification (Stacked cleanly above the Chat Pill: bottom-20) */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs px-4 py-2.5 rounded-xl shadow-xl font-mono">
+        <div className="fixed bottom-20 right-6 z-50 bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs px-4 py-2.5 rounded-xl shadow-xl font-mono animate-in fade-in slide-in-from-bottom-2 duration-150">
           {toast}
         </div>
       )}
