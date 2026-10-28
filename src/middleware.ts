@@ -125,85 +125,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 1. Subdomain Multi-Tenant Routing
-  const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
-  const isGenSubdomain = host.startsWith('gen.') || host.includes('gen.asyncdevph.xyz');
-  const isAdminSubdomain = host.startsWith('admin.') || host.includes('admin.asyncdevph.xyz');
-  const isResellerSubdomain = host.startsWith('reseller.') || host.includes('reseller.asyncdevph.xyz');
-  const isProd = host.includes('asyncdevph.xyz');
-  const cookieDomain = isProd ? '.asyncdevph.xyz' : undefined;
-
-  if (isGenSubdomain) {
-    if (req.nextUrl.pathname === '/') {
-      const rewriteUrl = req.nextUrl.clone();
-      rewriteUrl.pathname = '/generator';
-      const res = NextResponse.rewrite(rewriteUrl);
-      res.headers.set('x-subdomain', 'gen');
-      res.cookies.set('async_subdomain', 'gen', { path: '/', domain: cookieDomain });
-      return res;
-    }
-    if (req.nextUrl.pathname === '/generator') {
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/';
-      const res = NextResponse.redirect(redirectUrl);
-      res.cookies.set('async_subdomain', 'gen', { path: '/', domain: cookieDomain });
-      return res;
-    }
-  }
-
-  if (isAdminSubdomain) {
-    if (req.nextUrl.pathname === '/') {
-      const rewriteUrl = req.nextUrl.clone();
-      rewriteUrl.pathname = '/admin';
-      const res = NextResponse.rewrite(rewriteUrl);
-      res.headers.set('x-subdomain', 'admin');
-      res.cookies.set('async_subdomain', 'admin', { path: '/', domain: cookieDomain });
-      return res;
-    }
-    if (req.nextUrl.pathname === '/admin') {
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/';
-      const res = NextResponse.redirect(redirectUrl);
-      res.cookies.set('async_subdomain', 'admin', { path: '/', domain: cookieDomain });
-      return res;
-    }
-  }
-
-  if (isResellerSubdomain) {
-    if (req.nextUrl.pathname === '/') {
-      const rewriteUrl = req.nextUrl.clone();
-      rewriteUrl.pathname = '/reseller';
-      const res = NextResponse.rewrite(rewriteUrl);
-      res.headers.set('x-subdomain', 'reseller');
-      res.cookies.set('async_subdomain', 'reseller', { path: '/', domain: cookieDomain });
-      return res;
-    }
-    if (req.nextUrl.pathname === '/reseller') {
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/';
-      const res = NextResponse.redirect(redirectUrl);
-      res.cookies.set('async_subdomain', 'reseller', { path: '/', domain: cookieDomain });
-      return res;
-    }
-  }
-
-  if (!isAdminSubdomain && req.nextUrl.pathname === '/admin' && isProd) {
-    const protocol = req.headers.get('x-forwarded-proto') || 'https';
-    return NextResponse.redirect(`${protocol}://admin.asyncdevph.xyz/`);
-  }
-
-  if (!isGenSubdomain && req.nextUrl.pathname === '/generator' && isProd) {
-    const protocol = req.headers.get('x-forwarded-proto') || 'https';
-    return NextResponse.redirect(`${protocol}://gen.asyncdevph.xyz/`);
-  }
-
-  if (!isResellerSubdomain && req.nextUrl.pathname === '/reseller' && isProd) {
-    const protocol = req.headers.get('x-forwarded-proto') || 'https';
-    return NextResponse.redirect(`${protocol}://reseller.asyncdevph.xyz/`);
-  }
-
-  // 2. Security Lockout Enforcement (HTML, RSC Transitions, and Protected APIs)
-  // Blocks banned users and IPs from accessing any page or functional API
+  // 1. Global Security Lockout Enforcement (HTML, RSC Transitions, and Protected APIs)
+  // Must execute BEFORE any subdomain routing so bans apply universally across gen, reseller, admin, and main
   // Always permits silent security telemetry (/api/security/log-visit) to log evasion attempts
   const pathname = req.nextUrl.pathname;
   const isTelemetryApi = pathname === '/api/security/log-visit';
@@ -314,6 +237,83 @@ export async function middleware(req: NextRequest) {
         }
       }
     }
+  }
+
+  // 2. Subdomain Multi-Tenant Routing (Only reached if visitor is NOT banned)
+  const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').toLowerCase();
+  const isGenSubdomain = host.startsWith('gen.') || host.includes('gen.asyncdevph.xyz');
+  const isAdminSubdomain = host.startsWith('admin.') || host.includes('admin.asyncdevph.xyz');
+  const isResellerSubdomain = host.startsWith('reseller.') || host.includes('reseller.asyncdevph.xyz');
+  const isProd = host.includes('asyncdevph.xyz');
+  const cookieDomain = isProd ? '.asyncdevph.xyz' : undefined;
+
+  if (isGenSubdomain) {
+    if (req.nextUrl.pathname === '/') {
+      const rewriteUrl = req.nextUrl.clone();
+      rewriteUrl.pathname = '/generator';
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('x-subdomain', 'gen');
+      res.cookies.set('async_subdomain', 'gen', { path: '/', domain: cookieDomain });
+      return res;
+    }
+    if (req.nextUrl.pathname === '/generator') {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.set('async_subdomain', 'gen', { path: '/', domain: cookieDomain });
+      return res;
+    }
+  }
+
+  if (isAdminSubdomain) {
+    if (req.nextUrl.pathname === '/') {
+      const rewriteUrl = req.nextUrl.clone();
+      rewriteUrl.pathname = '/admin';
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('x-subdomain', 'admin');
+      res.cookies.set('async_subdomain', 'admin', { path: '/', domain: cookieDomain });
+      return res;
+    }
+    if (req.nextUrl.pathname === '/admin') {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.set('async_subdomain', 'admin', { path: '/', domain: cookieDomain });
+      return res;
+    }
+  }
+
+  if (isResellerSubdomain) {
+    if (req.nextUrl.pathname === '/') {
+      const rewriteUrl = req.nextUrl.clone();
+      rewriteUrl.pathname = '/reseller';
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('x-subdomain', 'reseller');
+      res.cookies.set('async_subdomain', 'reseller', { path: '/', domain: cookieDomain });
+      return res;
+    }
+    if (req.nextUrl.pathname === '/reseller') {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      const res = NextResponse.redirect(redirectUrl);
+      res.cookies.set('async_subdomain', 'reseller', { path: '/', domain: cookieDomain });
+      return res;
+    }
+  }
+
+  if (!isAdminSubdomain && req.nextUrl.pathname === '/admin' && isProd) {
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    return NextResponse.redirect(`${protocol}://admin.asyncdevph.xyz/`);
+  }
+
+  if (!isGenSubdomain && req.nextUrl.pathname === '/generator' && isProd) {
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    return NextResponse.redirect(`${protocol}://gen.asyncdevph.xyz/`);
+  }
+
+  if (!isResellerSubdomain && req.nextUrl.pathname === '/reseller' && isProd) {
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    return NextResponse.redirect(`${protocol}://reseller.asyncdevph.xyz/`);
   }
 
   const subdomainTag = isGenSubdomain ? 'gen' : isAdminSubdomain ? 'admin' : isResellerSubdomain ? 'reseller' : 'main';
