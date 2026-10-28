@@ -208,24 +208,6 @@ export default function Navbar() {
 
         {/* Auth Controls & Mobile Menu Toggle */}
         <div className="flex items-center gap-2.5 z-10">
-          {/* Shopping Cart Button */}
-          {!isSubdomain && (
-            <button
-              onClick={openCart}
-              className="relative p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5"
-              aria-label="Open Shopping Cart"
-              title="Shopping Cart"
-            >
-              <ShoppingBag className="w-4 h-4 text-purple-400" />
-              <span className="hidden sm:inline text-xs font-mono font-semibold">Cart</span>
-              {isHydrated && totalCount > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-purple-600 border border-purple-400/80 text-white text-[10px] font-mono font-bold flex items-center justify-center shadow-lg shadow-purple-950">
-                  {totalCount}
-                </span>
-              )}
-            </button>
-          )}
-
           {loading ? (
             <div className="px-3 py-1.5 text-[11px] text-zinc-500 font-mono animate-pulse">Loading...</div>
           ) : user ? (
