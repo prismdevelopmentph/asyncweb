@@ -239,7 +239,7 @@ export default function CartCheckoutModal({
               <Lock className="w-4 h-4" />
             </span>
             <span className="text-xs font-mono font-bold text-white tracking-wider uppercase">
-              CART CHECKOUT // ASYNC STORE
+              Secure Checkout
             </span>
           </div>
 
@@ -573,7 +573,7 @@ export default function CartCheckoutModal({
             >
               <span>
                 {submitting
-                  ? 'Initiating Order Session...'
+                  ? 'Processing Payment...'
                   : `Pay Now · ${isUsdProvider ? `$${finalTotal.toFixed(2)} USD` : `₱${finalTotal.toLocaleString('en-PH')} PHP`}`}
               </span>
               {!submitting && <ArrowRight className="w-4 h-4" />}

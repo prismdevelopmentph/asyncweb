@@ -95,7 +95,7 @@ const LICENSES: LicenseTier[] = [
       'Real-time automated stock updates & replenishment',
       'Full account retrieval history log (50-item persistent cache)'
     ],
-    deliveryType: 'Instant Automated License Key',
+    deliveryType: 'Instant Account Key',
     deliveryTime: 'Instant Delivery',
     icon: Key,
     gradient: 'from-purple-900/40 via-zinc-900/60 to-black',
@@ -122,7 +122,7 @@ const LICENSES: LicenseTier[] = [
       'Instant key redemption in web portal',
       'Hardware-locked security token with cloud sync'
     ],
-    deliveryType: 'Instant Automated License Key',
+    deliveryType: 'Instant Account Key',
     deliveryTime: 'Instant Delivery',
     icon: Server,
     gradient: 'from-indigo-900/40 via-purple-950/40 to-black',
@@ -149,7 +149,7 @@ const LICENSES: LicenseTier[] = [
       'Guaranteed priority stock queue on automated restocks',
       'Discord role sync & automated cloud history backup'
     ],
-    deliveryType: 'Instant Automated License Key',
+    deliveryType: 'Instant Account Key',
     deliveryTime: 'Instant Delivery',
     icon: Sparkles,
     gradient: 'from-purple-600/20 via-zinc-900/80 to-black',
@@ -971,58 +971,58 @@ export default function StorefrontClient({
         </section>
 
         {/* ── 5. HOW IT WORKS: 4-STEP PIPELINE ── */}
-        <section id="how-it-works" className="w-full space-y-10 scroll-mt-24 pt-4">
-          <div className="text-center max-w-xl mx-auto">
+        <section id="how-it-works" className="w-full space-y-8 scroll-mt-24 pt-4">
+          <div className="text-center max-w-xl mx-auto px-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] font-mono mb-3">
               <Zap className="w-3.5 h-3.5 text-purple-400" />
-              <span>FULFILLMENT PIPELINE</span>
+              <span>HOW IT WORKS</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              How Instant Delivery Works
+              Instant Key Delivery in 4 Steps
             </h2>
             <p className="text-zinc-400 text-xs sm:text-sm mt-1.5">
-              Zero manual delays. Transparent direct pricing with automated cryptographic dispatch.
+              Zero waiting time. Automated key generation immediately upon confirmed payment.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
-              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-3 sm:mb-4">
                 01
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">Select License Tier</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Choose between Single Service Access, FiveM Package Bundle, or the All-Access Pass.
+              <h3 className="text-xs sm:text-sm font-bold text-white mb-1">Choose Plan</h3>
+              <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">
+                Pick between Single Service, FiveM Bundle, or All-Access generator passes.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
-              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-3 sm:mb-4">
                 02
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">Direct Checkout</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Pay directly in Philippine Peso (PHP ₱) or US Dollar (USD $) via store balance without hidden markups.
+              <h3 className="text-xs sm:text-sm font-bold text-white mb-1">Pay Securely</h3>
+              <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">
+                Pay in PHP (₱) or USD ($) via QRPH, GCash, Crypto, or account balance.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
-              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-3 sm:mb-4">
                 03
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">Instant Automated Dispatch</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Server processes the order immediately and returns your cryptographic license key token.
+              <h3 className="text-xs sm:text-sm font-bold text-white mb-1">Get Access Key</h3>
+              <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">
+                System mints your key instantly and delivers it on-screen and to your email.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
-              <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono font-bold text-xs text-purple-400 mb-3 sm:mb-4">
                 04
               </div>
-              <h3 className="text-sm font-bold text-white mb-1.5">Redeem & Generate</h3>
-              <p className="text-xs text-zinc-400 leading-relaxed">
-                Input your license token on gen.asyncdevph.xyz to immediately unlock accounts and daily quotas.
+              <h3 className="text-xs sm:text-sm font-bold text-white mb-1">Generate Accounts</h3>
+              <p className="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">
+                Redeem your key on the generator to unlock accounts and daily quotas.
               </p>
             </div>
           </div>
