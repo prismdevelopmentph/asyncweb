@@ -24,6 +24,7 @@ export default function CartDrawer() {
   const {
     items,
     isOpen,
+    openCart,
     closeCart,
     updateQuantity,
     removeItem,
@@ -109,7 +110,6 @@ export default function CartDrawer() {
   }, [isOpen, closeCart]);
 
   if (!isHydrated) return null;
-  if (!isOpen && !isCheckoutModalOpen) return null;
 
   const formatPrice = (usd: number, php: number) => {
     if (currency === 'USD') return `$${Number(usd).toFixed(2)}`;
@@ -118,6 +118,28 @@ export default function CartDrawer() {
 
   return (
     <>
+      {/* Floating Edge Pull Tab (Fixed flush right at vertical center) */}
+      {!isOpen && (
+        <button
+          onClick={openCart}
+          className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex items-center gap-2 pl-3 pr-2.5 py-3 rounded-l-2xl bg-zinc-950/90 hover:bg-zinc-900 border-l border-y border-zinc-800 hover:border-purple-500/50 text-white shadow-2xl backdrop-blur-md transition-all duration-200 group cursor-pointer active:scale-95"
+          aria-label="Open Cart"
+          title="Open Shopping Cart"
+        >
+          <div className="relative flex items-center justify-center">
+            <ShoppingBag className="w-5 h-5 text-purple-400 group-hover:text-purple-300 transition-colors" />
+            {totalCount > 0 && (
+              <span className="absolute -top-2 -left-2 min-w-[18px] h-[18px] px-1 rounded-full bg-purple-600 border border-purple-400 text-[10px] font-mono font-bold flex items-center justify-center shadow-lg shadow-purple-950 animate-in zoom-in duration-150">
+                {totalCount}
+              </span>
+            )}
+          </div>
+          <span className="[writing-mode:vertical-rl] rotate-180 text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-300 group-hover:text-white transition-colors">
+            Cart
+          </span>
+        </button>
+      )}
+
       {isOpen && (
         <>
           {/* Backdrop */}
