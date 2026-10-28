@@ -244,6 +244,7 @@ export default function AdminPage() {
   const [adminChatInput, setAdminChatInput] = useState('');
   const [sendingAdminChat, setSendingAdminChat] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const chatMessagesEndRef = useRef<HTMLDivElement | null>(null);
   const [showGenLicenseModal, setShowGenLicenseModal] = useState(false);
   const [showManualBanModal, setShowManualBanModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -1795,6 +1796,12 @@ export default function AdminPage() {
       fetchTicketMessages(selectedTicketId);
     }
   }, [activeTab, selectedTicketId]);
+
+  useEffect(() => {
+    if (activeTab === 'chat' && selectedTicketId && ticketMessages.length > 0) {
+      chatMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeTab, selectedTicketId, ticketMessages.length]);
 
   useEffect(() => {
     if (activeTab !== 'chat') return;
@@ -5929,9 +5936,9 @@ export default function AdminPage() {
 
         {/* ── TAB 5: LIVE SUPPORT CHAT ── */}
         {activeTab === 'chat' && (
-          <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm flex flex-col md:flex-row h-[750px]">
+          <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm flex flex-col md:flex-row h-[680px] sm:h-[750px]">
             {/* Left Ticket Navigation Panel */}
-            <div className="w-full md:w-80 border-r border-zinc-800/80 flex flex-col bg-zinc-950/40">
+            <div className={`w-full md:w-80 border-r border-zinc-800/80 flex flex-col bg-zinc-950/40 ${selectedTicketId ? 'hidden md:flex' : 'flex'}`}>
               <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-purple-400" />
@@ -5939,11 +5946,19 @@ export default function AdminPage() {
                     Support Tickets ({chatTickets.length})
                   </span>
                 </div>
+                <button
+                  onClick={() => fetchSupportTickets()}
+                  disabled={chatLoading}
+                  className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  title="Refresh Tickets"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${chatLoading ? 'animate-spin' : ''}`} />
+                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/60">
+              <div className="flex-1 overflow-y-auto divide-y divide-zinc-800/60 custom-scrollbar">
                 {chatTickets.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-500 text-xs">
+                  <div className="p-8 text-center text-zinc-500 text-xs font-mono">
                     No support tickets open.
                   </div>
                 ) : (
@@ -5951,17 +5966,24 @@ export default function AdminPage() {
                     <div
                       key={t.ticket_id}
                       onClick={() => setSelectedTicketId(t.ticket_id)}
-                      className={`p-4 cursor-pointer transition-colors ${selectedTicketId === t.ticket_id ? 'bg-purple-950/20 border-l-2 border-purple-500' : 'hover:bg-zinc-900/40'}`}
+                      className={`p-4 cursor-pointer transition-colors ${
+                        selectedTicketId === t.ticket_id ? 'bg-purple-950/30 border-l-2 border-purple-500' : 'hover:bg-zinc-900/40'
+                      }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-semibold text-white text-xs truncate max-w-[150px]">
-                          {t.sender_name || 'Member'}
-                        </span>
-                        <span className="text-[10px] text-zinc-500 font-mono">
-                          {new Date(t.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-6 h-6 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 flex items-center justify-center text-[10px] font-bold uppercase shrink-0">
+                            {(t.sender_name || 'U').charAt(0)}
+                          </div>
+                          <span className="font-semibold text-white text-xs truncate">
+                            {t.sender_name || 'Member'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-zinc-500 font-mono shrink-0 ml-2">
+                          {t.last_time ? new Date(t.last_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </div>
-                      <p className="text-xs text-zinc-400 truncate">{t.last_message}</p>
+                      <p className="text-xs text-zinc-400 truncate pl-8">{t.last_message || 'No messages'}</p>
                     </div>
                   ))
                 )}
@@ -5969,20 +5991,42 @@ export default function AdminPage() {
             </div>
 
             {/* Right Chat Message Pane */}
-            <div className="flex-1 flex flex-col bg-zinc-900/20">
+            <div className={`flex-1 flex flex-col bg-zinc-900/20 ${!selectedTicketId ? 'hidden md:flex' : 'flex'}`}>
               <div className="p-4 border-b border-zinc-800/80 bg-zinc-950/30 flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-bold text-white">
-                    Ticket: {selectedTicketId || 'Select a ticket from the left panel'}
-                  </h4>
-                  <p className="text-[11px] text-zinc-500 font-mono">Real-time WebSocket active</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  {/* Mobile Back Button */}
+                  {selectedTicketId && (
+                    <button
+                      onClick={() => setSelectedTicketId(null)}
+                      className="md:hidden p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-colors flex items-center justify-center cursor-pointer shrink-0"
+                      title="Back to Tickets"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2 truncate">
+                      <span className="truncate">
+                        {chatTickets.find((t) => t.ticket_id === selectedTicketId)?.sender_name || (selectedTicketId ? `Ticket: ${selectedTicketId}` : 'Support Channel')}
+                      </span>
+                      {selectedTicketId && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/15 border border-purple-500/30 text-purple-300 shrink-0 font-normal">
+                          Live Ticket
+                        </span>
+                      )}
+                    </h4>
+                    <p className="text-[11px] text-zinc-500 font-mono truncate">
+                      {selectedTicketId ? 'Real-time WebSocket active' : 'Select a ticket to begin responding'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex-1 p-6 overflow-y-auto space-y-4">
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 custom-scrollbar">
                 {ticketMessages.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-zinc-500 text-xs">
-                    {selectedTicketId ? 'No messages in this ticket yet.' : 'Select a support ticket to start responding.'}
+                  <div className="h-full flex flex-col items-center justify-center text-zinc-500 text-xs font-mono space-y-2">
+                    <MessageSquare className="w-8 h-8 text-zinc-700 mb-1" />
+                    <span>{selectedTicketId ? 'No messages in this ticket yet.' : 'Select a support ticket from the list to start responding.'}</span>
                   </div>
                 ) : (
                   ticketMessages.map((msg, idx) => (
@@ -5990,18 +6034,18 @@ export default function AdminPage() {
                       key={msg.id || idx}
                       className={`flex flex-col ${msg.is_admin ? 'items-end' : 'items-start'}`}
                     >
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 px-1">
                         <span className="text-[11px] font-semibold text-zinc-400">
-                          {msg.sender_name}
+                          {msg.is_admin ? 'Async Support' : (msg.sender_name || 'Member')}
                         </span>
                         <span className="text-[10px] font-mono text-zinc-600">
                           {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <div
-                        className={`max-w-lg p-3.5 rounded-2xl text-xs leading-relaxed ${
+                        className={`max-w-[85%] sm:max-w-lg p-3.5 rounded-2xl text-xs leading-relaxed ${
                           msg.is_admin
-                            ? 'bg-purple-600 text-white rounded-tr-none'
+                            ? 'bg-purple-600 text-white rounded-tr-none shadow-md shadow-purple-600/20'
                             : 'bg-zinc-800 text-zinc-200 rounded-tl-none border border-zinc-700/60'
                         }`}
                       >
@@ -6010,25 +6054,26 @@ export default function AdminPage() {
                     </div>
                   ))
                 )}
+                <div ref={chatMessagesEndRef} />
               </div>
 
               {/* Chat Input */}
-              <form onSubmit={handleSendAdminMessage} className="p-4 border-t border-zinc-800/80 bg-zinc-950/40 flex items-center gap-3">
+              <form onSubmit={handleSendAdminMessage} className="p-3 sm:p-4 border-t border-zinc-800/80 bg-zinc-950/40 flex items-center gap-2 sm:gap-3">
                 <input
                   type="text"
                   value={adminChatInput}
                   onChange={(e) => setAdminChatInput(e.target.value)}
-                  placeholder="Type response to user ticket..."
-                  disabled={!selectedTicketId}
-                  className="flex-1 px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 disabled:opacity-50"
+                  placeholder={selectedTicketId ? "Type response to user ticket..." : "Select a ticket to reply..."}
+                  disabled={!selectedTicketId || sendingAdminChat}
+                  className="flex-1 px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-50"
                 />
                 <button
                   type="submit"
                   disabled={sendingAdminChat || !adminChatInput.trim() || !selectedTicketId}
-                  className="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-50 shrink-0 cursor-pointer"
+                  className="px-4 sm:px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all disabled:opacity-50 shrink-0 cursor-pointer shadow-md shadow-purple-600/20"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Send</span>
+                  <Send className={`w-4 h-4 ${sendingAdminChat ? 'animate-pulse' : ''}`} />
+                  <span className="hidden sm:inline">Send</span>
                 </button>
               </form>
             </div>
