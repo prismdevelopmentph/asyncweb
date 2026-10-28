@@ -148,8 +148,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 relative">
 
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-3 shrink-0 group z-10">
-          <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden border border-zinc-800 p-0.5 bg-zinc-950 group-hover:border-zinc-700 transition-colors">
+        <Link href="/" className="flex items-center gap-2.5 sm:gap-3 shrink min-w-0 group z-10">
+          <div className="relative w-8 h-8 sm:w-11 sm:h-11 rounded-xl overflow-hidden border border-zinc-800 p-0.5 bg-zinc-950 group-hover:border-zinc-700 transition-colors shrink-0">
             <Image
               src="/images/Profile.png"
               alt="ASYNC DEVELOPMENT"
@@ -157,15 +157,15 @@ export default function Navbar() {
               className="object-cover rounded-lg"
             />
           </div>
-          <div>
-            <span className="font-extrabold text-sm sm:text-base tracking-wide text-white block leading-tight">
+          <div className="min-w-0">
+            <span className="font-extrabold text-xs sm:text-base tracking-wide text-white block leading-tight truncate">
               ASYNC DEVELOPMENT
             </span>
-            <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono tracking-wider">
-              <span className="hidden [html[data-subdomain='gen']_&]:inline [body[data-subdomain='gen']_&]:inline">Account Generator Infrastructure</span>
-              <span className="hidden [html[data-subdomain='admin']_&]:inline [body[data-subdomain='admin']_&]:inline">Operations & Administration Panel</span>
-              <span className="hidden [html[data-subdomain='reseller']_&]:inline [body[data-subdomain='reseller']_&]:inline">Wholesale Reseller Platform</span>
-              <span className="inline [html[data-subdomain='gen']_&]:hidden [body[data-subdomain='gen']_&]:hidden [html[data-subdomain='admin']_&]:hidden [body[data-subdomain='admin']_&]:hidden [html[data-subdomain='reseller']_&]:hidden [body[data-subdomain='reseller']_&]:hidden">Developer Tools & Automation Platform</span>
+            <p className="text-[9px] sm:text-[11px] text-zinc-400 font-mono tracking-wider truncate">
+              <span className="hidden [html[data-subdomain='gen']_&]:inline [body[data-subdomain='gen']_&]:inline">Generator Platform</span>
+              <span className="hidden [html[data-subdomain='admin']_&]:inline [body[data-subdomain='admin']_&]:inline">Admin Panel</span>
+              <span className="hidden [html[data-subdomain='reseller']_&]:inline [body[data-subdomain='reseller']_&]:inline">Reseller Platform</span>
+              <span className="inline [html[data-subdomain='gen']_&]:hidden [body[data-subdomain='gen']_&]:hidden [html[data-subdomain='admin']_&]:hidden [body[data-subdomain='admin']_&]:hidden [html[data-subdomain='reseller']_&]:hidden [body[data-subdomain='reseller']_&]:hidden">Developer Tools</span>
             </p>
           </div>
         </Link>
@@ -229,10 +229,10 @@ export default function Navbar() {
           {loading ? (
             <div className="px-3 py-1.5 text-[11px] text-zinc-500 font-mono animate-pulse">Loading...</div>
           ) : user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <Link
                 href="/dashboard"
-                className="flex items-center gap-2 bg-zinc-900/90 hover:bg-zinc-800/90 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-zinc-800 hover:border-purple-500/50 text-xs transition-all group"
+                className="flex items-center gap-1.5 sm:gap-2 bg-zinc-900/90 hover:bg-zinc-800/90 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-zinc-800 hover:border-purple-500/50 text-xs transition-all group max-w-[120px] sm:max-w-none"
                 title="Go to Account Dashboard"
               >
                 <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden border border-zinc-700 shrink-0 group-hover:border-purple-400 transition-colors">
@@ -244,7 +244,7 @@ export default function Navbar() {
                     className="object-cover"
                   />
                 </div>
-                <span className="text-zinc-200 group-hover:text-white font-medium max-w-[85px] sm:max-w-[130px] truncate text-xs transition-colors">
+                <span className="text-zinc-200 group-hover:text-white font-medium max-w-[65px] sm:max-w-[130px] truncate text-[11px] sm:text-xs transition-colors">
                   {userName}
                 </span>
                 <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/30">
@@ -254,11 +254,12 @@ export default function Navbar() {
 
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-rose-400 border border-zinc-800 text-xs font-medium transition-all"
+                className="flex items-center justify-center p-2 sm:px-3 sm:py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-rose-400 border border-zinc-800 text-xs font-medium transition-all shrink-0"
                 title="Sign Out"
+                aria-label="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden xs:inline">Sign Out</span>
+                <span className="hidden md:inline ml-1.5">Sign Out</span>
               </button>
             </div>
           ) : !isSubdomain ? (

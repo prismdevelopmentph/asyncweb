@@ -952,49 +952,27 @@ export default function AccountGeneratorPage() {
         ) : (
           <div className="space-y-6">
             {/* Top Status Ribbon */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-950/80 rounded-2xl p-4 sm:p-5 border border-zinc-800">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400">
+            <div className="bg-zinc-950/80 rounded-2xl p-4 sm:p-5 border border-zinc-800 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-purple-400 shrink-0">
                   <Sparkles className="w-4 h-4 text-purple-400" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-lg font-bold tracking-tight text-white">
-                      Account Generator
-                    </h1>
-                  </div>
-                  <p className="text-xs text-zinc-400 font-medium">
-                    Instant multi-service account generation & license key manager
+                <div className="min-w-0">
+                  <h1 className="text-base sm:text-lg font-bold tracking-tight text-white truncate">
+                    Account Generator
+                  </h1>
+                  <p className="text-[11px] sm:text-xs text-zinc-400 font-medium truncate">
+                    Multi-service account generation & key manager
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs text-zinc-300">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  <span className="font-mono text-[11px] uppercase tracking-wider">Generator Ready</span>
+              {/* Action Buttons: Fluid wrapping grid on mobile, inline on desktop */}
+              <div className="grid grid-cols-2 xs:flex xs:items-center gap-2 pt-1 sm:pt-0">
+                <div className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-[11px] text-zinc-300 font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="truncate">Ready</span>
                 </div>
-
-                {userPlan.hasPlan ? (
-                  <button
-                    onClick={handleDownloadApp}
-                    disabled={downloadingClient}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-200 hover:text-white font-mono font-medium transition-colors shadow-sm disabled:opacity-50"
-                    title="Download Desktop App (ASYNC V2)"
-                  >
-                    <Download className={`w-3.5 h-3.5 text-purple-400 ${downloadingClient ? 'animate-bounce' : ''}`} />
-                    <span>{downloadingClient ? 'Downloading...' : 'Download App'}</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => triggerToast('Active license plan required to download the desktop app.')}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 text-xs text-zinc-500 font-mono font-medium cursor-not-allowed opacity-75 hover:border-zinc-700/50"
-                    title="Active license required to download"
-                  >
-                    <Lock className="w-3.5 h-3.5 text-zinc-600" />
-                    <span>Download App</span>
-                  </button>
-                )}
 
                 <button
                   onClick={() => {
@@ -1002,18 +980,31 @@ export default function AccountGeneratorPage() {
                     setActivationSuccess(null);
                     setActivateModalOpen(true);
                   }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-xs text-purple-200 hover:text-white font-mono font-medium transition-colors shadow-sm"
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-[11px] text-purple-200 hover:text-white font-mono font-medium transition-colors"
                   title="Activate or Redeem a License Key"
                 >
-                  <Key className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Activate License</span>
+                  <Key className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span className="truncate">Redeem Key</span>
                 </button>
+
+                {userPlan.hasPlan && (
+                  <button
+                    onClick={handleDownloadApp}
+                    disabled={downloadingClient}
+                    className="col-span-2 xs:col-auto flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[11px] text-zinc-200 hover:text-white font-mono font-medium transition-colors disabled:opacity-50"
+                    title="Download Desktop App (ASYNC V2)"
+                  >
+                    <Download className={`w-3.5 h-3.5 text-purple-400 shrink-0 ${downloadingClient ? 'animate-bounce' : ''}`} />
+                    <span className="truncate">{downloadingClient ? 'Downloading...' : 'Desktop App'}</span>
+                  </button>
+                )}
 
                 <button
                   onClick={() => fetchStatus(discordUserId)}
                   disabled={loadingStatus}
-                  className="p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
+                  className="hidden xs:flex items-center justify-center p-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors disabled:opacity-50"
                   title="Refresh Records"
+                  aria-label="Refresh Status"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loadingStatus ? 'animate-spin text-purple-400' : ''}`} />
                 </button>
