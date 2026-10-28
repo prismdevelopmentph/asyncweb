@@ -45,6 +45,7 @@ import {
   Clock,
   ExternalLink,
   Laptop,
+  Cpu,
   CheckCircle,
   AlertCircle,
   AlertTriangle,
@@ -5585,8 +5586,15 @@ export default function AdminPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="py-4 px-6 text-zinc-400 font-mono text-[11px] select-all truncate max-w-[160px]">
-                              {v.device_id || '—'}
+                            <td className="py-4 px-6 text-zinc-300 font-mono text-[11px] select-all">
+                              {v.device_id ? (
+                                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-800/80 border border-zinc-700/60 text-purple-300 font-mono text-[11px]">
+                                  <Cpu className="w-3 h-3 text-purple-400 shrink-0" />
+                                  <span className="truncate max-w-[150px]">{v.device_id}</span>
+                                </span>
+                              ) : (
+                                <span className="text-zinc-500">—</span>
+                              )}
                             </td>
                             <td className="py-4 px-6">
                               <span className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[11px]">
