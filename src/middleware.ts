@@ -202,16 +202,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(`${protocol}://reseller.asyncdevph.xyz/`);
   }
 
-  // 2. Security Lockout Enforcement (HTML PAGE LOADS ONLY)
-  // Only evaluate on HTML document navigations (accept: text/html)
-  // Never blocks APIs, static assets, images, or client JSON fetches
-  const acceptHeader = req.headers.get('accept') || '';
-  const isHtmlPageRequest = acceptHeader.includes('text/html') && !req.nextUrl.pathname.startsWith('/api/');
+  // 2. Security Lockout Enforcement (HTML, RSC Transitions, and Protected APIs)
+  // Blocks banned users and IPs from accessing any page or functional API
+  // Always permits silent security telemetry (/api/security/log-visit) to log evasion attempts
+  const pathname = req.nextUrl.pathname;
+  const isTelemetryApi = pathname === '/api/security/log-visit';
+  const shouldEvaluateSecurity = !isTelemetryApi;
 
-  if (isHtmlPageRequest) {
+  if (shouldEvaluateSecurity) {
     // Extract visitor identifiers
     let discordUserId: string | null = req.cookies.get('async_security_uid')?.value || null;
-    const deviceId: string | null = req.cookies.get('async_device_id')?.value || null;
+    const deviceId: string | null = req.cookies.get('async_hwid')?.value || req.cookies.get('async_device_id')?.value || null;
     const ip = getClientIp(req.headers);
 
     if (!discordUserId) {
@@ -248,6 +249,12 @@ export async function middleware(req: NextRequest) {
         const cached = getCachedBanStatus(cacheKeys);
 
         if (cached && cached.isBanned) {
+          if (pathname.startsWith('/api/')) {
+            return NextResponse.json(
+              { error: 'Access Denied: Security Lockout Active', reason: cached.reason || 'Security Lockout Active' },
+              { status: 403 }
+            );
+          }
           return new NextResponse(renderLockoutHtml(ip, cached.reason || 'Security Lockout Active'), {
             status: 403,
             headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow' },
@@ -289,6 +296,12 @@ export async function middleware(req: NextRequest) {
               setCachedBanStatus(cacheKeys, isBanned, reason);
 
               if (isBanned) {
+                if (pathname.startsWith('/api/')) {
+                  return NextResponse.json(
+                    { error: 'Access Denied: Security Lockout Active', reason },
+                    { status: 403 }
+                  );
+                }
                 return new NextResponse(renderLockoutHtml(ip, reason!), {
                   status: 403,
                   headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow' },

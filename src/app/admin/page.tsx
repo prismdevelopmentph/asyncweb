@@ -2111,6 +2111,13 @@ export default function AdminPage() {
   const downloadLogs = adminData?.downloadLogs || [];
   const userProfiles = adminData?.userProfiles || {};
 
+  const lockedIps = new Set(
+    securityLockouts.filter((l: any) => l.is_banned).map((l: any) => l.ip_address).filter(Boolean)
+  );
+  const lockedUserIds = new Set(
+    securityLockouts.filter((l: any) => l.is_banned).map((l: any) => l.discord_user_id).filter(Boolean)
+  );
+
   const matchDiscordUser = (id: string | null | undefined, query: string) => {
     if (!query) return true;
     const rawId = (id || '').toLowerCase();
@@ -5578,17 +5585,31 @@ export default function AdminPage() {
                       ) : (
                         filteredVisitorLogs.map((v: any) => (
                           <tr key={v.id} className="hover:bg-zinc-800/30 transition-colors">
-                            <td className="py-4 px-6 font-semibold text-zinc-200 select-all font-mono">
-                              {v.ip_address}
+                            <td className="py-4 px-6 font-semibold select-all font-mono">
+                              <div className="flex items-center gap-2">
+                                <span className="text-zinc-200">{v.ip_address}</span>
+                                {lockedIps.has(v.ip_address) && (
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-red-500/15 border border-red-500/30 text-red-400">
+                                    LOCKED
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-4 px-6">
-                              {v.discord_id ? (
-                                <DiscordUserBadge userId={v.discord_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
-                              ) : (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-sans font-medium bg-zinc-800/60 text-zinc-400 border border-zinc-700/50">
-                                  Guest Visitor
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {v.discord_id ? (
+                                  <DiscordUserBadge userId={v.discord_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-sans font-medium bg-zinc-800/60 text-zinc-400 border border-zinc-700/50">
+                                    Guest Visitor
+                                  </span>
+                                )}
+                                {v.discord_id && lockedUserIds.has(v.discord_id) && (
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-red-500/15 border border-red-500/30 text-red-400">
+                                    BANNED
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-4 px-6 text-zinc-300 font-mono text-[11px] select-all">
                               {v.device_id ? (
