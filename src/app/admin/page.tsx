@@ -236,7 +236,7 @@ export default function AdminPage() {
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [cropModalImgUrl, setCropModalImgUrl] = useState('');
   const [cropModalType, setCropModalType] = useState<'paymongo' | 'gcash' | 'maya'>('paymongo');
-  const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'unbans'>('claims');
+  const [auditSubTab, setAuditSubTab] = useState<'claims' | 'downloads' | 'visitors'>('claims');
   const [chatTickets, setChatTickets] = useState<any[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [ticketMessages, setTicketMessages] = useState<any[]>([]);
@@ -2601,7 +2601,7 @@ export default function AdminPage() {
                     ? 'bg-white/20 text-white border-white/30'
                     : 'bg-zinc-900 text-zinc-400 border-zinc-800'
                 }`}>
-                  {claimLogs.length + downloadLogs.length}
+                  {claimLogs.length + downloadLogs.length + visitorLogs.length}
                 </span>
               </button>
 
@@ -2816,71 +2816,6 @@ export default function AdminPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-
-            {/* ── LIVE RECENT VISITORS SUB-SECTION ── */}
-            <div className="border-t border-zinc-800/80">
-              <div className="p-5 border-b border-zinc-800/80 bg-zinc-950/60 flex items-center justify-between">
-                <div className="flex items-center gap-2.5 font-mono text-xs text-purple-300 font-semibold">
-                  <Activity className="w-4 h-4 text-purple-400" />
-                  <span>LIVE RECENT VISITORS ({filteredVisitorLogs.length})</span>
-                </div>
-                <span className="text-xs text-zinc-500 font-mono">Silent IP & Device Telemetry</span>
-              </div>
-
-              <div className="overflow-x-auto min-h-[320px] max-h-[380px] overflow-y-auto custom-scrollbar">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="sticky top-0 z-10 bg-zinc-950 shadow-sm">
-                    <tr className="border-b border-zinc-800/80 bg-zinc-950 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
-                      <th className="py-3.5 px-6">Visitor IP</th>
-                      <th className="py-3.5 px-6">User / Account</th>
-                      <th className="py-3.5 px-6">Device Token</th>
-                      <th className="py-3.5 px-6">Page Visited</th>
-                      <th className="py-3.5 px-6 text-right">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/50 font-mono">
-                    {dataLoading ? (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-zinc-400">
-                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
-                          <span>Loading visitor logs...</span>
-                        </td>
-                      </tr>
-                    ) : filteredVisitorLogs.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-12 text-center text-zinc-500 font-sans">
-                          No visitor traffic recorded yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredVisitorLogs.map((log: any) => (
-                        <tr key={log.id} className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="py-3.5 px-6 font-mono font-semibold text-zinc-200 select-all">
-                            {log.ip_address}
-                          </td>
-                          <td className="py-3.5 px-6">
-                            {log.discord_id ? (
-                              <DiscordUserBadge userId={log.discord_id} userProfiles={userProfiles} onCopy={(t) => showToast('Copied User ID', 'info')} />
-                            ) : (
-                              <span className="text-zinc-500 text-[11px]">Guest Visitor</span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-6 text-zinc-400 select-all truncate max-w-[140px] text-[11px]">
-                            {log.device_id || '—'}
-                          </td>
-                          <td className="py-3.5 px-6 text-purple-300 font-mono text-[11px]">
-                            {log.path || '/'}
-                          </td>
-                          <td className="py-3.5 px-6 text-right text-zinc-400 text-[11px] whitespace-nowrap">
-                            {log.visited_at ? new Date(log.visited_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </section>
         )}
@@ -5498,6 +5433,12 @@ export default function AdminPage() {
               >
                 App Downloads ({downloadLogs.length})
               </button>
+              <button
+                onClick={() => setAuditSubTab('visitors')}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all ${auditSubTab === 'visitors' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
+              >
+                Web Visitors ({visitorLogs.length})
+              </button>
             </div>
 
             {auditSubTab === 'claims' ? (
@@ -5555,7 +5496,7 @@ export default function AdminPage() {
                   </table>
                 </div>
               </div>
-            ) : (
+            ) : auditSubTab === 'downloads' ? (
               <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
                 <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 font-mono text-xs text-blue-300 font-semibold flex items-center gap-2">
                   <Download className="w-4 h-4 text-blue-400" />
@@ -5593,6 +5534,67 @@ export default function AdminPage() {
                             </td>
                             <td className="py-4 px-6 text-zinc-400 text-xs">
                               {new Date(d.downloaded_at || Date.now()).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-zinc-900/60 rounded-3xl border border-zinc-800/80 overflow-hidden shadow-sm">
+                <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 font-mono text-xs text-purple-300 font-semibold flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-purple-400" />
+                    <span>WEB VISITOR TELEMETRY &amp; IP LOGS</span>
+                  </div>
+                  <span className="text-[11px] text-zinc-500 font-mono">Silent IP &amp; Device Lock Records</span>
+                </div>
+
+                <div className="overflow-x-auto min-h-[540px] max-h-[540px] overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead className="sticky top-0 z-10 bg-zinc-950 shadow-sm">
+                      <tr className="border-b border-zinc-800/80 bg-zinc-950 text-[11px] font-mono text-zinc-400 uppercase tracking-wider">
+                        <th className="py-4 px-6">Visitor IP</th>
+                        <th className="py-4 px-6">User / Account</th>
+                        <th className="py-4 px-6">Device Identifier</th>
+                        <th className="py-4 px-6">Page Visited</th>
+                        <th className="py-4 px-6 text-right">Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/50 font-mono">
+                      {filteredVisitorLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-16 text-center text-zinc-500 font-sans">
+                            No visitor logs recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredVisitorLogs.map((v: any) => (
+                          <tr key={v.id} className="hover:bg-zinc-800/30 transition-colors">
+                            <td className="py-4 px-6 font-semibold text-zinc-200 select-all font-mono">
+                              {v.ip_address}
+                            </td>
+                            <td className="py-4 px-6">
+                              {v.discord_id ? (
+                                <DiscordUserBadge userId={v.discord_id} userProfiles={userProfiles} onCopy={copyToClipboard} copiedKey={copiedKey} />
+                              ) : (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-sans font-medium bg-zinc-800/60 text-zinc-400 border border-zinc-700/50">
+                                  Guest Visitor
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-4 px-6 text-zinc-400 font-mono text-[11px] select-all truncate max-w-[160px]">
+                              {v.device_id || '—'}
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[11px]">
+                                {v.path || '/'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-zinc-400 text-xs text-right whitespace-nowrap">
+                              {v.visited_at ? new Date(v.visited_at).toLocaleString() : '—'}
                             </td>
                           </tr>
                         ))

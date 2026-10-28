@@ -67,7 +67,6 @@ export async function POST(request: Request) {
         device_id: cleanDeviceId,
         discord_id: verifiedDiscordId || null,
         path: cleanPath,
-        user_agent: userAgent,
         visited_at: new Date().toISOString()
       });
 
