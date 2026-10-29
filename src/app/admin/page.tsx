@@ -4449,50 +4449,58 @@ export default function AdminPage() {
                           isOrdPending ? 'border-amber-500/40 bg-amber-950/5' : isOrdRejected ? 'border-rose-500/30 bg-rose-950/5' : 'border-zinc-800/80'
                         }`}
                       >
-                        <div className="space-y-1.5 flex-1 min-w-0">
-                          {/* Row 1: Badges */}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold border ${
-                              isOrdDelivered
-                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                                : isOrdPending
-                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
-                                : isOrdAwaiting
-                                ? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
-                                : isOrdRejected
-                                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                                : 'bg-zinc-800 border-zinc-700 text-zinc-400'
-                            }`}>
-                              {ord.status === 'awaiting_payment' ? 'Awaiting Payment' : ord.status === 'delivered' && (isResellerTopup || isDashboardTopup) ? 'Credited' : ord.status}
-                            </span>
-
-                            {/* Type Badge */}
-                            {isResellerTopup ? (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold">
-                                RESELLER TOP-UP
+                        <div className="space-y-2 flex-1 min-w-0 w-full">
+                          {/* Row 1: Badges + Price Banner */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold border ${
+                                isOrdDelivered
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                  : isOrdPending
+                                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
+                                  : isOrdAwaiting
+                                  ? 'bg-sky-500/10 border-sky-500/30 text-sky-400'
+                                  : isOrdRejected
+                                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                                  : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                              }`}>
+                                {ord.status === 'awaiting_payment' ? 'Awaiting Payment' : ord.status === 'delivered' && (isResellerTopup || isDashboardTopup) ? 'Credited' : ord.status}
                               </span>
-                            ) : isDashboardTopup ? (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold">
-                                DASHBOARD TOP-UP
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-bold">
-                                PRODUCT ORDER
-                              </span>
-                            )}
 
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300">
-                              {ord.provider_label || ord.provider}
-                            </span>
+                              {/* Type Badge */}
+                              {isResellerTopup ? (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold">
+                                  RESELLER TOP-UP
+                                </span>
+                              ) : isDashboardTopup ? (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-bold">
+                                  DASHBOARD TOP-UP
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 font-bold">
+                                  PRODUCT ORDER
+                                </span>
+                              )}
 
-                            <span className="text-[11px] font-mono text-zinc-500">
-                              {new Date(ord.created_at).toLocaleString('en-GB', {
-                                day: '2-digit',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300">
+                                {ord.provider_label || ord.provider}
+                              </span>
+
+                              <span className="text-[11px] font-mono text-zinc-500">
+                                {new Date(ord.created_at).toLocaleString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+
+                            {/* Prominent Price Tag on right */}
+                            <div className="text-sm font-mono font-bold text-white bg-zinc-900/90 border border-zinc-800 px-2.5 py-1 rounded-xl shrink-0">
+                              <span className="text-purple-400 font-black">{ord.currency === 'PHP' ? '₱' : '$'}{Number(ord.amount).toFixed(2)}</span>
+                              <span className="text-[10px] text-zinc-400 ml-1">{ord.currency}</span>
+                            </div>
                           </div>
 
                           {/* Row 2: Title & Details */}
@@ -4509,14 +4517,11 @@ export default function AdminPage() {
                                 ({tierName})
                               </span>
                             )}
-                            <span className="text-xs font-mono font-bold text-white ml-2">
-                              {ord.currency === 'PHP' ? '₱' : '$'}{Number(ord.amount).toFixed(2)} {ord.currency}
-                            </span>
                           </div>
 
-                          {/* Row 3: Customer & Verification Data */}
-                          <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-zinc-400">
-                            <div>
+                          {/* Row 3: Customer & Verification Data with 1-tap Copy */}
+                          <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono text-zinc-400 pt-0.5">
+                            <div className="truncate max-w-full">
                               Buyer:{' '}
                               {ord.email?.includes('@discord.asyncdevph.xyz') || ord.email?.includes('@discord.user') ? (
                                 <span className="text-zinc-200">Discord Account</span>
@@ -4527,27 +4532,45 @@ export default function AdminPage() {
                             </div>
 
                             {memo && (
-                              <div className="p-1 px-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300">
-                                Assigned Memo: <strong className="text-amber-300 select-all">&quot;{memo}&quot;</strong>
+                              <div className="inline-flex items-center gap-1.5 p-1 px-2.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300">
+                                <span>Memo:</span>
+                                <strong className="text-amber-300 font-bold select-all">&quot;{memo}&quot;</strong>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(memo)}
+                                  className="ml-1 p-0.5 rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                                  title="Copy Assigned Memo"
+                                >
+                                  {copiedKey === memo ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                </button>
                               </div>
                             )}
 
                             {customerRef && (
-                              <div className="p-1 px-2 rounded-lg bg-zinc-900 border border-purple-500/30 text-purple-300">
-                                Submitted Ref #: <strong className="text-white select-all">{customerRef}</strong>
+                              <div className="inline-flex items-center gap-1.5 p-1 px-2.5 rounded-lg bg-zinc-900 border border-purple-500/30 text-purple-300">
+                                <span>Ref #:</span>
+                                <strong className="text-white font-bold select-all">{customerRef}</strong>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(customerRef)}
+                                  className="ml-1 p-0.5 rounded hover:bg-zinc-800 text-purple-400 hover:text-white transition-colors cursor-pointer"
+                                  title="Copy Submitted Ref"
+                                >
+                                  {copiedKey === customerRef ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                                </button>
                               </div>
                             )}
 
                             {rejectionReason && (
                               <div className="p-1 px-2 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300">
-                                Rejection Reason: <strong className="text-white">{rejectionReason}</strong>
+                                Rejection: <strong className="text-white">{rejectionReason}</strong>
                               </div>
                             )}
                           </div>
 
                           {/* Row 4: Fulfillment Information */}
                           {isOrdDelivered && (
-                            <div className="pt-1 flex items-center gap-2">
+                            <div className="pt-1 flex flex-wrap items-center gap-2">
                               <span className="text-[11px] font-mono text-zinc-500">Delivered Fulfillment:</span>
                               {isResellerTopup ? (
                                 <span className="text-xs font-mono font-bold text-purple-300 bg-purple-950/40 px-2 py-0.5 rounded border border-purple-500/40">
@@ -4558,28 +4581,25 @@ export default function AdminPage() {
                                   +₱{Number(ord.amount).toFixed(2)} Credited to User Web Balance
                                 </span>
                               ) : ord.license_key ? (
-                                <>
+                                <div className="inline-flex items-center gap-1.5">
                                   <code className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/30 select-all">
                                     {ord.license_key}
                                   </code>
                                   <button
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(ord.license_key);
-                                      setCopiedKey(ord.license_key);
-                                      setTimeout(() => setCopiedKey(null), 2000);
-                                    }}
-                                    className="text-[10px] text-zinc-400 hover:text-white underline cursor-pointer"
+                                    onClick={() => copyToClipboard(ord.license_key)}
+                                    className="p-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                                    title="Copy License Key"
                                   >
-                                    {copiedKey === ord.license_key ? 'Copied!' : 'Copy'}
+                                    {copiedKey === ord.license_key ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                                   </button>
-                                </>
+                                </div>
                               ) : null}
                             </div>
                           )}
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-2 shrink-0 self-end lg:self-center">
+                        {/* Desktop Actions (lg:flex) */}
+                        <div className="hidden lg:flex items-center gap-2 shrink-0 self-center">
                           <button
                             onClick={() => setSelectedOrderForModal(ord)}
                             className="px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-mono font-medium text-zinc-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
@@ -4639,6 +4659,78 @@ export default function AdminPage() {
                           >
                             <ExternalLink className="w-4 h-4" />
                           </a>
+                        </div>
+
+                        {/* Mobile Actions (lg:hidden) */}
+                        <div className="flex lg:hidden flex-col w-full gap-2 pt-3 border-t border-zinc-800/80">
+                          {(isOrdPending || isOrdAwaiting) ? (
+                            <>
+                              <button
+                                onClick={() => handleApproveOrder(ord.id)}
+                                disabled={processingOrderId === ord.id}
+                                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-950/40 cursor-pointer disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span>
+                                  {processingOrderId === ord.id
+                                    ? isResellerTopup
+                                      ? 'Crediting Pool...'
+                                      : isDashboardTopup
+                                      ? 'Crediting Balance...'
+                                      : 'Issuing Key...'
+                                    : isResellerTopup
+                                    ? 'Approve Reseller Top-Up'
+                                    : isDashboardTopup
+                                    ? 'Approve Dashboard Top-Up'
+                                    : 'Approve & Issue Key'}
+                                </span>
+                              </button>
+
+                              <div className="grid grid-cols-4 gap-2">
+                                <button
+                                  onClick={() => setSelectedOrderForModal(ord)}
+                                  className="col-span-2 py-2 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-mono font-medium text-zinc-200 flex items-center justify-center gap-1.5"
+                                >
+                                  <Eye className="w-3.5 h-3.5 text-purple-400" />
+                                  <span>Inspect</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRejectOrder(ord.id)}
+                                  disabled={processingOrderId === ord.id}
+                                  className="py-2 px-2 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs font-mono flex items-center justify-center gap-1"
+                                >
+                                  <Ban className="w-3.5 h-3.5" />
+                                  <span>Reject</span>
+                                </button>
+                                <button
+                                  onClick={() => handleCancelOrder(ord.id)}
+                                  disabled={processingOrderId === ord.id}
+                                  className="py-2 px-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-mono flex items-center justify-center"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                onClick={() => setSelectedOrderForModal(ord)}
+                                className="py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-mono font-medium text-zinc-200 flex items-center justify-center gap-1.5"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-purple-400" />
+                                <span>Inspect Details</span>
+                              </button>
+                              <a
+                                href={`/order/${ord.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-mono font-medium text-zinc-300 flex items-center justify-center gap-1.5"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Customer View</span>
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -7273,16 +7365,16 @@ export default function AdminPage() {
 
       {/* ── MODAL 8: ORDER DETAIL INSPECTION POP-UP ── */}
       {selectedOrderForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
           <div
-            className="relative w-full max-w-3xl rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl p-6 sm:p-7 space-y-6 max-h-[92vh] overflow-y-auto"
+            className="relative w-full max-w-3xl rounded-3xl bg-zinc-950 border border-zinc-800 shadow-2xl flex flex-col max-h-[94vh] sm:max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-zinc-800/80 pb-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+            {/* Header (Sticky at top) */}
+            <div className="p-4 sm:p-6 pb-4 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md shrink-0 flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="p-1.5 sm:p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">
                     <Eye className="w-4 h-4" />
                   </span>
                   <h3 className="text-base font-mono font-bold text-white">Order Inspector</h3>
@@ -7300,8 +7392,8 @@ export default function AdminPage() {
                     {selectedOrderForModal.status}
                   </span>
                 </div>
-                <div className="text-xs font-mono text-zinc-500 flex items-center gap-2 pt-0.5">
-                  <span>ID: <code className="text-zinc-300 select-all">{selectedOrderForModal.id}</code></span>
+                <div className="text-xs font-mono text-zinc-500 flex flex-wrap items-center gap-2 pt-0.5">
+                  <span className="truncate">ID: <code className="text-zinc-300 select-all">{selectedOrderForModal.id}</code></span>
                   <span>•</span>
                   <span>{new Date(selectedOrderForModal.created_at).toLocaleString()}</span>
                 </div>
@@ -7312,189 +7404,252 @@ export default function AdminPage() {
                   setSelectedOrderForModal(null);
                   setShowRejectForm(false);
                 }}
-                className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                className="p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Grid 1: Customer & Payment Rail */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5 font-mono text-xs">
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Customer Information</span>
-                <div className="text-white font-semibold truncate">
-                  {selectedOrderForModal.email?.includes('@discord.asyncdevph.xyz') || selectedOrderForModal.email?.includes('@discord.user')
-                    ? 'Discord Account'
-                    : selectedOrderForModal.email}
+            {/* Scrollable Body */}
+            <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
+              {/* Grid 1: Customer & Payment Rail */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5 font-mono text-xs">
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Customer Information</span>
+                  <div className="text-white font-semibold truncate">
+                    {selectedOrderForModal.email?.includes('@discord.asyncdevph.xyz') || selectedOrderForModal.email?.includes('@discord.user')
+                      ? 'Discord Account'
+                      : selectedOrderForModal.email}
+                  </div>
+                  <div className="text-zinc-400 text-[11px]">Discord ID: {selectedOrderForModal.discord_id || 'Not linked / Web Buyer'}</div>
                 </div>
-                <div className="text-zinc-400 text-[11px]">Discord ID: {selectedOrderForModal.discord_id || 'Not linked / Web Buyer'}</div>
+
+                <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5 font-mono text-xs">
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Payment Channel</span>
+                  <div className="text-purple-300 font-bold">{selectedOrderForModal.provider_label || selectedOrderForModal.provider}</div>
+                  <div className="text-zinc-400 text-[11px]">Currency: {selectedOrderForModal.currency}</div>
+                </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5 font-mono text-xs">
-                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Payment Channel</span>
-                <div className="text-purple-300 font-bold">{selectedOrderForModal.provider_label || selectedOrderForModal.provider}</div>
-                <div className="text-zinc-400 text-[11px]">Currency: {selectedOrderForModal.currency}</div>
-              </div>
-            </div>
-
-            {/* Items Roster */}
-            <div className="space-y-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold block">Purchased Items</span>
-              <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-2">
-                {Array.isArray(selectedOrderForModal.payment_details?.cart_items) && selectedOrderForModal.payment_details.cart_items.length > 0 ? (
-                  selectedOrderForModal.payment_details.cart_items.map((ci: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between text-xs font-mono py-1 border-b border-zinc-800/50 last:border-0">
+              {/* Items Roster */}
+              <div className="space-y-2">
+                <span className="text-xs font-mono uppercase tracking-wider text-zinc-400 font-bold block">Purchased Items</span>
+                <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-2">
+                  {Array.isArray(selectedOrderForModal.payment_details?.cart_items) && selectedOrderForModal.payment_details.cart_items.length > 0 ? (
+                    selectedOrderForModal.payment_details.cart_items.map((ci: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between text-xs font-mono py-1 border-b border-zinc-800/50 last:border-0">
+                        <div>
+                          <div className="text-white font-bold">{ci.title || 'Product'}</div>
+                          <div className="text-[11px] text-zinc-400">{ci.tierName || ci.tierKey} × {ci.quantity || 1}</div>
+                        </div>
+                        <div className="text-zinc-200 font-semibold">
+                          {selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{(Number(selectedOrderForModal.currency === 'USD' ? ci.priceUSD : ci.pricePHP) * (ci.quantity || 1)).toFixed(2)}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex items-center justify-between text-xs font-mono">
                       <div>
-                        <div className="text-white font-bold">{ci.title || 'Product'}</div>
-                        <div className="text-[11px] text-zinc-400">{ci.tierName || ci.tierKey} × {ci.quantity || 1}</div>
+                        <div className="text-white font-bold">
+                          {selectedOrderForModal.order_type === 'reseller_topup'
+                            ? 'Wholesale Reseller Balance Top-Up'
+                            : selectedOrderForModal.order_type === 'balance_topup'
+                            ? 'Dashboard Web Balance Top-Up'
+                            : selectedOrderForModal.products?.title || 'ASYNC Product License'}
+                        </div>
+                        <div className="text-[11px] text-zinc-400">
+                          {selectedOrderForModal.order_type === 'reseller_topup'
+                            ? 'Reseller Wholesale Credit Pool'
+                            : selectedOrderForModal.order_type === 'balance_topup'
+                            ? 'User Web Wallet Balance'
+                            : selectedOrderForModal.tier_key || 'Standard Tier'}
+                        </div>
                       </div>
                       <div className="text-zinc-200 font-semibold">
-                        {selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{(Number(selectedOrderForModal.currency === 'USD' ? ci.priceUSD : ci.pricePHP) * (ci.quantity || 1)).toFixed(2)}
+                        {selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.amount).toFixed(2)}
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <div>
-                      <div className="text-white font-bold">
-                        {selectedOrderForModal.order_type === 'reseller_topup'
-                          ? 'Wholesale Reseller Balance Top-Up'
-                          : selectedOrderForModal.order_type === 'balance_topup'
-                          ? 'Dashboard Web Balance Top-Up'
-                          : selectedOrderForModal.products?.title || 'ASYNC Product License'}
-                      </div>
-                      <div className="text-[11px] text-zinc-400">
-                        {selectedOrderForModal.order_type === 'reseller_topup'
-                          ? 'Reseller Wholesale Credit Pool'
-                          : selectedOrderForModal.order_type === 'balance_topup'
-                          ? 'User Web Wallet Balance'
-                          : selectedOrderForModal.tier_key || 'Standard Tier'}
-                      </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Ledger Breakdown */}
+              <div className="p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-2 font-mono text-xs">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Financial Breakdown</span>
+                <div className="flex items-center justify-between text-zinc-400">
+                  <span>Base Subtotal</span>
+                  <span>{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details?.base_amount || selectedOrderForModal.amount).toFixed(2)}</span>
+                </div>
+
+                {selectedOrderForModal.payment_details?.coupon_code && (
+                  <div className="flex items-center justify-between text-emerald-400 font-medium">
+                    <span className="flex items-center gap-1.5">
+                      <span>Applied Coupon</span>
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 text-[10px]">
+                        {selectedOrderForModal.payment_details.coupon_code}
+                      </span>
+                    </span>
+                    <span>-{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details.discount_amount || 0).toFixed(2)}</span>
+                  </div>
+                )}
+
+                {Number(selectedOrderForModal.payment_details?.fee_amount || 0) > 0 && (
+                  <div className="flex items-center justify-between text-zinc-400">
+                    <span>Gateway Surcharge (+{selectedOrderForModal.payment_details?.fee_percent}%)</span>
+                    <span className="text-amber-400">+{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details.fee_amount).toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-sm font-bold text-white pt-2 border-t border-zinc-800">
+                  <span>Total Amount Due</span>
+                  <span className="text-purple-400">{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.amount).toFixed(2)} {selectedOrderForModal.currency}</span>
+                </div>
+              </div>
+
+              {/* Verification Proof & Customer Ref */}
+              <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-2 font-mono text-xs">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Payment Verification & Proof</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="text-zinc-500">Customer Submitted Ref / TxID:</span>
+                    <div className="text-white font-bold text-xs mt-1 p-2 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between gap-2">
+                      <span className="select-all truncate">{selectedOrderForModal.payment_details?.customer_reference || 'None submitted yet'}</span>
+                      {selectedOrderForModal.payment_details?.customer_reference && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(selectedOrderForModal.payment_details.customer_reference)}
+                          className="p-1 rounded hover:bg-zinc-800 text-purple-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                          title="Copy Reference"
+                        >
+                          {copiedKey === selectedOrderForModal.payment_details.customer_reference ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
                     </div>
-                    <div className="text-zinc-200 font-semibold">
-                      {selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.amount).toFixed(2)}
+                  </div>
+                  <div>
+                    <span className="text-zinc-500">Assigned Memo / Ref Code:</span>
+                    <div className="text-amber-300 font-bold text-xs mt-1 p-2 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-between gap-2">
+                      <span className="select-all truncate">{selectedOrderForModal.payment_details?.paypal_note || selectedOrderForModal.payment_details?.ref_code || 'N/A'}</span>
+                      {(selectedOrderForModal.payment_details?.paypal_note || selectedOrderForModal.payment_details?.ref_code) && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(selectedOrderForModal.payment_details?.paypal_note || selectedOrderForModal.payment_details?.ref_code)}
+                          className="p-1 rounded hover:bg-zinc-800 text-amber-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                          title="Copy Memo"
+                        >
+                          {copiedKey === (selectedOrderForModal.payment_details?.paypal_note || selectedOrderForModal.payment_details?.ref_code) ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedOrderForModal.status === 'delivered' && selectedOrderForModal.order_type === 'reseller_topup' && (
+                  <div className="pt-2 border-t border-zinc-800/50">
+                    <span className="text-zinc-500 text-[10px] block mb-1">Delivered Wholesale Credit:</span>
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/40 text-purple-300 font-mono text-xs font-bold">
+                      <span>+₱{Number(selectedOrderForModal.amount).toFixed(2)} Credited to Reseller Wholesale Pool</span>
+                      <span className="text-[10px] text-purple-400 uppercase">Live Pool Active</span>
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Ledger Breakdown */}
-            <div className="p-4 rounded-2xl bg-zinc-900/70 border border-zinc-800 space-y-2 font-mono text-xs">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Financial Breakdown</span>
-              <div className="flex items-center justify-between text-zinc-400">
-                <span>Base Subtotal</span>
-                <span>{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details?.base_amount || selectedOrderForModal.amount).toFixed(2)}</span>
-              </div>
-
-              {selectedOrderForModal.payment_details?.coupon_code && (
-                <div className="flex items-center justify-between text-emerald-400 font-medium">
-                  <span className="flex items-center gap-1.5">
-                    <span>Applied Coupon</span>
-                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 text-[10px]">
-                      {selectedOrderForModal.payment_details.coupon_code}
-                    </span>
-                  </span>
-                  <span>-{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details.discount_amount || 0).toFixed(2)}</span>
-                </div>
-              )}
-
-              {Number(selectedOrderForModal.payment_details?.fee_amount || 0) > 0 && (
-                <div className="flex items-center justify-between text-zinc-400">
-                  <span>Gateway Surcharge (+{selectedOrderForModal.payment_details?.fee_percent}%)</span>
-                  <span className="text-amber-400">+{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.payment_details.fee_amount).toFixed(2)}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-sm font-bold text-white pt-2 border-t border-zinc-800">
-                <span>Total Amount Due</span>
-                <span className="text-purple-400">{selectedOrderForModal.currency === 'PHP' ? '₱' : '$'}{Number(selectedOrderForModal.amount).toFixed(2)} {selectedOrderForModal.currency}</span>
-              </div>
-            </div>
-
-            {/* Verification Proof & Customer Ref */}
-            <div className="p-4 rounded-2xl bg-zinc-900/40 border border-zinc-800/80 space-y-2 font-mono text-xs">
-              <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold block">Payment Verification & Proof</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
-                <div>
-                  <span className="text-zinc-500">Customer Submitted Ref / TxID:</span>
-                  <div className="text-white font-bold text-xs mt-0.5 select-all p-2 rounded-lg bg-zinc-950 border border-zinc-800">
-                    {selectedOrderForModal.payment_details?.customer_reference || 'None submitted yet'}
+                {selectedOrderForModal.status === 'delivered' && selectedOrderForModal.order_type === 'balance_topup' && (
+                  <div className="pt-2 border-t border-zinc-800/50">
+                    <span className="text-zinc-500 text-[10px] block mb-1">Delivered Account Credit:</span>
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold">
+                      <span>+₱{Number(selectedOrderForModal.amount).toFixed(2)} Credited to User Web Balance</span>
+                      <span className="text-[10px] text-emerald-400 uppercase">Wallet Active</span>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <span className="text-zinc-500">Assigned Memo / Ref Code:</span>
-                  <div className="text-amber-300 font-bold text-xs mt-0.5 select-all p-2 rounded-lg bg-zinc-950 border border-zinc-800">
-                    {selectedOrderForModal.payment_details?.paypal_note || selectedOrderForModal.payment_details?.ref_code || 'N/A'}
+                )}
+
+                {selectedOrderForModal.license_key && (
+                  <div className="pt-2 border-t border-zinc-800/50">
+                    <span className="text-zinc-500 text-[10px] block mb-1">Delivered Cryptographic License Key:</span>
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold">
+                      <span className="select-all truncate mr-2">{selectedOrderForModal.license_key}</span>
+                      <button
+                        onClick={() => {
+                          copyToClipboard(selectedOrderForModal.license_key);
+                          showToast('License key copied to clipboard!', 'success');
+                        }}
+                        className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] cursor-pointer"
+                      >
+                        Copy
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {selectedOrderForModal.payment_details?.rejection_reason && (
+                  <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs">
+                    Rejection Reason: {selectedOrderForModal.payment_details.rejection_reason}
+                  </div>
+                )}
               </div>
 
-              {selectedOrderForModal.status === 'delivered' && selectedOrderForModal.order_type === 'reseller_topup' && (
-                <div className="pt-2 border-t border-zinc-800/50">
-                  <span className="text-zinc-500 text-[10px] block mb-1">Delivered Wholesale Credit:</span>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/40 text-purple-300 font-mono text-xs font-bold">
-                    <span>+₱{Number(selectedOrderForModal.amount).toFixed(2)} Credited to Reseller Wholesale Pool</span>
-                    <span className="text-[10px] text-purple-400 uppercase">Live Pool Active</span>
-                  </div>
-                </div>
-              )}
-
-              {selectedOrderForModal.status === 'delivered' && selectedOrderForModal.order_type === 'balance_topup' && (
-                <div className="pt-2 border-t border-zinc-800/50">
-                  <span className="text-zinc-500 text-[10px] block mb-1">Delivered Account Credit:</span>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold">
-                    <span>+₱{Number(selectedOrderForModal.amount).toFixed(2)} Credited to User Web Balance</span>
-                    <span className="text-[10px] text-emerald-400 uppercase">Wallet Active</span>
-                  </div>
-                </div>
-              )}
-
-              {selectedOrderForModal.license_key && (
-                <div className="pt-2 border-t border-zinc-800/50">
-                  <span className="text-zinc-500 text-[10px] block mb-1">Delivered Cryptographic License Key:</span>
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold">
-                    <span className="select-all truncate mr-2">{selectedOrderForModal.license_key}</span>
+              {/* Inline Reject Form */}
+              {showRejectForm && (
+                <div className="p-4 rounded-2xl bg-rose-950/20 border border-rose-500/40 space-y-3">
+                  <span className="text-xs font-mono font-bold text-rose-300 block">Reject Payment with Reason:</span>
+                  <input
+                    type="text"
+                    value={rejectReasonInput}
+                    onChange={(e) => setRejectReasonInput(e.target.value)}
+                    placeholder="e.g. Reference number not found in bank ledger"
+                    className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-rose-500/40 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none"
+                  />
+                  <div className="flex items-center gap-2 justify-end">
                     <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(selectedOrderForModal.license_key);
-                        showToast('License key copied to clipboard!', 'success');
-                      }}
-                      className="px-2 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] cursor-pointer"
+                      onClick={() => setShowRejectForm(false)}
+                      className="px-3 py-1.5 rounded-lg bg-zinc-900 text-xs font-mono text-zinc-400"
                     >
-                      Copy
+                      Cancel
                     </button>
-                  </div>
-                </div>
-              )}
-
-              {selectedOrderForModal.payment_details?.rejection_reason && (
-                <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs">
-                  Rejection Reason: {selectedOrderForModal.payment_details.rejection_reason}
-                </div>
-              )}
-            </div>
-
-            {/* Administrative Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-zinc-800/80">
-              <div className="flex items-center gap-2">
-                {(selectedOrderForModal.status === 'pending' || selectedOrderForModal.status === 'awaiting_payment') && (
-                  <>
                     <button
                       onClick={async () => {
-                        await handleApproveOrder(selectedOrderForModal.id);
+                        if (!rejectReasonInput.trim()) return;
+                        await handleRejectOrder(selectedOrderForModal.id);
                         setSelectedOrderForModal(null);
+                        setShowRejectForm(false);
+                        setRejectReasonInput('');
                       }}
-                      disabled={processingOrderId === selectedOrderForModal.id}
-                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md shadow-emerald-950/50 disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-mono font-bold text-white"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{selectedOrderForModal.order_type === 'reseller_topup' ? 'Approve & Credit Reseller Pool' : selectedOrderForModal.order_type === 'balance_topup' ? 'Approve & Credit Balance' : 'Approve & Deliver Key'}</span>
+                      Confirm Rejection
                     </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
+            {/* Sticky Action Footer */}
+            <div className="p-3 sm:p-5 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              {(selectedOrderForModal.status === 'pending' || selectedOrderForModal.status === 'awaiting_payment') ? (
+                <>
+                  <button
+                    onClick={async () => {
+                      await handleApproveOrder(selectedOrderForModal.id);
+                      setSelectedOrderForModal(null);
+                    }}
+                    disabled={processingOrderId === selectedOrderForModal.id}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-emerald-950/50 disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>
+                      {selectedOrderForModal.order_type === 'reseller_topup'
+                        ? 'Approve & Credit Reseller Pool'
+                        : selectedOrderForModal.order_type === 'balance_topup'
+                        ? 'Approve & Credit Balance'
+                        : 'Approve & Deliver Key'}
+                    </span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => setShowRejectForm(!showRejectForm)}
-                      className="px-3.5 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-mono font-medium transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-mono font-medium transition-colors cursor-pointer text-center"
                     >
                       <span>Reject...</span>
                     </button>
@@ -7504,58 +7659,36 @@ export default function AdminPage() {
                         await handleCancelOrder(selectedOrderForModal.id);
                         setSelectedOrderForModal(null);
                       }}
-                      className="px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-mono transition-colors cursor-pointer"
+                      className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white text-xs font-mono transition-colors cursor-pointer text-center"
                     >
-                      <span>Cancel Order</span>
+                      <span>Cancel</span>
                     </button>
-                  </>
-                )}
-              </div>
 
-              <button
-                onClick={() => {
-                  setSelectedOrderForModal(null);
-                  setShowRejectForm(false);
-                }}
-                className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer"
-              >
-                Close Inspector
-              </button>
-            </div>
-
-            {/* Inline Reject Form */}
-            {showRejectForm && (
-              <div className="p-4 rounded-2xl bg-rose-950/20 border border-rose-500/40 space-y-3 pt-3">
-                <span className="text-xs font-mono font-bold text-rose-300 block">Reject Payment with Reason:</span>
-                <input
-                  type="text"
-                  value={rejectReasonInput}
-                  onChange={(e) => setRejectReasonInput(e.target.value)}
-                  placeholder="e.g. Reference number not found in bank ledger"
-                  className="w-full px-3.5 py-2 rounded-xl bg-zinc-950 border border-rose-500/40 text-xs font-mono text-white placeholder-zinc-600 focus:outline-none"
-                />
-                <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setSelectedOrderForModal(null);
+                        setShowRejectForm(false);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-end w-full">
                   <button
-                    onClick={() => setShowRejectForm(false)}
-                    className="px-3 py-1.5 rounded-lg bg-zinc-900 text-xs font-mono text-zinc-400"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (!rejectReasonInput.trim()) return;
-                      await handleRejectOrder(selectedOrderForModal.id);
+                    onClick={() => {
                       setSelectedOrderForModal(null);
                       setShowRejectForm(false);
-                      setRejectReasonInput('');
                     }}
-                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-mono font-bold text-white"
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer"
                   >
-                    Confirm Rejection
+                    Close Inspector
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
