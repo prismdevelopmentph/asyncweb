@@ -17,10 +17,10 @@ export const viewport: Viewport = {
   themeColor: "#7c3aed",
 };
 
-const siteUrl = "https://www.asyncdevph.xyz";
+const bannerAbsoluteUrl = "https://asyncdevph.vercel.app/og-banner.jpg";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL("https://asyncdevph.vercel.app"),
   title: "ASYNC Development — Account Generator & FiveM Tools",
   description:
     "High-performance FiveM asset recovery, and instant account generator portal — Trusted by thousands.",
@@ -28,14 +28,16 @@ export const metadata: Metadata = {
   authors: [{ name: "ASYNC Development" }],
   openGraph: {
     type: "website",
-    url: siteUrl,
+    url: "https://asyncdevph.vercel.app",
     title: "ASYNC Development — Account Generator & FiveM Tools",
     description:
       "High-performance FiveM asset recovery, and instant account generator portal — Trusted by thousands.",
     siteName: "ASYNC Development",
     images: [
       {
-        url: "/og-banner.jpg",
+        url: bannerAbsoluteUrl,
+        secureUrl: bannerAbsoluteUrl,
+        type: "image/jpeg",
         width: 1200,
         height: 630,
         alt: "ASYNC Development",
@@ -47,7 +49,7 @@ export const metadata: Metadata = {
     title: "ASYNC Development — Account Generator & FiveM Tools",
     description:
       "High-performance FiveM asset recovery, and instant account generator portal — Trusted by thousands.",
-    images: ["/og-banner.jpg"],
+    images: [bannerAbsoluteUrl],
   },
   icons: {
     icon: [
@@ -82,6 +84,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <meta name="theme-color" content="#7c3aed" />
         <meta property="og:site_name" content="ASYNC Development" />
+        <meta property="og:image" content={bannerAbsoluteUrl} />
+        <meta property="og:image:secure_url" content={bannerAbsoluteUrl} />
+        <meta property="og:image:type" content="image/jpeg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={bannerAbsoluteUrl} />
       </head>
       <body className="min-h-full flex flex-col" data-subdomain={subdomain}>
         <DevToolsProtection />
