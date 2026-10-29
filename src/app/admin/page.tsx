@@ -3529,11 +3529,11 @@ export default function AdminPage() {
                             </div>
 
                             {/* HWID Lock */}
-                            <div className="flex items-center justify-between text-xs font-mono pt-1 border-t border-zinc-900">
+                            <div className="flex items-center justify-between text-xs font-mono pt-1.5 border-t border-zinc-900">
                               <span className="text-zinc-500 text-[11px]">Device Lock:</span>
                               {group.hwid ? (
                                 <div className="flex items-center gap-1.5">
-                                  <span className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded truncate max-w-[140px]">
+                                  <span className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded truncate max-w-[140px]" title={group.hwid}>
                                     {group.hwid}
                                   </span>
                                   <button
@@ -3541,10 +3541,10 @@ export default function AdminPage() {
                                       const licWithHwid = group.licenses.find((l: any) => l.hwid);
                                       if (licWithHwid) handleResetGenHwid(licWithHwid);
                                     }}
-                                    className="p-1 rounded bg-zinc-900 text-zinc-400 hover:text-rose-400 border border-zinc-800 cursor-pointer"
+                                    className="min-h-[34px] min-w-[34px] p-1.5 rounded-lg bg-zinc-900 text-zinc-400 hover:text-rose-400 border border-zinc-800 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                                     title="Reset HWID"
                                   >
-                                    <Unlock className="w-3 h-3" />
+                                    <Unlock className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               ) : (
@@ -3555,7 +3555,7 @@ export default function AdminPage() {
                             </div>
 
                             {/* Touch Action Buttons */}
-                            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800/80">
+                            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800/80">
                               <button
                                 onClick={() => {
                                   setEditingLic(primaryLic);
@@ -3563,21 +3563,21 @@ export default function AdminPage() {
                                   setEditQuotaMode((primaryLic.quota_mode || 'shared') as 'isolated' | 'shared');
                                   setShowEditLimitModal(true);
                                 }}
-                                className="py-2 px-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                                className="min-h-[42px] py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                               >
                                 <Edit3 className="w-3.5 h-3.5 text-purple-400" />
                                 <span>Limit</span>
                               </button>
                               <button
                                 onClick={() => handleResetGenUsage(primaryLic)}
-                                className="py-2 px-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                                className="min-h-[42px] py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                               >
                                 <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
                                 <span>Reset</span>
                               </button>
                               <button
                                 onClick={() => handleToggleGenLicense(primaryLic.id, primaryLic.is_active)}
-                                className={`py-2 px-2.5 rounded-xl border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                                className={`min-h-[42px] py-2 px-2 rounded-xl border text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
                                   primaryLic.is_active
                                     ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30'
                                     : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
@@ -3846,19 +3846,19 @@ export default function AdminPage() {
                           </div>
 
                           {/* HWID Lock */}
-                          <div className="flex items-center justify-between text-xs font-mono pt-1 border-t border-zinc-900">
+                          <div className="flex items-center justify-between text-xs font-mono pt-1.5 border-t border-zinc-900">
                             <span className="text-zinc-500 text-[11px]">HWID Binding:</span>
                             {lic.hwid ? (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded truncate max-w-[140px]">
+                                <span className="text-[11px] text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded truncate max-w-[140px]" title={lic.hwid}>
                                   {lic.hwid}
                                 </span>
                                 <button
                                   onClick={() => handleResetGenHwid(lic)}
-                                  className="p-1 rounded bg-zinc-900 text-zinc-400 hover:text-rose-400 border border-zinc-800 cursor-pointer"
+                                  className="min-h-[34px] min-w-[34px] p-1.5 rounded-lg bg-zinc-900 text-zinc-400 hover:text-rose-400 border border-zinc-800 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                                   title="Reset HWID"
                                 >
-                                  <Unlock className="w-3 h-3" />
+                                  <Unlock className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             ) : (
@@ -3869,7 +3869,7 @@ export default function AdminPage() {
                           </div>
 
                           {/* Action Buttons */}
-                          <div className="grid grid-cols-3 gap-2 pt-1 border-t border-zinc-800/80">
+                          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800/80">
                             <button
                               onClick={() => {
                                 setEditingLic(lic);
@@ -3877,21 +3877,21 @@ export default function AdminPage() {
                                 setEditQuotaMode((lic.quota_mode || 'isolated') as 'isolated' | 'shared');
                                 setShowEditLimitModal(true);
                               }}
-                              className="py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                              className="min-h-[42px] py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                             >
                               <Edit3 className="w-3.5 h-3.5 text-purple-400" />
                               <span>Limit</span>
                             </button>
                             <button
                               onClick={() => handleResetGenUsage(lic)}
-                              className="py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                              className="min-h-[42px] py-2 px-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                             >
                               <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
                               <span>Reset</span>
                             </button>
                             <button
                               onClick={() => handleToggleGenLicense(lic.id, lic.is_active)}
-                              className={`py-2 px-2 rounded-xl border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+                              className={`min-h-[42px] py-2 px-2 rounded-xl border text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer ${
                                 lic.is_active
                                   ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border-rose-500/30'
                                   : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
@@ -6240,102 +6240,109 @@ export default function AdminPage() {
 
       {/* ── MODAL 2: GENERATE GENERATOR LICENSE ── */}
       {showGenLicenseModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl max-w-lg w-full shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-zinc-800 shrink-0 bg-zinc-900/95 backdrop-blur-sm z-10">
+              <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <PlusCircle className="w-5 h-5 text-amber-400" />
                 <span>Issue Generator License Key</span>
               </h3>
-              <button onClick={() => setShowGenLicenseModal(false)} className="text-zinc-500 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setShowGenLicenseModal(false)}
+                className="text-zinc-500 hover:text-white p-1.5 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleGenerateGenLicense} className="space-y-4">
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Scope (Allowed Services)</label>
-                <select
-                  value={genLicScope}
-                  onChange={(e) => setGenLicScope(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="All">All Services (Full Access)</option>
-                  {packages.map((pkg: any) => (
-                    <option key={pkg.id} value={`pkg_${pkg.id}`}>
-                      Package: {pkg.name}
-                    </option>
-                  ))}
-                  {services.map((svc: any) => (
-                    <option key={svc.id} value={svc.name}>
-                      Single: {svc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Tier / Duration</label>
-                <select
-                  value={genLicTier}
-                  onChange={(e) => setGenLicTier(e.target.value as any)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500/50"
-                >
-                  <option value="lifetime">Lifetime</option>
-                  <option value="monthly">Monthly (30 Days)</option>
-                  <option value="weekly">Weekly (7 Days)</option>
-                  <option value="daily">Daily (24 Hours)</option>
-                </select>
-              </div>
-
-              {genLicTier === 'lifetime' && (
+            <form onSubmit={handleGenerateGenLicense} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                 <div>
-                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Custom Daily Generation Limit (Optional)</label>
+                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Scope (Allowed Services)</label>
+                  <select
+                    value={genLicScope}
+                    onChange={(e) => setGenLicScope(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                  >
+                    <option value="All">All Services (Full Access)</option>
+                    {packages.map((pkg: any) => (
+                      <option key={pkg.id} value={`pkg_${pkg.id}`}>
+                        Package: {pkg.name}
+                      </option>
+                    ))}
+                    {services.map((svc: any) => (
+                      <option key={svc.id} value={svc.name}>
+                        Single: {svc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Tier / Duration</label>
+                  <select
+                    value={genLicTier}
+                    onChange={(e) => setGenLicTier(e.target.value as any)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                  >
+                    <option value="lifetime">Lifetime</option>
+                    <option value="monthly">Monthly (30 Days)</option>
+                    <option value="weekly">Weekly (7 Days)</option>
+                    <option value="daily">Daily (24 Hours)</option>
+                  </select>
+                </div>
+
+                {genLicTier === 'lifetime' && (
+                  <div>
+                    <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Custom Daily Generation Limit (Optional)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Defaults to 15 if empty"
+                      value={genLicDailyLimit}
+                      onChange={(e) => setGenLicDailyLimit(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Pre-Assign to User ID (Optional)</label>
                   <input
-                    type="number"
-                    min="1"
-                    placeholder="Defaults to 15 if empty"
-                    value={genLicDailyLimit}
-                    onChange={(e) => setGenLicDailyLimit(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
+                    type="text"
+                    placeholder="Discord Snowflake ID (e.g. 719482630633947166)"
+                    value={genLicUserId}
+                    onChange={(e) => setGenLicUserId(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
-              )}
 
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Pre-Assign to User ID (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Discord Snowflake ID (e.g. 719482630633947166)"
-                  value={genLicUserId}
-                  onChange={(e) => setGenLicUserId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
-                />
+                <div>
+                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Custom Key String (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="Auto-generated if left blank"
+                    value={genLicKey}
+                    onChange={(e) => setGenLicKey(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Custom Key String (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="Auto-generated if left blank"
-                  value={genLicKey}
-                  onChange={(e) => setGenLicKey(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3">
+              {/* Sticky bottom action footer */}
+              <div className="shrink-0 p-4 sm:p-5 border-t border-zinc-800 bg-zinc-900/95 backdrop-blur-md flex items-center justify-end gap-3 z-10">
                 <button
                   type="button"
                   onClick={() => setShowGenLicenseModal(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                  className="min-h-[42px] sm:min-h-0 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold flex items-center gap-2 transition-all shadow-lg disabled:opacity-50"
+                  className="min-h-[42px] sm:min-h-0 px-6 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Key className="w-4 h-4" />
                   <span>Generate Key</span>
@@ -6491,62 +6498,69 @@ export default function AdminPage() {
 
       {/* ── MODAL 4: EDIT DAILY LIMIT ── */}
       {showEditLimitModal && editingLic && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl max-w-sm w-full shadow-2xl max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-zinc-800 shrink-0 bg-zinc-900/95 backdrop-blur-sm z-10">
+              <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <Edit3 className="w-5 h-5 text-purple-400" />
                 <span>Adjust Daily Limit</span>
               </h3>
-              <button onClick={() => setShowEditLimitModal(false)} className="text-zinc-500 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setShowEditLimitModal(false)}
+                className="text-zinc-500 hover:text-white p-1.5 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleEditGenLicense} className="space-y-4">
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">License Key</label>
-                <p className="text-xs font-mono text-zinc-200 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 truncate">
-                  {editingLic.license_key}
-                </p>
+            <form onSubmit={handleEditGenLicense} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                <div>
+                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">License Key</label>
+                  <p className="text-xs font-mono text-zinc-200 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 truncate select-all">
+                    {editingLic.license_key}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Max Generations Per Day</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={editLimitValue}
+                    onChange={(e) => setEditLimitValue(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Quota Policy Mode</label>
+                  <select
+                    value={editQuotaMode}
+                    onChange={(e) => setEditQuotaMode(e.target.value as 'isolated' | 'shared')}
+                    className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500/50 cursor-pointer"
+                  >
+                    <option value="isolated">Isolated (Strictly applies only to covered services)</option>
+                    <option value="shared">Shared Pool (Can be used across any eligible service)</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Max Generations Per Day</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={editLimitValue}
-                  onChange={(e) => setEditLimitValue(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">Quota Policy Mode</label>
-                <select
-                  value={editQuotaMode}
-                  onChange={(e) => setEditQuotaMode(e.target.value as 'isolated' | 'shared')}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500/50 cursor-pointer"
-                >
-                  <option value="isolated">Isolated (Strictly applies only to covered services)</option>
-                  <option value="shared">Shared Pool (Can be used across any eligible service)</option>
-                </select>
-              </div>
-
-              <div className="pt-4 flex items-center justify-end gap-3">
+              {/* Sticky bottom action footer */}
+              <div className="shrink-0 p-4 sm:p-5 border-t border-zinc-800 bg-zinc-900/95 backdrop-blur-md flex items-center justify-end gap-3 z-10">
                 <button
                   type="button"
                   onClick={() => setShowEditLimitModal(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                  className="min-h-[42px] sm:min-h-0 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer active:scale-95 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/20 disabled:opacity-50"
+                  className="min-h-[42px] sm:min-h-0 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-600/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Save Limit</span>
