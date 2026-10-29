@@ -20,8 +20,7 @@ export async function getPayMongoConfig(): Promise<PayMongoConfig> {
   const envSecretKey = sanitizeKey(
     process.env.PAYMONGO_SECRET_KEY ||
     process.env.PAYMONGO_SECRET ||
-    process.env.PAYMONGO_SECRET_TOKEN ||
-    process.env.NEXT_PUBLIC_PAYMONGO_SECRET_KEY
+    process.env.PAYMONGO_SECRET_TOKEN
   );
 
   const envWebhookSecret = sanitizeKey(
@@ -30,8 +29,7 @@ export async function getPayMongoConfig(): Promise<PayMongoConfig> {
     process.env.PAYMONGO_WEBHOOK_SIGNING_SECRET ||
     process.env.PAYMONGO_SIGNING_SECRET ||
     process.env.PAYMONGO_WEBHOOK_KEY ||
-    process.env.PAYMONGO_WEBHOOK_SECRET_TEST ||
-    process.env.NEXT_PUBLIC_PAYMONGO_WEBHOOK_SECRET
+    process.env.PAYMONGO_WEBHOOK_SECRET_TEST
   );
 
   let dbSecretKey: string | null = null;
