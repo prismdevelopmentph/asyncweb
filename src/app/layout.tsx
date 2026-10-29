@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -13,9 +13,42 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#7c3aed",
+};
+
+const siteUrl = "https://www.asyncdevph.xyz";
+
 export const metadata: Metadata = {
-  title: "ASYNC DEVELOPMENT - FiveM Asset Recovery & Web Panel",
-  description: "High-performance asset recovery, FiveM Lua decryption, and 3D vertex reconstruction portal.",
+  metadataBase: new URL(siteUrl),
+  title: "ASYNC Development — Account Generator & FiveM Tools",
+  description:
+    "High-performance FiveM asset recovery, and instant account generator portal — Trusted by thousands.",
+  applicationName: "ASYNC Development",
+  authors: [{ name: "ASYNC Development" }],
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    title: "ASYNC Development — Account Generator & FiveM Tools",
+    description:
+      "High-performance FiveM asset recovery, and instant account generator portal — Trusted by thousands.",
+    siteName: "ASYNC Development",
+    images: [
+      {
+        url: "/og-banner.jpg",
+        width: 1200,
+        height: 630,
+        alt: "ASYNC Development",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ASYNC Development — Account Generator & FiveM Tools",
+    description:
+      "High-performance FiveM asset recovery, and instant account generator portal — Trusted by thousands.",
+    images: ["/og-banner.jpg"],
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -23,6 +56,9 @@ export const metadata: Metadata = {
     ],
     shortcut: "/favicon.ico",
     apple: "/apple-icon.png",
+  },
+  other: {
+    "theme-color": "#7c3aed",
   },
 };
 
@@ -43,6 +79,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-subdomain={subdomain}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <meta name="theme-color" content="#7c3aed" />
+        <meta property="og:site_name" content="ASYNC Development" />
+      </head>
       <body className="min-h-full flex flex-col" data-subdomain={subdomain}>
         <DevToolsProtection />
         <SessionInactivityTracker />

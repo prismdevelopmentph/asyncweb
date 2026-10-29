@@ -120,8 +120,14 @@ function renderLockoutHtml(ip: string, reason: string): string {
 }
 
 export async function middleware(req: NextRequest) {
-  // 0. Always bypass middleware filters for external webhooks
+  // 0. Always bypass middleware filters for external webhooks and social crawler embed previews
   if (req.nextUrl.pathname.startsWith('/api/webhooks')) {
+    return NextResponse.next();
+  }
+
+  const userAgent = req.headers.get('user-agent') || '';
+  const isSocialCrawler = /discordbot|twitterbot|facebookexternalhit|slackbot|whatsapp|telegrambot/i.test(userAgent);
+  if (isSocialCrawler) {
     return NextResponse.next();
   }
 
@@ -329,9 +335,9 @@ export const config = {
      * Match all request paths except static assets:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico, icon.png, apple-icon.png
+     * - favicon.ico, icon.png, apple-icon.png, og-banner.jpg
      * - images/
      */
-    '/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|images/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|og-banner.jpg|images/).*)',
   ],
 };
