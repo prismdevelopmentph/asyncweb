@@ -130,7 +130,9 @@ async function computeHardwareId(): Promise<string> {
   } catch {}
 
   try {
-    document.cookie = `async_hwid=${hwid}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    const isProd = typeof window !== 'undefined' && window.location.hostname.toLowerCase().includes('asyncdevph.xyz');
+    const domainAttr = isProd ? '; domain=.asyncdevph.xyz' : '';
+    document.cookie = `async_hwid=${hwid}; Path=/; Max-Age=31536000; SameSite=Lax${domainAttr}`;
   } catch {}
 
   return hwid;

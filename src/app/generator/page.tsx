@@ -687,11 +687,17 @@ export default function AccountGeneratorPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
+      let hwidHeader = '';
+      try {
+        hwidHeader = localStorage.getItem('async_hwid') || '';
+      } catch {}
+
       const res = await fetch('/api/generator/claim', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(hwidHeader ? { 'x-hwid': hwidHeader } : {})
         },
         body: JSON.stringify({
           serviceName
