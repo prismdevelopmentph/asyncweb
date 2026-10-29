@@ -87,19 +87,12 @@ export async function POST(request: NextRequest) {
     const expiresAt = durationDays !== null ? new Date(now.getTime() + durationDays * 24 * 3600 * 1000).toISOString() : null;
 
     // 2. Atomically redeem license for caller (prevents concurrent race conditions)
-    const clientHwid = (
-      request.cookies.get('async_hwid')?.value ||
-      request.headers.get('x-hwid') ||
-      ''
-    ).trim();
-
     const { data: updatedLic, error: updateErr } = await supabaseAdmin
       .from('licenses')
       .update({
         redeemed_by: callerDiscordId,
         redeemed_at: now.toISOString(),
         expires_at: expiresAt,
-        ...(clientHwid.startsWith('hw_') ? { hwid: clientHwid } : {}),
       })
       .eq('id', license.id)
       .is('redeemed_by', null)

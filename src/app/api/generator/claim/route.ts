@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireUser, isOwnerDiscordId } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
+
+// In-memory token-to-device registry for ultra-low latency verification
+type BoundSession = { hwid: string; boundAt: number };
+const tokenHwidStore: Map<string, BoundSession> =
+  (globalThis as any).__async_token_hwid_store ||
+  ((globalThis as any).__async_token_hwid_store = new Map<string, BoundSession>());
+
+function resolveTokenSessionKey(token: string): string {
+  const parts = token.split('.');
+  if (parts.length === 3) {
+    try {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+      if (payload.session_id) return `sess_${payload.session_id}`;
+    } catch {}
+    return `sig_${crypto.createHash('sha256').update(parts[2]).digest('hex').slice(0, 32)}`;
+  }
+  return `tok_${crypto.createHash('sha256').update(token).digest('hex').slice(0, 32)}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,8 +35,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Service name is required.' }, { status: 400 });
     }
 
-    // ── Hardware ID (HWID) Device-Binding Security Gate ──
-    // Neutralizes stolen tokens: claims are locked to the user's physical hardware profile
+    // ── Token-Bound Device Binding Security Gate (Architecture 2) ──
+    // Binds each active session token strictly to the originating physical device.
+    // Stolen tokens replayed on another machine or via cURL are rejected.
+    // Legitimate users signing in across multiple personal devices receive unique tokens and work seamlessly.
     const callerDiscordId = auth.data.discordId;
     const isOwner = isOwnerDiscordId(callerDiscordId);
 
@@ -28,36 +49,79 @@ export async function POST(request: NextRequest) {
         ''
       ).trim();
 
-      // Retrieve user's active license(s)
-      const { data: activeLicenses } = await supabaseAdmin
-        .from('licenses')
-        .select('id, hwid')
-        .eq('redeemed_by', callerDiscordId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+      if (!clientHwid || !clientHwid.startsWith('hw_')) {
+        return NextResponse.json(
+          {
+            error: 'Hardware identification required: Device fingerprint missing. Please ensure cookies or JavaScript are enabled.',
+            code: 'HWID_REQUIRED'
+          },
+          { status: 403 }
+        );
+      }
 
-      if (activeLicenses && activeLicenses.length > 0) {
-        const boundLic = activeLicenses.find((l) => l.hwid && l.hwid.trim().length > 0);
+      const authHeader = request.headers.get('authorization') || request.headers.get('Authorization') || '';
+      const rawToken = authHeader.replace(/^Bearer\s+/i, '').trim();
+      const sessionKey = resolveTokenSessionKey(rawToken);
 
-        if (boundLic && boundLic.hwid) {
-          // License is bound to a specific hardware ID -> verify match
-          if (!clientHwid || boundLic.hwid.toLowerCase() !== clientHwid.toLowerCase()) {
-            return NextResponse.json(
-              {
-                error: 'Hardware ID mismatch: This session or license is locked to another device. If you changed PCs, please open a ticket to reset your HWID.',
-                code: 'HWID_MISMATCH'
-              },
-              { status: 403 }
-            );
-          }
-        } else if (clientHwid && clientHwid.startsWith('hw_')) {
-          // First claim on active license without bound HWID: auto-bind current device
-          const targetLic = activeLicenses[0];
-          await supabaseAdmin
-            .from('licenses')
-            .update({ hwid: clientHwid })
-            .eq('id', targetLic.id);
+      // 1. Fast in-memory lookup
+      let bound = tokenHwidStore.get(sessionKey);
+
+      // 2. Persistent Supabase fallback (survives container/process restarts)
+      if (!bound) {
+        const { data: persistentBinding } = await supabaseAdmin
+          .from('visitor_logs')
+          .select('device_id')
+          .eq('discord_id', callerDiscordId)
+          .eq('path', `bind:${sessionKey}`)
+          .order('visited_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (persistentBinding?.device_id) {
+          bound = { hwid: persistentBinding.device_id, boundAt: Date.now() };
+          tokenHwidStore.set(sessionKey, bound);
         }
+      }
+
+      if (bound) {
+        // Enforce device match for this specific token
+        if (bound.hwid.toLowerCase() !== clientHwid.toLowerCase()) {
+          return NextResponse.json(
+            {
+              error: 'Hardware ID mismatch: This session token is bound to another device. If you switched devices, please log in on this device to obtain a fresh session.',
+              code: 'HWID_MISMATCH'
+            },
+            { status: 403 }
+          );
+        }
+      } else {
+        // First claim with this token: bind current device to token
+        tokenHwidStore.set(sessionKey, { hwid: clientHwid, boundAt: Date.now() });
+
+        // Maintain store bounds (prune expired sessions > 24h if map grows large)
+        if (tokenHwidStore.size > 10000) {
+          const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+          for (const [k, v] of tokenHwidStore.entries()) {
+            if (v.boundAt < cutoff) tokenHwidStore.delete(k);
+          }
+        }
+
+        // Asynchronously persist binding
+        const clientIp =
+          request.headers.get('cf-connecting-ip') ||
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          request.headers.get('x-real-ip')?.trim() ||
+          '127.0.0.1';
+
+        supabaseAdmin.from('visitor_logs').insert({
+          ip_address: clientIp,
+          device_id: clientHwid,
+          discord_id: callerDiscordId,
+          path: `bind:${sessionKey}`,
+          visited_at: new Date().toISOString()
+        }).then(({ error: insertErr }) => {
+          if (insertErr) console.warn('[TokenBinding] Persistent save warning:', insertErr.message);
+        });
       }
     }
 
