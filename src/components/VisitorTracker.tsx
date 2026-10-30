@@ -40,7 +40,88 @@ function getCanvasSignature(): string {
   }
 }
 
-function getDeviceInfo() {
+async function extractUnmaskedGPU(): Promise<string> {
+  if (typeof window === 'undefined') return 'Integrated / Standard';
+
+  // Tier 1: Modern WebGPU direct hardware adapter query (bypasses WebGL masking & Brave Farbling)
+  try {
+    if ('gpu' in navigator && typeof (navigator as any).gpu?.requestAdapter === 'function') {
+      const adapter = await (navigator as any).gpu.requestAdapter({ powerPreference: 'high-performance' });
+      if (adapter?.info) {
+        const desc = adapter.info.description || '';
+        const vendor = adapter.info.vendor || '';
+        const device = adapter.info.device || '';
+        const arch = adapter.info.architecture || '';
+
+        if (desc && !/basic render|software|warp/i.test(desc)) {
+          return desc.trim();
+        }
+        if (device && !/basic render|software/i.test(device)) {
+          return `${vendor} ${device}`.trim();
+        }
+        if (arch && !/basic render|software/i.test(arch)) {
+          return `${vendor} ${arch}`.trim();
+        }
+      }
+    }
+  } catch {}
+
+  // Tier 2: WebGL2 & WebGL1 with high-performance powerPreference & clean regex parsing
+  let webglCandidate = '';
+  let maxTextureSize = 0;
+  let hasAnisotropy = false;
+
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = (
+      canvas.getContext('webgl2', { powerPreference: 'high-performance' }) ||
+      canvas.getContext('webgl', { powerPreference: 'high-performance' }) ||
+      canvas.getContext('experimental-webgl')
+    ) as WebGLRenderingContext | null;
+
+    if (gl) {
+      maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+      hasAnisotropy = Boolean(gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic'));
+
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) {
+        const raw = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+        if (raw) {
+          // Check for ANGLE pattern: "ANGLE (Vendor, Real GPU Model Direct3D11...)"
+          const angleMatch = raw.match(/ANGLE\s*\([^,]+,\s*([^,]+?)(?:\s+Direct3D|\s+vs_|\s+ps_|\s+Vulkan|\s*\))/i);
+          if (angleMatch && angleMatch[1]) {
+            webglCandidate = angleMatch[1].trim();
+          } else {
+            // Strip out ANGLE wrapping and trailing D3D flags
+            webglCandidate = raw
+              .replace(/ANGLE\s*\(/i, '')
+              .replace(/\)$/, '')
+              .split(',')[0]
+              .replace(/\s+Direct3D.*/i, '')
+              .trim();
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // Tier 3: Brave Farbling & Software Mask Defeat
+  // If the string is empty or masked as generic "Microsoft Basic Render Driver" / "Google SwiftShader"
+  if (!webglCandidate || /basic render|swiftshader|software|generic|mesa/i.test(webglCandidate)) {
+    // If physical hardware capability indicates a powerful modern dedicated GPU (e.g. 16K texture capacity + anisotropy)
+    if (maxTextureSize >= 16384 && hasAnisotropy) {
+      return `Dedicated GPU (16K / High-Performance Hardware)`;
+    }
+    if (maxTextureSize >= 8192) {
+      return `Standard Hardware GPU (${maxTextureSize}px Buffer)`;
+    }
+    return webglCandidate || 'Integrated / Standard';
+  }
+
+  return webglCandidate;
+}
+
+async function getDeviceInfo() {
   if (typeof window === 'undefined') return null;
 
   const ua = navigator.userAgent;
@@ -54,27 +135,15 @@ function getDeviceInfo() {
   else if (/Linux/i.test(ua)) os = 'Linux';
 
   let browser = 'Unknown Browser';
-  if (/Edg\//i.test(ua)) browser = 'Edge';
+  const isBrave = Boolean((navigator as any).brave && typeof (navigator as any).brave.isBrave === 'function');
+  if (isBrave) browser = 'Brave';
+  else if (/Edg\//i.test(ua)) browser = 'Edge';
   else if (/Chrome\//i.test(ua)) browser = 'Chrome';
   else if (/Firefox\//i.test(ua)) browser = 'Firefox';
   else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = 'Safari';
   else if (/Opera|OPR\//i.test(ua)) browser = 'Opera';
 
-  let gpu = 'Integrated / Standard';
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
-    if (gl) {
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      if (ext) {
-        const raw = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
-        if (raw) {
-          const match = raw.match(/ANGLE \([^,]+,\s*([^,]+)/i);
-          gpu = match && match[1] ? match[1].trim() : raw.split(',')[0].trim();
-        }
-      }
-    }
-  } catch {}
+  const gpu = await extractUnmaskedGPU();
 
   return {
     os,
@@ -157,8 +226,10 @@ export default function VisitorTracker() {
 
     const logVisit = async () => {
       try {
-        const deviceId = await computeHardwareId();
-        const deviceInfo = getDeviceInfo();
+        const [deviceId, deviceInfo] = await Promise.all([
+          computeHardwareId(),
+          getDeviceInfo()
+        ]);
         let sessionToken: string | null = null;
 
         try {
