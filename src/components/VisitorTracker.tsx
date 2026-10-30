@@ -108,35 +108,63 @@ async function extractUnmaskedGPU(): Promise<string> {
   try {
     if ('gpu' in navigator && typeof (navigator as any).gpu?.requestAdapter === 'function') {
       const adapter = await (navigator as any).gpu.requestAdapter({ powerPreference: 'high-performance' });
-      if (adapter?.info) {
-        const desc = adapter.info.description || '';
-        const vendor = adapter.info.vendor || '';
-        const device = adapter.info.device || '';
-        const arch = (adapter.info.architecture || '').toLowerCase().trim();
+      if (adapter) {
+        // In newer Chromium / WebGPU spec, adapter.requestAdapterInfo() is an async function
+        let info = adapter.info;
+        if (!info && typeof adapter.requestAdapterInfo === 'function') {
+          info = await adapter.requestAdapterInfo();
+        }
 
-        if (desc && !/basic render|software|warp/i.test(desc)) {
-          return desc.trim();
-        }
-        if (device && !/basic render|software/i.test(device)) {
-          return `${vendor} ${device}`.trim();
-        }
-        // Architecture unmask: maps internal silicon IDs to real GPU lines
-        if (arch && GPU_ARCH_MAP[arch]) {
-          return GPU_ARCH_MAP[arch];
-        }
-        if (arch && !/basic render|software/i.test(arch)) {
-          return `${vendor ? vendor + ' ' : ''}${arch.toUpperCase()}`.trim();
+        if (info) {
+          const desc = (info.description || '').trim();
+          const vendor = (info.vendor || '').trim();
+          const device = (info.device || '').trim();
+          const arch = (info.architecture || '').toLowerCase().trim();
+
+          if (desc && !/basic render|software|warp/i.test(desc)) {
+            return desc;
+          }
+          if (device && !/basic render|software/i.test(device)) {
+            return `${vendor} ${device}`.trim();
+          }
+          if (arch && GPU_ARCH_MAP[arch]) {
+            return GPU_ARCH_MAP[arch];
+          }
+          if (arch && !/basic render|software/i.test(arch)) {
+            return `${vendor ? vendor + ' ' : ''}${arch.toUpperCase()}`.trim();
+          }
+          if (vendor && !/google|software/i.test(vendor)) {
+            return `${vendor} Dedicated Adapter`.trim();
+          }
         }
       }
     }
   } catch {}
 
-  // Tier 3: Physical parameter capabilities if masked as "Basic Render"
-  if (maxTextureSize >= 16384 && hasAnisotropy) {
-    return `Dedicated GPU (16K High-Performance)`;
+  // Tier 3: If on Brave or masked, query WebGL hardware limits directly
+  if (isBrave || !webglCandidate) {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = (
+        canvas.getContext('webgl2', { powerPreference: 'high-performance' }) ||
+        canvas.getContext('webgl', { powerPreference: 'high-performance' })
+      ) as WebGLRenderingContext | null;
+
+      if (gl) {
+        const texSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+        const aniso = Boolean(gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic'));
+        if (texSize >= 16384 && aniso) {
+          return `High-End Dedicated GPU (16K / Shielded)`;
+        }
+        if (texSize >= 8192) {
+          return `Hardware Accelerated GPU (${texSize}px / Shielded)`;
+        }
+      }
+    } catch {}
   }
 
-  return webglCandidate || 'Integrated / Standard';
+  // Tier 4: Fallback
+  return isBrave ? 'Hardware GPU (Brave Shielded)' : (webglCandidate || 'Integrated / Standard');
 }
 
 async function getDeviceInfo() {
