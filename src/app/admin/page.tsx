@@ -2219,6 +2219,14 @@ export default function AdminPage() {
     (lic.scope_label || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredResellers = resellersList.filter((r: any) =>
+    (r.company_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (r.discord_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (r.id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (r.status || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    matchDiscordUser(r.discord_id, searchQuery.toLowerCase())
+  );
+
   // Group generator licenses by user account
   const genUserGroupsMap = new Map<string, {
     userId: string;
@@ -5728,11 +5736,101 @@ export default function AdminPage() {
               <div className="p-5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
                 <div className="flex items-center gap-2.5 font-mono text-xs text-purple-300 font-semibold">
                   <Users className="w-4 h-4 text-purple-400" />
-                  <span>AUTHORIZED RESELLERS ROSTER ({resellersList.length})</span>
+                  <span>
+                    AUTHORIZED RESELLERS ROSTER ({filteredResellers.length}
+                    {filteredResellers.length !== resellersList.length ? ` / ${resellersList.length}` : ''})
+                  </span>
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Mobile Card Layout (< md screens) */}
+              <div className="block md:hidden divide-y divide-zinc-800/60">
+                {resellersLoading ? (
+                  <div className="p-8 text-center text-zinc-500 font-mono text-xs">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-purple-400" />
+                    <span>Loading authorized resellers...</span>
+                  </div>
+                ) : filteredResellers.length === 0 ? (
+                  <div className="p-8 text-center text-zinc-500 font-sans text-xs">
+                    {searchQuery ? 'No resellers match your search query.' : 'No authorized wholesale resellers registered yet.'}
+                  </div>
+                ) : (
+                  filteredResellers.map((reseller: any) => (
+                    <div key={reseller.id} className="p-4 sm:p-5 space-y-3.5 bg-zinc-950/40">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-white text-sm">{reseller.company_name}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono mt-0.5">ID: {reseller.id.slice(0, 8)}...</div>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider border shrink-0 ${
+                            reseller.status === 'active'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : 'bg-red-500/10 text-red-400 border-red-500/30'
+                          }`}
+                        >
+                          {reseller.status}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                        <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+                          <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">Credit Balance</span>
+                          <span className="font-bold text-emerald-400 text-sm">
+                            ₱{Number(reseller.credit_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+                          <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">Keys Minted</span>
+                          <span className="font-bold text-zinc-200 text-sm">
+                            {reseller.keys_issued_count || 0}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="min-w-0">
+                          <DiscordUserBadge
+                            userId={reseller.discord_id}
+                            userProfiles={userProfiles}
+                            onCopy={copyToClipboard}
+                            copiedKey={copiedKey}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => {
+                              setSelectedResellerForBalance(reseller);
+                              setBalanceAdjustAmount('');
+                              setBalanceAdjustNote('');
+                              setBalanceModalOpen(true);
+                            }}
+                            className="min-h-[40px] px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors border border-zinc-700/60 cursor-pointer"
+                          >
+                            <Coins className="w-3.5 h-3.5 text-purple-400" />
+                            <span>Adjust</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleToggleResellerStatus(reseller.id, reseller.status)}
+                            className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-semibold transition-colors border cursor-pointer ${
+                              reseller.status === 'active'
+                                ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            }`}
+                          >
+                            {reseller.status === 'active' ? 'Suspend' : 'Activate'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop Table View (>= md screens) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-zinc-800 bg-zinc-950/60 font-mono text-zinc-400">
@@ -5752,14 +5850,14 @@ export default function AdminPage() {
                           <span>Loading authorized resellers...</span>
                         </td>
                       </tr>
-                    ) : resellersList.length === 0 ? (
+                    ) : filteredResellers.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-zinc-500 font-sans">
-                          No authorized wholesale resellers registered yet. Click &quot;Authorize Reseller&quot; above.
+                          {searchQuery ? 'No resellers match your search query.' : 'No authorized wholesale resellers registered yet. Click "Authorize Reseller" above.'}
                         </td>
                       </tr>
                     ) : (
-                      resellersList.map((reseller: any) => (
+                      filteredResellers.map((reseller: any) => (
                         <tr key={reseller.id} className="hover:bg-zinc-800/30 transition-colors">
                           <td className="py-4 px-6">
                             <div className="font-bold text-white text-sm">{reseller.company_name}</div>
@@ -8012,19 +8110,23 @@ export default function AdminPage() {
 
       {/* ── MODAL: AUTHORIZE WHOLESALE RESELLER ── */}
       {resellerModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-purple-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-zinc-900 border border-purple-500/30 rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 max-w-md w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800/80 shrink-0">
+              <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <Users className="w-5 h-5 text-purple-400" />
                 <span>Authorize Wholesale Reseller</span>
               </h3>
-              <button onClick={() => setResellerModalOpen(false)} className="text-zinc-500 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setResellerModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 cursor-pointer transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateReseller} className="space-y-4">
+            <form onSubmit={handleCreateReseller} className="space-y-4 overflow-y-auto flex-1 pr-1 pb-2">
               <div>
                 <label className="text-xs font-mono text-zinc-400 uppercase block mb-1.5">
                   Reseller Discord User ID (17-20 Digit Snowflake)
@@ -8035,7 +8137,7 @@ export default function AdminPage() {
                   placeholder="e.g. 719482630633947166"
                   value={resellerDiscordId}
                   onChange={(e) => setResellerDiscordId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500"
                 />
               </div>
 
@@ -8049,7 +8151,7 @@ export default function AdminPage() {
                   placeholder="e.g. Hyperion Digital Store"
                   value={resellerCompanyName}
                   onChange={(e) => setResellerCompanyName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white focus:outline-none focus:border-purple-500"
                 />
               </div>
 
@@ -8064,21 +8166,21 @@ export default function AdminPage() {
                   value={resellerInitialCredit}
                   onChange={(e) => setResellerInitialCredit(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500"
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-zinc-800/80 sticky bottom-0 bg-zinc-900 flex items-center justify-end gap-3 mt-auto">
                 <button
                   type="button"
                   onClick={() => setResellerModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                  className="min-h-[42px] px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/30"
+                  className="min-h-[42px] px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/30 cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Authorize & Save</span>
@@ -8091,22 +8193,26 @@ export default function AdminPage() {
 
       {/* ── MODAL: ADJUST RESELLER BALANCE ── */}
       {balanceModalOpen && selectedResellerForBalance && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-zinc-900 border border-purple-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-zinc-900 border border-purple-500/30 rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 max-w-md w-full max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800/80 shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                   <Coins className="w-5 h-5 text-purple-400" />
                   <span>Adjust Credit Balance</span>
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5">{selectedResellerForBalance.company_name}</p>
               </div>
-              <button onClick={() => setBalanceModalOpen(false)} className="text-zinc-500 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setBalanceModalOpen(false)}
+                className="p-1 rounded-lg text-zinc-500 hover:text-white hover:bg-zinc-800 cursor-pointer transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAdjustBalance} className="space-y-4">
+            <form onSubmit={handleAdjustBalance} className="space-y-4 overflow-y-auto flex-1 pr-1 pb-2">
               <div className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs font-mono flex justify-between items-center">
                 <span className="text-zinc-400">Current Balance:</span>
                 <span className="text-emerald-400 font-bold text-sm">
@@ -8121,6 +8227,21 @@ export default function AdminPage() {
                 <p className="text-[11px] text-zinc-500 mb-2">
                   Enter positive number to deposit (e.g. <code>500</code>), or negative to deduct (e.g. <code>-200</code>).
                 </p>
+
+                {/* Quick Presets */}
+                <div className="grid grid-cols-4 gap-2 mb-2 font-mono text-xs">
+                  {['+500', '+1000', '+2500', '+5000'].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setBalanceAdjustAmount(preset.replace('+', ''))}
+                      className="py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-purple-300 font-semibold text-[11px] transition-colors cursor-pointer"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+
                 <input
                   type="number"
                   step="0.01"
@@ -8128,7 +8249,7 @@ export default function AdminPage() {
                   placeholder="+1000 or -250"
                   value={balanceAdjustAmount}
                   onChange={(e) => setBalanceAdjustAmount(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white font-mono focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white font-mono focus:outline-none focus:border-purple-500"
                 />
               </div>
 
@@ -8150,21 +8271,21 @@ export default function AdminPage() {
                   placeholder="e.g. GCash Ref #9928374 or promo bonus"
                   value={balanceAdjustNote}
                   onChange={(e) => setBalanceAdjustNote(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-base sm:text-xs text-white focus:outline-none focus:border-purple-500"
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-zinc-800/80 sticky bottom-0 bg-zinc-900 flex items-center justify-end gap-3 mt-auto">
                 <button
                   type="button"
                   onClick={() => setBalanceModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold"
+                  className="min-h-[42px] px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/30"
+                  className="min-h-[42px] px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-lg shadow-purple-600/30 cursor-pointer"
                 >
                   <Coins className="w-4 h-4" />
                   <span>Apply Balance</span>
