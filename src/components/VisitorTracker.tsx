@@ -62,43 +62,46 @@ async function extractUnmaskedGPU(): Promise<string> {
   let maxTextureSize = 0;
   let hasAnisotropy = false;
 
-  // Tier 1: WebGL2 & WebGL1 with UNMASKED_RENDERER_WEBGL
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = (
-      canvas.getContext('webgl2', { powerPreference: 'high-performance' }) ||
-      canvas.getContext('webgl', { powerPreference: 'high-performance' }) ||
-      canvas.getContext('experimental-webgl')
-    ) as WebGLRenderingContext | null;
+  // Tier 1: If Brave browser, bypass its spoofed WebGL renderer directly
+  const isBrave = Boolean((navigator as any).brave && typeof (navigator as any).brave.isBrave === 'function');
 
-    if (gl) {
-      maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
-      hasAnisotropy = Boolean(gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic'));
+  if (!isBrave) {
+    // Standard WebGL2 / WebGL1 extraction for Chrome, Edge, Firefox, etc.
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = (
+        canvas.getContext('webgl2', { powerPreference: 'high-performance' }) ||
+        canvas.getContext('webgl', { powerPreference: 'high-performance' }) ||
+        canvas.getContext('experimental-webgl')
+      ) as WebGLRenderingContext | null;
 
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      if (ext) {
-        const raw = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
-        if (raw) {
-          // Check for ANGLE pattern: "ANGLE (Vendor, Real GPU Model Direct3D11...)"
-          const angleMatch = raw.match(/ANGLE\s*\([^,]+,\s*([^,]+?)(?:\s+Direct3D|\s+vs_|\s+ps_|\s+Vulkan|\s*\))/i);
-          if (angleMatch && angleMatch[1]) {
-            webglCandidate = angleMatch[1].trim();
-          } else {
-            webglCandidate = raw
-              .replace(/ANGLE\s*\(/i, '')
-              .replace(/\)$/, '')
-              .split(',')[0]
-              .replace(/\s+Direct3D.*/i, '')
-              .trim();
+      if (gl) {
+        maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+        hasAnisotropy = Boolean(gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic'));
+
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        if (ext) {
+          const raw = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL);
+          if (raw) {
+            const angleMatch = raw.match(/ANGLE\s*\([^,]+,\s*([^,]+?)(?:\s+Direct3D|\s+vs_|\s+ps_|\s+Vulkan|\s*\))/i);
+            if (angleMatch && angleMatch[1]) {
+              webglCandidate = angleMatch[1].trim();
+            } else {
+              webglCandidate = raw
+                .replace(/ANGLE\s*\(/i, '')
+                .replace(/\)$/, '')
+                .split(',')[0]
+                .replace(/\s+Direct3D.*/i, '')
+                .trim();
+            }
           }
         }
       }
-    }
-  } catch {}
+    } catch {}
 
-  // If WebGL yielded a real hardware name (not masked by Brave/software fallback)
-  if (webglCandidate && !/basic render|software|warp|swiftshader|mesa/i.test(webglCandidate)) {
-    return webglCandidate;
+    if (webglCandidate && !/basic render|software|warp|swiftshader|mesa|brave/i.test(webglCandidate)) {
+      return webglCandidate;
+    }
   }
 
   // Tier 2: WebGPU Low-Level Adapter (Bypasses Brave Farbling completely)
