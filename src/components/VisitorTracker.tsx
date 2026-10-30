@@ -43,34 +43,11 @@ function getCanvasSignature(): string {
 async function extractUnmaskedGPU(): Promise<string> {
   if (typeof window === 'undefined') return 'Integrated / Standard';
 
-  // Tier 1: Modern WebGPU direct hardware adapter query (bypasses WebGL masking & Brave Farbling)
-  try {
-    if ('gpu' in navigator && typeof (navigator as any).gpu?.requestAdapter === 'function') {
-      const adapter = await (navigator as any).gpu.requestAdapter({ powerPreference: 'high-performance' });
-      if (adapter?.info) {
-        const desc = adapter.info.description || '';
-        const vendor = adapter.info.vendor || '';
-        const device = adapter.info.device || '';
-        const arch = adapter.info.architecture || '';
-
-        if (desc && !/basic render|software|warp/i.test(desc)) {
-          return desc.trim();
-        }
-        if (device && !/basic render|software/i.test(device)) {
-          return `${vendor} ${device}`.trim();
-        }
-        if (arch && !/basic render|software/i.test(arch)) {
-          return `${vendor} ${arch}`.trim();
-        }
-      }
-    }
-  } catch {}
-
-  // Tier 2: WebGL2 & WebGL1 with high-performance powerPreference & clean regex parsing
   let webglCandidate = '';
   let maxTextureSize = 0;
   let hasAnisotropy = false;
 
+  // Tier 1: WebGL2 & WebGL1 with UNMASKED_RENDERER_WEBGL (gives exact marketing name: "NVIDIA GeForce RTX 4060...")
   try {
     const canvas = document.createElement('canvas');
     const gl = (
@@ -105,20 +82,36 @@ async function extractUnmaskedGPU(): Promise<string> {
     }
   } catch {}
 
-  // Tier 3: Brave Farbling & Software Mask Defeat
-  // If the string is empty or masked as generic "Microsoft Basic Render Driver" / "Google SwiftShader"
-  if (!webglCandidate || /basic render|swiftshader|software|generic|mesa/i.test(webglCandidate)) {
-    // If physical hardware capability indicates a powerful modern dedicated GPU (e.g. 16K texture capacity + anisotropy)
-    if (maxTextureSize >= 16384 && hasAnisotropy) {
-      return `Dedicated GPU (16K / High-Performance Hardware)`;
-    }
-    if (maxTextureSize >= 8192) {
-      return `Standard Hardware GPU (${maxTextureSize}px Buffer)`;
-    }
-    return webglCandidate || 'Integrated / Standard';
+  // If WebGL successfully produced the commercial GPU name (and it's not a generic software fallback)
+  if (webglCandidate && !/basic render|software|warp|swiftshader/i.test(webglCandidate)) {
+    return webglCandidate;
   }
 
-  return webglCandidate;
+  // Tier 2: WebGPU Fallback (handles browsers where WebGL is masked or blocked)
+  try {
+    if ('gpu' in navigator && typeof (navigator as any).gpu?.requestAdapter === 'function') {
+      const adapter = await (navigator as any).gpu.requestAdapter({ powerPreference: 'high-performance' });
+      if (adapter?.info) {
+        const desc = adapter.info.description || '';
+        const vendor = adapter.info.vendor || '';
+        const device = adapter.info.device || '';
+
+        if (desc && !/basic render|software|warp/i.test(desc)) {
+          return desc.trim();
+        }
+        if (device && !/basic render|software/i.test(device)) {
+          return `${vendor} ${device}`.trim();
+        }
+      }
+    }
+  } catch {}
+
+  // Tier 3: Physical parameter capabilities if masked as "Basic Render"
+  if (maxTextureSize >= 16384 && hasAnisotropy) {
+    return `Dedicated GPU (16K High-Performance)`;
+  }
+
+  return webglCandidate || 'Integrated / Standard';
 }
 
 async function getDeviceInfo() {
