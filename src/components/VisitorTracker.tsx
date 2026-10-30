@@ -40,6 +40,21 @@ function getCanvasSignature(): string {
   }
 }
 
+// Known GPU architecture codename mapping
+const GPU_ARCH_MAP: Record<string, string> = {
+  lovelace: 'NVIDIA GeForce RTX 40-Series (Lovelace)',
+  ampere: 'NVIDIA GeForce RTX 30-Series (Ampere)',
+  turing: 'NVIDIA GeForce RTX 20 / GTX 16-Series (Turing)',
+  volta: 'NVIDIA Titan / Quadro (Volta)',
+  pascal: 'NVIDIA GeForce GTX 10-Series (Pascal)',
+  maxwell: 'NVIDIA GeForce GTX 900-Series (Maxwell)',
+  rdna3: 'AMD Radeon RX 7000-Series (RDNA 3)',
+  rdna2: 'AMD Radeon RX 6000-Series (RDNA 2)',
+  rdna: 'AMD Radeon RX 5000-Series (RDNA)',
+  alchemist: 'Intel Arc A-Series (Alchemist)',
+  battlemage: 'Intel Arc B-Series (Battlemage)',
+};
+
 async function extractUnmaskedGPU(): Promise<string> {
   if (typeof window === 'undefined') return 'Integrated / Standard';
 
@@ -47,7 +62,7 @@ async function extractUnmaskedGPU(): Promise<string> {
   let maxTextureSize = 0;
   let hasAnisotropy = false;
 
-  // Tier 1: WebGL2 & WebGL1 with UNMASKED_RENDERER_WEBGL (gives exact marketing name: "NVIDIA GeForce RTX 4060...")
+  // Tier 1: WebGL2 & WebGL1 with UNMASKED_RENDERER_WEBGL
   try {
     const canvas = document.createElement('canvas');
     const gl = (
@@ -69,7 +84,6 @@ async function extractUnmaskedGPU(): Promise<string> {
           if (angleMatch && angleMatch[1]) {
             webglCandidate = angleMatch[1].trim();
           } else {
-            // Strip out ANGLE wrapping and trailing D3D flags
             webglCandidate = raw
               .replace(/ANGLE\s*\(/i, '')
               .replace(/\)$/, '')
@@ -82,12 +96,12 @@ async function extractUnmaskedGPU(): Promise<string> {
     }
   } catch {}
 
-  // If WebGL successfully produced the commercial GPU name (and it's not a generic software fallback)
-  if (webglCandidate && !/basic render|software|warp|swiftshader/i.test(webglCandidate)) {
+  // If WebGL yielded a real hardware name (not masked by Brave/software fallback)
+  if (webglCandidate && !/basic render|software|warp|swiftshader|mesa/i.test(webglCandidate)) {
     return webglCandidate;
   }
 
-  // Tier 2: WebGPU Fallback (handles browsers where WebGL is masked or blocked)
+  // Tier 2: WebGPU Low-Level Adapter (Bypasses Brave Farbling completely)
   try {
     if ('gpu' in navigator && typeof (navigator as any).gpu?.requestAdapter === 'function') {
       const adapter = await (navigator as any).gpu.requestAdapter({ powerPreference: 'high-performance' });
@@ -95,12 +109,20 @@ async function extractUnmaskedGPU(): Promise<string> {
         const desc = adapter.info.description || '';
         const vendor = adapter.info.vendor || '';
         const device = adapter.info.device || '';
+        const arch = (adapter.info.architecture || '').toLowerCase().trim();
 
         if (desc && !/basic render|software|warp/i.test(desc)) {
           return desc.trim();
         }
         if (device && !/basic render|software/i.test(device)) {
           return `${vendor} ${device}`.trim();
+        }
+        // Architecture unmask: maps internal silicon IDs to real GPU lines
+        if (arch && GPU_ARCH_MAP[arch]) {
+          return GPU_ARCH_MAP[arch];
+        }
+        if (arch && !/basic render|software/i.test(arch)) {
+          return `${vendor ? vendor + ' ' : ''}${arch.toUpperCase()}`.trim();
         }
       }
     }
