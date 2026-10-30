@@ -52,12 +52,43 @@ export async function POST(request: Request) {
     // Resolve IP address
     const ip = getClientIp(request.headers);
 
+    // Resolve Edge Geolocation headers (Cloudflare & Vercel)
+    const headers = request.headers;
+    const country = (headers.get('cf-ipcountry') || headers.get('x-vercel-ip-country') || '').trim();
+    const city = (headers.get('cf-ipcity') || headers.get('x-vercel-ip-city') || '').trim();
+    const region = (headers.get('cf-region') || headers.get('x-vercel-ip-country-region') || '').trim();
+
+    // Format clean location string (e.g. "Manila, Metro Manila, PH" or "Dallas, Texas, US")
+    const geoParts = [city, region, country].filter(Boolean);
+    const locationStr = geoParts.length > 0 ? geoParts.join(', ') : null;
+
     // Resolve verified Discord ID if session token exists
     const token = extractBearerToken(request);
     const verifiedDiscordId = await getVerifiedDiscordIdFromToken(token);
 
     const cleanDeviceId = typeof deviceId === 'string' ? deviceId.trim().slice(0, 64) : null;
     const cleanPath = typeof path === 'string' ? path.trim().slice(0, 128) : '/';
+
+    // Enrich deviceInfo with geolocation and VPN detection flags
+    let finalDeviceInfo = deviceInfo && typeof deviceInfo === 'object' ? { ...deviceInfo } : {};
+    if (locationStr) {
+      finalDeviceInfo.location = locationStr;
+    }
+    if (country) {
+      finalDeviceInfo.country = country;
+    }
+
+    // Timezone & VPN Discrepancy Heuristic:
+    // If IP is from US/EU, but client clock timezone is Asia/Manila, flag as possible VPN
+    const clientTz = (finalDeviceInfo.timezone || '').toLowerCase();
+    if (country && clientTz) {
+      const isPhIp = country.toUpperCase() === 'PH';
+      const isPhTz = clientTz.includes('manila') || clientTz.includes('singapore') || clientTz.includes('taipei');
+      if (!isPhIp && isPhTz) {
+        finalDeviceInfo.vpn_flag = true;
+        finalDeviceInfo.vpn_note = `IP: ${country} vs Clock: ${finalDeviceInfo.timezone}`;
+      }
+    }
 
     const insertPayload: any = {
       ip_address: ip,
@@ -67,8 +98,8 @@ export async function POST(request: Request) {
       visited_at: new Date().toISOString()
     };
 
-    if (deviceInfo && typeof deviceInfo === 'object') {
-      insertPayload.device_info = deviceInfo;
+    if (Object.keys(finalDeviceInfo).length > 0) {
+      insertPayload.device_info = finalDeviceInfo;
     }
 
     // Insert visit log into Supabase asynchronously

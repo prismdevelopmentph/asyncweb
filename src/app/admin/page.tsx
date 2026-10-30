@@ -6199,13 +6199,32 @@ export default function AdminPage() {
                         filteredVisitorLogs.map((v: any) => (
                           <tr key={v.id} className="hover:bg-zinc-800/30 transition-colors">
                             <td className="py-4 px-6 font-semibold select-all font-mono">
-                              <div className="flex items-center gap-2">
-                                <span className="text-zinc-200">{v.ip_address}</span>
-                                {lockedIps.has(v.ip_address) && (
-                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-red-500/15 border border-red-500/30 text-red-400">
-                                    LOCKED
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-zinc-200">{v.ip_address}</span>
+                                  {lockedIps.has(v.ip_address) && (
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-red-500/15 border border-red-500/30 text-red-400">
+                                      LOCKED
+                                    </span>
+                                  )}
+                                </div>
+                                {v.device_info?.location ? (
+                                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-sans">
+                                    <span className="text-blue-400">📍 {v.device_info.location}</span>
+                                    {v.device_info.vpn_flag && (
+                                      <span
+                                        className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-500/15 border border-amber-500/30 text-amber-300"
+                                        title={v.device_info.vpn_note || 'Timezone mismatch with IP country'}
+                                      >
+                                        VPN
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : v.device_info?.country ? (
+                                  <span className="text-[10px] text-zinc-500 font-sans">
+                                    📍 {v.device_info.country}
                                   </span>
-                                )}
+                                ) : null}
                               </div>
                             </td>
                             <td className="py-4 px-6">
