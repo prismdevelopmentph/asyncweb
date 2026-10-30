@@ -149,6 +149,21 @@ function DiscordUserBadge({
   );
 }
 
+type AdminTab = 'security' | 'generator' | 'licenses' | 'products' | 'orders' | 'payments' | 'coupons' | 'audit' | 'chat' | 'resellers';
+
+const VALID_ADMIN_TABS: readonly AdminTab[] = [
+  'security',
+  'generator',
+  'licenses',
+  'products',
+  'orders',
+  'payments',
+  'coupons',
+  'audit',
+  'chat',
+  'resellers',
+];
+
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -156,7 +171,8 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
 
   // Tabs & Modals
-  const [activeTab, setActiveTab] = useState<'security' | 'generator' | 'licenses' | 'products' | 'orders' | 'payments' | 'coupons' | 'audit' | 'chat' | 'resellers'>('security');
+  const [activeTab, setActiveTab] = useState<AdminTab>('security');
+  const tabInitializedRef = useRef(false);
   const [ordersList, setOrdersList] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderFilter, setOrderFilter] = useState<'all' | 'pending' | 'delivered' | 'awaiting_payment' | 'rejected'>('all');
@@ -398,15 +414,46 @@ export default function AdminPage() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 1b. Deep-link parameter navigation from Discord Alert (?orderId=...)
+  // 1b. Deep-link & tab synchronization (?tab=... or ?orderId=...)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
     const orderIdParam = urlParams.get('orderId');
+    const tabParam = urlParams.get('tab') as AdminTab | null;
+
     if (orderIdParam) {
       setActiveTab('orders');
       setSearchQuery(orderIdParam);
+    } else if (tabParam && (VALID_ADMIN_TABS as readonly string[]).includes(tabParam)) {
+      setActiveTab(tabParam);
     }
+    tabInitializedRef.current = true;
+  }, []);
+
+  // Sync activeTab back into URL query parameter without page reload
+  useEffect(() => {
+    if (typeof window === 'undefined' || !tabInitializedRef.current) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') !== activeTab) {
+      url.searchParams.set('tab', activeTab);
+      window.history.replaceState(window.history.state, '', `${url.pathname}?${url.searchParams.toString()}${url.hash}`);
+    }
+  }, [activeTab]);
+
+  // Support browser Back/Forward navigation across tabs
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab') as AdminTab | null;
+      if (tabParam && (VALID_ADMIN_TABS as readonly string[]).includes(tabParam)) {
+        setActiveTab(tabParam);
+      } else if (!tabParam) {
+        setActiveTab('security');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const ownerUserId = (user?.app_metadata as Record<string, any> | undefined)?.discord_id || user?.user_metadata?.provider_id || user?.user_metadata?.sub || user?.id;
@@ -842,6 +889,18 @@ export default function AdminPage() {
       setResellersLoading(false);
     }
   };
+
+  // Fetch respective tab data when navigating directly to or refreshing on that tab
+  useEffect(() => {
+    if (!user || !isOwner) return;
+    if (activeTab === 'payments') {
+      fetchPaymentSettings();
+    } else if (activeTab === 'coupons') {
+      fetchCoupons();
+    } else if (activeTab === 'resellers') {
+      fetchResellers();
+    }
+  }, [activeTab, user, isOwner]);
 
   const handleCreateReseller = async (e: React.FormEvent) => {
     e.preventDefault();
