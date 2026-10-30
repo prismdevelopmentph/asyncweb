@@ -2609,7 +2609,7 @@ export default function AdminPage() {
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono border ${
                   activeTab === 'payments' ? 'bg-white/20 text-white border-white/30' : 'bg-zinc-900 text-zinc-400 border-zinc-800'
                 }`}>
-                  5 Rails
+                  5 Methods
                 </span>
               </button>
 
@@ -4914,7 +4914,7 @@ export default function AdminPage() {
                     <span>Payment Gateways & Surcharge Control</span>
                   </h2>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Toggle active payment rails, configure percentage surcharge fees (auto-computed at checkout), and update QR photos.
+                    Toggle active payment methods, configure percentage surcharge fees (auto-computed at checkout), and update QR photos.
                   </p>
                 </div>
               </div>
@@ -5781,7 +5781,7 @@ export default function AdminPage() {
                           </span>
                         </div>
                         <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
-                          <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">Keys Minted</span>
+                          <span className="text-[10px] text-zinc-500 uppercase block mb-0.5">Keys Generated</span>
                           <span className="font-bold text-zinc-200 text-sm">
                             {reseller.keys_issued_count || 0}
                           </span>
@@ -5837,7 +5837,7 @@ export default function AdminPage() {
                       <th className="py-4 px-6 font-semibold">Company / Partner</th>
                       <th className="py-4 px-6 font-semibold">Discord Identity</th>
                       <th className="py-4 px-6 font-semibold">Credit Balance</th>
-                      <th className="py-4 px-6 font-semibold">Keys Minted</th>
+                      <th className="py-4 px-6 font-semibold">Keys Generated</th>
                       <th className="py-4 px-6 font-semibold">Status</th>
                       <th className="py-4 px-6 font-semibold text-right">Actions</th>
                     </tr>
@@ -5935,7 +5935,7 @@ export default function AdminPage() {
                     <span>UNIFORM WHOLESALE PRICING MATRIX</span>
                   </div>
                   <p className="text-[11px] text-zinc-400 mt-1">
-                    Wholesale prices configured here apply uniformly to all active resellers when batch minting keys.
+                    Wholesale prices configured here apply uniformly to all active resellers when generating keys in bulk.
                   </p>
                 </div>
 

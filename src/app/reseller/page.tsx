@@ -464,7 +464,7 @@ export default function ResellerPortalPage() {
                       </div>
                       <div className="min-w-0">
                         <div className="text-xs font-semibold text-zinc-200">Wholesale Credit Pool</div>
-                        <div className="text-[11px] text-zinc-400 font-mono truncate">Automated PHP/USD reload rails</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Top up via GCash, Maya, or Crypto</div>
                       </div>
                     </div>
 
@@ -473,8 +473,8 @@ export default function ResellerPortalPage() {
                         <Layers className="w-4 h-4" />
                       </div>
                       <div className="min-w-0">
-                        <div className="text-xs font-semibold text-zinc-200">Batch Key Minter</div>
-                        <div className="text-[11px] text-zinc-400 font-mono truncate">Multi-tier volume issuance</div>
+                        <div className="text-xs font-semibold text-zinc-200">Bulk Key Generator</div>
+                        <div className="text-[11px] text-zinc-400 font-mono truncate">Instant wholesale key creation</div>
                       </div>
                     </div>
 
@@ -548,7 +548,7 @@ export default function ResellerPortalPage() {
                       Sign in to your account
                     </h2>
                     <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
-                      Authenticate with an authorized Discord account to access your wholesale credit pool, batch key minter, and client ledger.
+                      Authenticate with an authorized Discord account to access your wholesale credit pool, key generator, and customer licenses.
                     </p>
 
                     {!user ? (
@@ -656,7 +656,7 @@ export default function ResellerPortalPage() {
                 {reseller?.company_name || 'Reseller Portal'}
               </h1>
               <p className="text-xs sm:text-sm text-zinc-400 max-w-xl leading-relaxed">
-                Atomic discounted key minter, live wholesale credit balance pool, and customer hardware ID control ledger.
+                Wholesale key generator, real-time credit balance, and customer license management.
               </p>
             </div>
 
@@ -693,7 +693,7 @@ export default function ResellerPortalPage() {
                 ₱{(reseller?.credit_balance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <p className="text-[11px] text-zinc-400 mt-2">
-                Pre-funded balance used to mint client keys on demand.
+                Pre-funded balance used to generate customer keys on demand.
               </p>
             </div>
 
@@ -724,7 +724,7 @@ export default function ResellerPortalPage() {
             }`}
           >
             <Sparkles className="w-4 h-4" />
-            <span>Wholesale Catalog & Minter</span>
+            <span>Wholesale Catalog & Key Generator</span>
           </button>
 
           <button
@@ -759,7 +759,7 @@ export default function ResellerPortalPage() {
               <div>
                 <h2 className="text-xl font-bold tracking-tight text-zinc-100">Wholesale Rate Matrix</h2>
                 <p className="text-xs text-zinc-400 mt-0.5">
-                  Uniform wholesale distributor pricing across all products. Mint 1 to 25 keys per batch directly against your balance.
+                  Uniform wholesale distributor pricing across all products. Generate 1 to 25 keys per batch directly against your balance.
                 </p>
               </div>
             </div>
@@ -810,7 +810,7 @@ export default function ResellerPortalPage() {
                     className="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-purple-600/20 cursor-pointer"
                   >
                     <Coins className="w-3.5 h-3.5" />
-                    <span>Mint Keys for {prod.title}</span>
+                    <span>Generate Keys for {prod.title}</span>
                   </button>
                 </div>
               ))}
@@ -964,7 +964,7 @@ export default function ResellerPortalPage() {
             <div>
               <h2 className="text-xl font-bold tracking-tight text-zinc-100">Financial Credit Ledger</h2>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Audit trail of top-up deposits, wholesale key mint debits, and balance updates.
+                Audit trail of top-up deposits, wholesale key purchases, and balance updates.
               </p>
             </div>
 
@@ -1031,7 +1031,7 @@ export default function ResellerPortalPage() {
           </div>
         )}
 
-        {/* ── BATCH KEY MINT MODAL ── */}
+        {/* ── BATCH KEY GENERATE MODAL ── */}
         {mintModalOpen && selectedProduct && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             <div className="bg-zinc-900 border border-purple-500/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative overflow-hidden">
@@ -1041,7 +1041,7 @@ export default function ResellerPortalPage() {
                     <Key className="w-5 h-5" />
                   </span>
                   <div>
-                    <h3 className="text-base font-bold text-white">Batch Key Minter</h3>
+                    <h3 className="text-base font-bold text-white">Generate Wholesale Keys</h3>
                     <p className="text-xs text-zinc-400">{selectedProduct.title}</p>
                   </div>
                 </div>
@@ -1157,25 +1157,25 @@ export default function ResellerPortalPage() {
                     {isMinting ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Minting Cryptographic Keys...</span>
+                        <span>Generating Keys...</span>
                       </>
                     ) : (
                       <>
                         <Coins className="w-4 h-4" />
-                        <span>Confirm & Mint {mintQuantity}x Keys (₱{totalMintCost.toFixed(2)})</span>
+                        <span>Confirm & Generate {mintQuantity}x Keys (₱{totalMintCost.toFixed(2)})</span>
                       </>
                     )}
                   </button>
                 </div>
               ) : (
-                /* Success Mint Output */
+                /* Success Output */
                 <div className="space-y-6">
                   <div className="text-center">
                     <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
                     <h4 className="text-base font-bold text-white">
-                      Successfully Minted {mintedResult.keys.length} Keys!
+                      Successfully Generated {mintedResult.keys.length} Keys!
                     </h4>
                     <p className="text-xs text-zinc-400 mt-1">
                       Debited ₱{mintedResult.totalCost.toFixed(2)} from your reseller balance.
