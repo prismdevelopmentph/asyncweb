@@ -473,6 +473,18 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Developer Preview Switch: Test WAF UI without placing actual bans
+  if (req.nextUrl.searchParams.get('preview_waf') === '1') {
+    const testIp = getClientIp(req.headers) || '127.0.0.1';
+    const cfRay = req.headers.get('cf-ray') || req.headers.get('x-ray-id') || ('a5' + Math.random().toString(16).slice(2, 16));
+    const cfRegion = req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || 'PH';
+    const cfColo = req.headers.get('cf-ray')?.split('-')[1] || req.headers.get('x-vercel-id')?.split('::')[0] || 'MNL';
+    return new NextResponse(renderLockoutHtml(testIp, 'ANONYMOUS_PROXY_OR_VPN_DETECTED', cfRay, cfRegion, cfColo), {
+      status: 403,
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow' },
+    });
+  }
+
   // 1. Global Security Lockout Enforcement (HTML, RSC Transitions, and Protected APIs)
   // Must execute BEFORE any subdomain routing so bans apply universally across gen, reseller, admin, and main
   // Always permits silent security telemetry (/api/security/log-visit) to log evasion attempts
