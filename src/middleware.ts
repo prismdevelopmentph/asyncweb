@@ -44,6 +44,52 @@ function setCachedBanStatus(keys: string[], isBanned: boolean, reason?: string) 
   }
 }
 
+// ── Known Commercial VPN & Datacenter Hosting ASNs ──
+// When a visitor's connection originates from these Autonomous Systems,
+// they are stopped at the edge until they switch back to a residential ISP.
+// Zero database rows created; instant access the moment VPN is disconnected.
+const DATACENTER_VPN_ASNS = new Set([
+  '9009',   // M247 (NordVPN, Surfshark, CyberGhost, PIA)
+  '20473',  // The Constant Company / Vultr / Choopa
+  '14061',  // DigitalOcean
+  '16276',  // OVH SAS
+  '16509',  // Amazon.com AWS
+  '15169',  // Google Cloud
+  '8075',   // Microsoft Azure
+  '24940',  // Hetzner Online GmbH
+  '44552',  // Hetzner Online
+  '51167',  // Contabo GmbH
+  '46562',  // Performive LLC
+  '39351',  // 31173 Services AB (Mullvad VPN)
+  '62240',  // Clouvider
+  '60068',  // Datacamp Limited / CDN77
+  '212238', // Datacamp Limited
+  '200052', // Proton AG (ProtonVPN)
+  '396982', // Google Cloud
+  '50304',  // BL Networks
+  '54290',  // Hostroyale
+  '49981',  // WorldStream
+  '207990', // HostRoyale Technologies
+  '206216', // GSL Networks
+  '208312', // Feral Hosting
+  '208573', // Fly.io
+  '25820',  // ITL LLC
+  '36351',  // SoftLayer / IBM Cloud
+  '63949',  // Linode / Akamai
+  '135340', // Alibaba Cloud
+  '45102',  // Alibaba
+  '136557', // Hostinger
+  '46652',  // Nexus Bytes
+  '197540', // Netcup
+  '3223',   // Voxility
+  '60781',  // LeaseWeb
+  '14618',  // Amazon AES
+  '51852',  // Private Layer
+  '202425', // IP Volume inc
+  '397373', // DataCamp
+  '400300', // Cloudflare WARP / 1.1.1.1
+]);
+
 function getClientIp(headers: Headers): string {
   const cfIp = headers.get('cf-connecting-ip');
   if (cfIp && cfIp.trim()) return cfIp.trim();
@@ -520,6 +566,38 @@ export async function middleware(req: NextRequest) {
     const isOwner = Boolean(discordUserId && ownerIds.includes(discordUserId));
 
     if (!isOwner) {
+      // 1A. Dynamic On-the-Fly VPN & Datacenter Edge Gate (No Database Bans)
+      // Inspects Autonomous System Number at edge. Blocks while VPN is ON;
+      // lets visitor straight in the millisecond VPN is disconnected.
+      const rawAsn = (req.headers.get('cf-ipasn') || req.headers.get('x-vercel-ip-as-number') || '').replace(/^AS/i, '').trim();
+      const isSimulatedVpn = req.nextUrl.searchParams.get('test_vpn') === '1';
+      const isDatacenterAsn = Boolean(rawAsn && rawAsn !== '13335' && DATACENTER_VPN_ASNS.has(rawAsn));
+
+      if (isDatacenterAsn || isSimulatedVpn) {
+        const cfRay = req.headers.get('cf-ray') || req.headers.get('x-ray-id') || ('a5' + Math.random().toString(16).slice(2, 16));
+        const cfRegion = req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || 'PH';
+        const cfColo = req.headers.get('cf-ray')?.split('-')[1] || req.headers.get('x-vercel-id')?.split('::')[0] || 'EDGE';
+
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json(
+            { error: 'Access Denied: VPN or Datacenter Proxy Detected', reason: 'ANONYMOUS_PROXY_OR_VPN_DETECTED' },
+            { status: 403 }
+          );
+        }
+
+        return new NextResponse(
+          renderLockoutHtml(ip, 'ANONYMOUS_PROXY_OR_VPN_DETECTED', cfRay, cfRegion, cfColo),
+          {
+            status: 403,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-store, no-cache, must-revalidate',
+              'X-Robots-Tag': 'noindex, nofollow',
+            },
+          }
+        );
+      }
+
       // Prioritize Discord ID and Device ID first; include IP as fallback
       const searchTargets = [
         discordUserId ? `discord_user_id.eq.${encodeURIComponent(discordUserId)}` : null,
