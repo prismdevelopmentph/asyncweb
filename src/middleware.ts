@@ -90,6 +90,61 @@ const DATACENTER_VPN_ASNS = new Set([
   '400300', // Cloudflare WARP / 1.1.1.1
 ]);
 
+interface IpVpnCache {
+  isVpn: boolean;
+  expiresAt: number;
+}
+const ipVpnCache = new Map<string, IpVpnCache>();
+
+async function checkIsVpnOrDatacenter(ip: string, rawAsn?: string | null): Promise<boolean> {
+  if (!ip || ip === '127.0.0.1' || ip === '::1') return false;
+
+  // 1. Direct ASN header check if provided by Cloudflare or Vercel
+  if (rawAsn && rawAsn !== '13335') {
+    const cleanAsn = rawAsn.replace(/^AS/i, '').trim();
+    if (DATACENTER_VPN_ASNS.has(cleanAsn)) return true;
+  }
+
+  // 2. Check in-memory edge cache (1 hour TTL)
+  const cached = ipVpnCache.get(ip);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.isVpn;
+  }
+
+  // 3. Fallback: Query fast IP intelligence when Cloudflare proxy strips the ASN header
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1200);
+    const res = await fetch(`https://ipwho.is/${encodeURIComponent(ip)}`, {
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const data = await res.json();
+      const asn = String(data?.connection?.asn || '').trim();
+      const org = String(data?.connection?.org || '').toLowerCase();
+      const isp = String(data?.connection?.isp || '').toLowerCase();
+
+      const isVpn = Boolean(
+        (asn && DATACENTER_VPN_ASNS.has(asn)) ||
+        /datacamp|m247|packethub|choopa|digitalocean|ovh|hetzner|vultr|linode|clouvider|mullvad|proton|surfshark|nord/i.test(org) ||
+        /datacamp|m247|packethub|choopa|digitalocean|ovh|hetzner|vultr|linode|clouvider|mullvad|proton|surfshark|nord/i.test(isp)
+      );
+
+      if (ipVpnCache.size > 5000) ipVpnCache.clear();
+      ipVpnCache.set(ip, { isVpn, expiresAt: now + 60 * 60 * 1000 });
+      return isVpn;
+    }
+  } catch (err) {
+    // Fail open safely on timeout
+  }
+
+  return false;
+}
+
 function getClientIp(headers: Headers): string {
   const cfIp = headers.get('cf-connecting-ip');
   if (cfIp && cfIp.trim()) return cfIp.trim();
@@ -567,13 +622,13 @@ export async function middleware(req: NextRequest) {
 
     if (!isOwner) {
       // 1A. Dynamic On-the-Fly VPN & Datacenter Edge Gate (No Database Bans)
-      // Inspects Autonomous System Number at edge. Blocks while VPN is ON;
+      // Inspects Autonomous System Number & IP reputation at edge. Blocks while VPN is ON;
       // lets visitor straight in the millisecond VPN is disconnected.
       const rawAsn = (req.headers.get('cf-ipasn') || req.headers.get('x-vercel-ip-as-number') || '').replace(/^AS/i, '').trim();
       const isSimulatedVpn = req.nextUrl.searchParams.get('test_vpn') === '1';
-      const isDatacenterAsn = Boolean(rawAsn && rawAsn !== '13335' && DATACENTER_VPN_ASNS.has(rawAsn));
+      const isVpnDetected = isSimulatedVpn || (await checkIsVpnOrDatacenter(ip, rawAsn));
 
-      if (isDatacenterAsn || isSimulatedVpn) {
+      if (isVpnDetected) {
         const cfRay = req.headers.get('cf-ray') || req.headers.get('x-ray-id') || ('a5' + Math.random().toString(16).slice(2, 16));
         const cfRegion = req.headers.get('cf-ipcountry') || req.headers.get('x-vercel-ip-country') || 'PH';
         const cfColo = req.headers.get('cf-ray')?.split('-')[1] || req.headers.get('x-vercel-id')?.split('::')[0] || 'EDGE';
