@@ -226,7 +226,7 @@ export default function LoginPage() {
 
       <main className="flex-1 flex items-center justify-center px-4 py-16 sm:py-24 relative overflow-hidden">
         {/* Ambient Gradient Background Glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[350px] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] sm:w-[500px] h-[260px] sm:h-[350px] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none" />
 
         <Suspense fallback={
           <div className="w-full max-w-md mx-auto text-center py-20">

@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import DiscordLoginButton from '@/components/DiscordLoginButton';
 import ImageCropModal from '@/components/ImageCropModal';
 import { supabase } from '@/lib/supabase';
+import { DynamicBrandIcon } from '@/lib/icon-resolver';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -390,6 +391,92 @@ export default function AdminPage() {
   const [serviceStockChannels, setServiceStockChannels] = useState<Record<string, string>>({});
   const [savingServiceChannelId, setSavingServiceChannelId] = useState<string | null>(null);
   const [serviceChannelMsg, setServiceChannelMsg] = useState<{ id: string; text: string; error?: boolean } | null>(null);
+
+  // Dynamic Service Fleet Controls State
+  const [togglingServiceId, setTogglingServiceId] = useState<string | null>(null);
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [newServiceName, setNewServiceName] = useState('');
+  const [newServiceIcon, setNewServiceIcon] = useState('');
+  const [newServiceColor, setNewServiceColor] = useState('#a855f7');
+  const [newServiceEnabled, setNewServiceEnabled] = useState(true);
+  const [addingService, setAddingService] = useState(false);
+  const [addServiceError, setAddServiceError] = useState<string | null>(null);
+
+  const handleToggleServiceStatus = async (serviceId: string | number, newStatus: boolean) => {
+    setTogglingServiceId(String(serviceId));
+    setAdminData((prev: any) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        services: (prev.services || []).map((s: any) =>
+          String(s.id) === String(serviceId) ? { ...s, is_enabled: newStatus } : s
+        ),
+      };
+    });
+
+    try {
+      const res = await adminFetch('/api/admin/services', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId, isEnabled: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to toggle service status');
+      }
+      showToast(`Service status set to ${newStatus ? 'ONLINE' : 'MAINTENANCE'}`, 'success');
+    } catch (err: any) {
+      console.error('[Toggle Service Error]:', err);
+      showToast(err.message || 'Failed to update service status', 'error');
+      setAdminData((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          services: (prev.services || []).map((s: any) =>
+            String(s.id) === String(serviceId) ? { ...s, is_enabled: !newStatus } : s
+          ),
+        };
+      });
+    } finally {
+      setTogglingServiceId(null);
+    }
+  };
+
+  const handleCreateService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newServiceName.trim()) {
+      setAddServiceError('Service name is required');
+      return;
+    }
+    setAddingService(true);
+    setAddServiceError(null);
+    try {
+      const res = await adminFetch('/api/admin/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newServiceName.trim(),
+          iconValue: newServiceIcon.trim() || newServiceName.trim().toLowerCase(),
+          brandColor: newServiceColor.trim() || '#a855f7',
+          isEnabled: newServiceEnabled,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Failed to create service');
+      }
+      showToast(`Service "${newServiceName}" created successfully!`, 'success');
+      setShowAddServiceModal(false);
+      setNewServiceName('');
+      setNewServiceIcon('');
+      setNewServiceColor('#a855f7');
+      await fetchAdminData(true);
+    } catch (err: any) {
+      setAddServiceError(err.message || 'Failed to create service');
+    } finally {
+      setAddingService(false);
+    }
+  };
 
   // 0. Browser Tab Title
   useEffect(() => {
@@ -3006,14 +3093,23 @@ export default function AdminPage() {
                   <Layers className="w-4 h-4 text-purple-400" />
                   <span>Service Inventory & Stock Levels</span>
                 </h3>
-                <button
-                  onClick={() => fetchAdminData(true)}
-                  disabled={dataLoading}
-                  className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 text-purple-400 ${dataLoading ? 'animate-spin' : ''}`} />
-                  <span>Refresh Stock</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowAddServiceModal(true)}
+                    className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Add Service</span>
+                  </button>
+                  <button
+                    onClick={() => fetchAdminData(true)}
+                    disabled={dataLoading}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-white font-mono text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-purple-400 ${dataLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh Stock</span>
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -3024,10 +3120,27 @@ export default function AdminPage() {
                     <div key={svc.id} className="bg-zinc-900/60 rounded-3xl p-5 border border-zinc-800/80 hover:border-zinc-700 transition-all flex flex-col justify-between shadow-sm">
                       <div>
                         <div className="flex items-center justify-between mb-3">
-                          <span className="font-bold text-white text-base tracking-wide flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${inStock ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
-                            {svc.name}
+                          <span className="font-bold text-white text-base tracking-wide flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-800 flex items-center justify-center shrink-0" style={{ color: svc.brand_color || '#a855f7' }}>
+                              <DynamicBrandIcon iconValue={svc.icon_value || svc.name} serviceName={svc.name} className="w-4 h-4" />
+                            </div>
+                            <span>{svc.name}</span>
                           </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleServiceStatus(svc.id, svc.is_enabled === false ? true : false)}
+                            disabled={togglingServiceId === String(svc.id)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              svc.is_enabled !== false
+                                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                                : 'bg-amber-500/15 text-amber-300 border border-amber-500/40 hover:bg-amber-500/25'
+                            }`}
+                            title="Click to toggle service online or maintenance"
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${svc.is_enabled !== false ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                            <span>{svc.is_enabled !== false ? 'ONLINE' : 'MAINTENANCE'}</span>
+                          </button>
                         </div>
 
                         <div className="my-4 p-3.5 rounded-2xl bg-zinc-950/60 border border-zinc-800/60 flex items-center justify-between">
@@ -8564,6 +8677,134 @@ export default function AdminPage() {
           </div>
         );
       })()}
+
+      {/* ── CREATE NEW GENERATOR SERVICE MODAL ── */}
+      {showAddServiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                  <PlusCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">Add Generator Service</h3>
+                  <p className="text-xs text-zinc-400">Deploy a new dynamic platform button</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddServiceModal(false)}
+                className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {addServiceError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{addServiceError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateService} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider mb-1.5">
+                  Service Name <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Spotify Premium, Minecraft, Fortnite"
+                  value={newServiceName}
+                  onChange={(e) => {
+                    setNewServiceName(e.target.value);
+                    if (!newServiceIcon) {
+                      setNewServiceIcon(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                  <span>Icon Brand Slug (SimpleIcons)</span>
+                  <span className="text-[10px] text-zinc-500 lowercase">e.g. spotify, steam, discord</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0" style={{ color: newServiceColor }}>
+                    <DynamicBrandIcon iconValue={newServiceIcon || newServiceName} serviceName={newServiceName} className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. spotify, crunchyroll, epicgames"
+                    value={newServiceIcon}
+                    onChange={(e) => setNewServiceIcon(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono text-zinc-400 uppercase tracking-wider mb-1.5">
+                  Brand Hex Color
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={newServiceColor}
+                    onChange={(e) => setNewServiceColor(e.target.value)}
+                    className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={newServiceColor}
+                    onChange={(e) => setNewServiceColor(e.target.value)}
+                    className="flex-1 px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-mono text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+                <div>
+                  <div className="text-xs font-bold text-white">Initial Gateway Status</div>
+                  <div className="text-[10px] font-mono text-zinc-400">Launch live immediately or in maintenance</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setNewServiceEnabled(!newServiceEnabled)}
+                  className={`px-3 py-1 rounded-full text-xs font-mono font-bold transition-all cursor-pointer ${
+                    newServiceEnabled 
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                  }`}
+                >
+                  {newServiceEnabled ? 'ONLINE' : 'MAINTENANCE'}
+                </button>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowAddServiceModal(false)}
+                  className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-mono font-medium transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingService}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-mono font-bold flex items-center gap-2 transition-all shadow-md shadow-purple-600/30 cursor-pointer disabled:opacity-50"
+                >
+                  {addingService && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{addingService ? 'Creating...' : 'Deploy Service'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

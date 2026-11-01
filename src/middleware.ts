@@ -358,6 +358,43 @@ function renderLockoutHtml(
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       letter-spacing: 0.4px;
     }
+    @media (max-width: 480px) {
+      body {
+        padding: 16px 12px;
+      }
+      .card {
+        padding: 24px 18px;
+        border-radius: 16px;
+      }
+      .header-group {
+        gap: 12px;
+      }
+      .icon-container {
+        width: 40px;
+        height: 40px;
+      }
+      .icon-container svg {
+        width: 20px;
+        height: 20px;
+      }
+      .title-area h1 {
+        font-size: 24px;
+      }
+      .pipeline-nodes {
+        max-width: 100%;
+      }
+      .pipeline-line {
+        margin: 0 4px 18px 4px;
+      }
+      .telemetry-row {
+        font-size: 11px;
+        gap: 8px;
+      }
+      .telemetry-value {
+        word-break: break-all;
+        text-align: right;
+      }
+    }
   </style>
 </head>
 <body>

@@ -84,7 +84,7 @@ export default function SignUpPage() {
 
       <main className="flex-1 flex items-center justify-center px-4 py-16 sm:py-24 relative overflow-hidden">
         {/* Ambient Gradient Background Glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[380px] bg-purple-600/10 blur-[130px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] sm:w-[550px] h-[260px] sm:h-[380px] bg-purple-600/10 blur-[130px] rounded-full pointer-events-none" />
 
         <div className="w-full max-w-md mx-auto relative z-10">
           {/* Brand Header */}

@@ -210,9 +210,9 @@ export default function GenPreviewDashboard() {
       
       {/* Ambient Background Grid & Orbs matching main site /dashboard */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:36px_36px] pointer-events-none z-0 animate-grid-pulse" />
-      <div className="absolute -top-32 left-1/4 w-[600px] h-[600px] rounded-full bg-purple-600/15 blur-[140px] pointer-events-none z-0 animate-orb-slow" />
-      <div className="absolute top-1/3 -right-32 w-[550px] h-[550px] rounded-full bg-violet-600/15 blur-[130px] pointer-events-none z-0 animate-orb-reverse" />
-      <div className="absolute -bottom-40 left-1/3 w-[650px] h-[650px] rounded-full bg-fuchsia-600/10 blur-[150px] pointer-events-none z-0 animate-orb-slow" />
+      <div className="absolute -top-32 left-1/4 w-[280px] sm:w-[600px] h-[280px] sm:h-[600px] rounded-full bg-purple-600/15 blur-[140px] pointer-events-none z-0 animate-orb-slow" />
+      <div className="absolute top-1/3 -right-32 w-[260px] sm:w-[550px] h-[260px] sm:h-[550px] rounded-full bg-violet-600/15 blur-[130px] pointer-events-none z-0 animate-orb-reverse" />
+      <div className="absolute -bottom-40 left-1/3 w-[300px] sm:w-[650px] h-[300px] sm:h-[650px] rounded-full bg-fuchsia-600/10 blur-[150px] pointer-events-none z-0 animate-orb-slow" />
 
       {/* Main Site Header Navigation */}
       <Navbar />

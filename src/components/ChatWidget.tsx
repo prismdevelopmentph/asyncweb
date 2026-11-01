@@ -311,7 +311,7 @@ export default function ChatWidget({ user }: ChatWidgetProps) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end">
       {/* Floating Toggle Pill */}
       {!isOpen && (
         <button
@@ -337,7 +337,7 @@ export default function ChatWidget({ user }: ChatWidgetProps) {
 
       {/* Main Support Panel Container */}
       {isOpen && (
-        <div className="w-[360px] sm:w-[400px] h-[520px] rounded-2xl bg-zinc-950/95 border border-zinc-800 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="w-[calc(100vw-32px)] max-w-[360px] sm:max-w-[400px] sm:w-[400px] h-[520px] max-h-[85vh] rounded-2xl bg-zinc-950/95 border border-zinc-800 shadow-2xl flex flex-col overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="p-3.5 border-b border-zinc-800/80 bg-zinc-900/40 flex items-center justify-between">
             <div className="flex items-center gap-2">

@@ -61,6 +61,14 @@ export async function GET(request: NextRequest) {
         netflix: 0,
         valorant: 0,
       },
+      services: [] as Array<{
+        id: string | number;
+        name: string;
+        isEnabled: boolean;
+        stockCount: number;
+        brandColor: string;
+        iconValue: string;
+      }>,
       history: [] as Array<{
         id: string;
         service: string;
@@ -72,30 +80,68 @@ export async function GET(request: NextRequest) {
     // 1. Parallel Stock Queries across all services
     const stockPromise = (async () => {
       try {
-        const { data: servicesData } = await supabaseAdmin
-          .from('services')
-          .select('id, name');
+        const [{ data: servicesData }, { data: configRows }] = await Promise.all([
+          supabaseAdmin.from('services').select('*').order('id', { ascending: true }),
+          supabaseAdmin.from('config').select('key, value').or('key.like.service_enabled_%,key.like.service_color_%,key.like.service_icon_%')
+        ]);
+
+        const configMap = new Map<string, string>();
+        (configRows || []).forEach((row: any) => configMap.set(row.key, String(row.value).trim()));
 
         if (servicesData && servicesData.length > 0) {
-          const stockResults = await Promise.all(
-            servicesData.map(async (svc) => {
-              const { data: stockCount } = await supabaseAdmin.rpc('get_service_stock', {
-                p_service_name: svc.name
-              });
+          const dynamicServices = await Promise.all(
+            servicesData.map(async (svc: any) => {
+              const idStr = String(svc.id);
+              const nameStr = String(svc.name || '').trim();
+
+              const configEnabled = configMap.get(`service_enabled_${idStr}`);
+              const isEnabled = configEnabled !== undefined 
+                ? configEnabled === 'true' 
+                : (svc.is_enabled !== undefined ? Boolean(svc.is_enabled) : true);
+
+              const brandColor = configMap.get(`service_color_${idStr}`) || svc.brand_color || '#a855f7';
+              const iconValue = configMap.get(`service_icon_${idStr}`) || svc.icon_value || svc.name?.toLowerCase() || 'gamepad';
+
+              let count = 0;
+              try {
+                const { data: stockCount } = await supabaseAdmin.rpc('get_service_stock', {
+                  p_service_name: nameStr
+                });
+                if (typeof stockCount === 'number') count = stockCount;
+              } catch {}
+
+              if (count === 0) {
+                try {
+                  const tbl = getServiceTableName(nameStr);
+                  const { count: exactCount } = await supabaseAdmin
+                    .from(tbl)
+                    .select('id', { count: 'exact', head: true })
+                    .eq('is_used', false);
+                  count = exactCount ?? 0;
+                } catch {}
+              }
+
               return {
-                name: svc.name.toLowerCase(),
-                count: typeof stockCount === 'number' ? stockCount : 0
+                id: svc.id,
+                name: svc.name,
+                isEnabled,
+                stockCount: count,
+                brandColor,
+                iconValue,
               };
             })
           );
 
-          for (const item of stockResults) {
-            if (item.name.includes('steam')) response.stock.steam = item.count;
-            else if (item.name.includes('discord')) response.stock.discord = item.count;
-            else if (item.name.includes('rockstar')) response.stock.rockstar = item.count;
-            else if (item.name.includes('cyberghost') || item.name.includes('vpn')) response.stock.cyberghost = item.count;
-            else if (item.name.includes('netflix')) response.stock.netflix = item.count;
-            else if (item.name.includes('valorant')) response.stock.valorant = item.count;
+          response.services = dynamicServices;
+
+          for (const item of dynamicServices) {
+            const low = item.name.toLowerCase();
+            if (low.includes('steam')) response.stock.steam = item.stockCount;
+            else if (low.includes('discord')) response.stock.discord = item.stockCount;
+            else if (low.includes('rockstar')) response.stock.rockstar = item.stockCount;
+            else if (low.includes('cyberghost') || low.includes('vpn')) response.stock.cyberghost = item.stockCount;
+            else if (low.includes('netflix')) response.stock.netflix = item.stockCount;
+            else if (low.includes('valorant')) response.stock.valorant = item.stockCount;
           }
         }
       } catch (err) {

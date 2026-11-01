@@ -35,12 +35,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Service name is required.' }, { status: 400 });
     }
 
+    const callerDiscordId = auth.data.discordId;
+    const isOwner = isOwnerDiscordId(callerDiscordId);
+
+    // Verify Service Active / Maintenance Status (Owner can bypass for testing)
+    const { data: svcRow } = await supabaseAdmin
+      .from('services')
+      .select('id, name, is_enabled')
+      .ilike('name', serviceName.trim())
+      .maybeSingle();
+
+    if (svcRow) {
+      const { data: cfgRow } = await supabaseAdmin
+        .from('config')
+        .select('value')
+        .eq('key', `service_enabled_${svcRow.id}`)
+        .maybeSingle();
+
+      const isEnabled = cfgRow?.value !== undefined 
+        ? cfgRow.value === 'true' 
+        : (svcRow.is_enabled !== undefined ? Boolean(svcRow.is_enabled) : true);
+
+      if (!isEnabled && !isOwner) {
+        return NextResponse.json(
+          {
+            error: `${svcRow.name} generator is currently offline for maintenance. Please check back shortly.`,
+            code: 'SERVICE_MAINTENANCE'
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     // ── Token-Bound Device Binding Security Gate (Architecture 2) ──
     // Binds each active session token strictly to the originating physical device.
     // Stolen tokens replayed on another machine or via cURL are rejected.
     // Legitimate users signing in across multiple personal devices receive unique tokens and work seamlessly.
-    const callerDiscordId = auth.data.discordId;
-    const isOwner = isOwnerDiscordId(callerDiscordId);
 
     if (!isOwner) {
       const clientHwid = (

@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
 import { supabase } from '@/lib/supabase';
+import { DynamicBrandIcon, DEFAULT_BRAND_COLORS } from '@/lib/icon-resolver';
 import {
   Copy,
   Search,
@@ -266,6 +267,14 @@ export default function AccountGeneratorPage() {
 
   const [stock, setStock] = useState<typeof defaultStock>(() => readStockCache() ?? defaultStock);
   const [stockLoading, setStockLoading] = useState(() => readStockCache() === null);
+  const [dynamicServices, setDynamicServices] = useState<Array<{
+    id: string | number;
+    name: string;
+    isEnabled?: boolean;
+    stockCount?: number;
+    brandColor?: string;
+    iconValue?: string;
+  }>>([]);
 
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
 
@@ -469,6 +478,9 @@ export default function AccountGeneratorPage() {
         if (data.stock) {
           setStock(data.stock);
           writeStockCache(data.stock);
+        }
+        if (Array.isArray(data.services) && data.services.length > 0) {
+          setDynamicServices(data.services);
         }
         if (Array.isArray(data.history)) setHistoryList(data.history);
       }
@@ -736,57 +748,31 @@ export default function AccountGeneratorPage() {
     triggerToast(label);
   };
 
-  // Services Config Grid (Steam, Discord, Rockstar, CyberGhost, Netflix, Valorant)
-  const servicesConfig = [
-    {
-      id: 'steam',
-      name: 'Steam',
-      icon: SteamIcon,
-      leftCount: stock.steam,
-      color: 'text-[#66c0f4]',
-      bgGlow: 'hover:border-[#66c0f4]/50 hover:shadow-[0_0_20px_rgba(102,192,244,0.15)]'
-    },
-    {
-      id: 'discord',
-      name: 'Discord',
-      icon: DiscordIcon,
-      leftCount: stock.discord,
-      color: 'text-[#5865f2]',
-      bgGlow: 'hover:border-[#5865f2]/50 hover:shadow-[0_0_20px_rgba(88,101,242,0.15)]'
-    },
-    {
-      id: 'rockstar',
-      name: 'Rockstar',
-      icon: RockstarIcon,
-      leftCount: stock.rockstar,
-      color: 'text-[#ffab00]',
-      bgGlow: 'hover:border-[#ffab00]/50 hover:shadow-[0_0_20px_rgba(255,171,0,0.15)]'
-    },
-    {
-      id: 'cyberghost',
-      name: 'CyberGhost',
-      icon: CyberGhostIcon,
-      leftCount: stock.cyberghost,
-      color: 'text-[#10b981]',
-      bgGlow: 'hover:border-[#10b981]/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]'
-    },
-    {
-      id: 'netflix',
-      name: 'Netflix',
-      icon: NetflixIcon,
-      leftCount: stock.netflix,
-      color: 'text-[#e50914]',
-      bgGlow: 'hover:border-[#e50914]/50 hover:shadow-[0_0_20px_rgba(229,9,20,0.15)]'
-    },
-    {
-      id: 'valorant',
-      name: 'Valorant',
-      icon: ValorantIcon,
-      leftCount: stock.valorant,
-      color: 'text-[#ff4655]',
-      bgGlow: 'hover:border-[#ff4655]/50 hover:shadow-[0_0_20px_rgba(255,70,85,0.15)]'
+  // Dynamic Services List (falls back to default 6 if API loading)
+  const servicesConfig = useMemo(() => {
+    if (dynamicServices.length > 0) {
+      return dynamicServices.map((svc) => {
+        const idLower = String(svc.name || '').toLowerCase();
+        return {
+          id: String(svc.id),
+          name: svc.name,
+          iconValue: svc.iconValue || idLower,
+          leftCount: svc.stockCount ?? (stock as any)[idLower] ?? 0,
+          color: svc.brandColor || DEFAULT_BRAND_COLORS[idLower] || '#a855f7',
+          isEnabled: svc.isEnabled ?? true,
+        };
+      });
     }
-  ];
+
+    return [
+      { id: 'steam', name: 'Steam', iconValue: 'steam', leftCount: stock.steam, color: '#66c0f4', isEnabled: true },
+      { id: 'discord', name: 'Discord', iconValue: 'discord', leftCount: stock.discord, color: '#5865f2', isEnabled: true },
+      { id: 'rockstar', name: 'Rockstar', iconValue: 'rockstar', leftCount: stock.rockstar, color: '#ffab00', isEnabled: true },
+      { id: 'cyberghost', name: 'CyberGhost', iconValue: 'cyberghost', leftCount: stock.cyberghost, color: '#10b981', isEnabled: true },
+      { id: 'netflix', name: 'Netflix', iconValue: 'netflix', leftCount: stock.netflix, color: '#e50914', isEnabled: true },
+      { id: 'valorant', name: 'Valorant', iconValue: 'valorant', leftCount: stock.valorant, color: '#ff4655', isEnabled: true },
+    ];
+  }, [dynamicServices, stock]);
 
   // Filtered History
   const filteredHistory = useMemo(() => {
@@ -852,21 +838,34 @@ export default function AccountGeneratorPage() {
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {servicesConfig.map((svc) => {
-                      const IconComp = svc.icon;
                       return (
                         <div
                           key={svc.id}
-                          className="flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-950/70 border border-zinc-800/80 hover:border-zinc-700 transition-colors"
+                          className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-colors ${
+                            svc.isEnabled 
+                              ? 'bg-zinc-950/70 border-zinc-800/80 hover:border-zinc-700' 
+                              : 'bg-zinc-950/40 border-amber-500/20 opacity-60'
+                          }`}
                         >
-                          <div className={`w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0 ${svc.color}`}>
-                            <IconComp className="w-4 h-4" />
+                          <div 
+                            className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center shrink-0"
+                            style={{ color: svc.color }}
+                          >
+                            <DynamicBrandIcon iconValue={svc.iconValue} serviceName={svc.name} className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
                             <div className="text-xs font-semibold text-zinc-200 truncate">{svc.name}</div>
-                            <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                              <span className="w-1 h-1 rounded-full bg-emerald-400" />
-                              Active Pool
-                            </div>
+                            {svc.isEnabled ? (
+                              <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                                Active Pool
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-amber-400" />
+                                Maintenance
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -1098,11 +1097,11 @@ export default function AccountGeneratorPage() {
               )}
 
               <div className="space-y-5">
-                {/* 6 Core Service Cards Grid */}
+                {/* Dynamic Service Cards Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 pt-1">
                   {servicesConfig.map((svc) => {
-                    const IconComp = svc.icon;
                     const isOutOfStock = svc.leftCount === 0;
+                    const isMaintenance = !svc.isEnabled;
                     const svcKey = svc.name.toLowerCase();
                     const quotaInfo = userPlan.serviceQuotas?.[svcKey] || userPlan.serviceQuotas?.[svc.id.toLowerCase()];
                     const isCoveredByPlan = userPlan.hasPlan && (
@@ -1114,7 +1113,7 @@ export default function AccountGeneratorPage() {
                       (quotaInfo ? quotaInfo.isUnlocked : false)
                     );
                     const isQuotaExhausted = quotaInfo ? quotaInfo.totalAvailable <= 0 : false;
-                    const canClaim = isCoveredByPlan && !isQuotaExhausted;
+                    const canClaim = isCoveredByPlan && !isQuotaExhausted && !isMaintenance;
 
                     return (
                       <button
@@ -1122,7 +1121,9 @@ export default function AccountGeneratorPage() {
                         disabled={claiming || !canClaim}
                         onClick={() => handleClaimAccount(svc.name, svc.leftCount)}
                         className={`p-4 rounded-xl border border-zinc-800/80 flex flex-col items-center justify-center text-center transition-all duration-150 group relative ${
-                          !isCoveredByPlan
+                          isMaintenance
+                            ? 'opacity-45 border-amber-500/25 bg-amber-950/10 cursor-not-allowed'
+                            : !isCoveredByPlan
                             ? 'opacity-35 grayscale-[50%] cursor-not-allowed bg-zinc-950'
                             : isQuotaExhausted
                             ? 'opacity-50 border-rose-500/30 bg-rose-950/10 cursor-not-allowed'
@@ -1131,8 +1132,11 @@ export default function AccountGeneratorPage() {
                             : 'bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 hover:-translate-y-0.5 cursor-pointer'
                         }`}
                       >
-                        <div className={`w-11 h-11 rounded-xl bg-zinc-950 border border-zinc-800/80 flex items-center justify-center mb-2.5 ${svc.color}`}>
-                          <IconComp className="w-5 h-5" />
+                        <div 
+                          className="w-11 h-11 rounded-xl bg-zinc-950 border border-zinc-800/80 flex items-center justify-center mb-2.5"
+                          style={{ color: svc.color }}
+                        >
+                          <DynamicBrandIcon iconValue={svc.iconValue} serviceName={svc.name} className="w-5 h-5" />
                         </div>
                         <div className="text-xs font-semibold text-white group-hover:text-zinc-200 transition-colors truncate w-full">
                           {svc.name}
@@ -1140,8 +1144,10 @@ export default function AccountGeneratorPage() {
 
                         {/* Stock count + Quota Headroom badge */}
                         <div className="flex flex-col items-center gap-0.5 mt-1 w-full">
-                          <div className={`text-[11px] font-mono font-medium ${isOutOfStock && !stockLoading ? 'text-rose-400 font-semibold' : 'text-zinc-400'}`}>
-                            {stockLoading ? (
+                          <div className={`text-[11px] font-mono font-medium ${isMaintenance ? 'text-amber-400 font-semibold' : isOutOfStock && !stockLoading ? 'text-rose-400 font-semibold' : 'text-zinc-400'}`}>
+                            {isMaintenance ? (
+                              'Maintenance'
+                            ) : stockLoading ? (
                               <span className="inline-block w-8 h-3.5 bg-zinc-800 rounded animate-pulse mt-0.5" />
                             ) : isOutOfStock ? (
                               '0 left'
@@ -1149,7 +1155,11 @@ export default function AccountGeneratorPage() {
                               `${svc.leftCount.toLocaleString()} left`
                             )}
                           </div>
-                          {!isCoveredByPlan ? (
+                          {isMaintenance ? (
+                            <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold mt-1">
+                              Offline
+                            </span>
+                          ) : !isCoveredByPlan ? (
                             <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 mt-1">
                               Locked
                             </span>
