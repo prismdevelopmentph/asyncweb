@@ -43,6 +43,20 @@ BEGIN
     IF v_reset_date_str IS NOT NULL AND v_reset_date_str ~ '^\d{4}-\d{2}-\d{2}$' THEN
         v_today := v_reset_date_str::DATE;
     END IF;
+
+    -- 5-second anti-spam cooldown gate inside PostgreSQL
+    IF EXISTS (
+        SELECT 1 FROM public.website_claim_logs
+        WHERE discord_user_id = p_user_id
+          AND claimed_at > (v_now - INTERVAL '5 seconds')
+    ) THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'status', 429,
+            'error', 'Cooldown active: Please wait 5 seconds before generating another account.'
+        );
+    END IF;
+
     SELECT id, name INTO v_service_id, v_service_name
     FROM public.services
     WHERE LOWER(name) = LOWER(TRIM(p_service_name))

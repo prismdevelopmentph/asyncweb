@@ -45,27 +45,44 @@ export async function POST(request: NextRequest) {
     const callerDiscordId = auth.data.discordId;
     const isOwner = isOwnerDiscordId(callerDiscordId);
 
-    // ── 5-Second Generation Cooldown Gate (Backend-Only) ──
-    if (!isOwner) {
-      const now = Date.now();
-      const lastClaimTime = claimCooldownStore.get(callerDiscordId);
+    // ── Universal 5-Second Generation Cooldown Gate (Backend-Only) ──
+    const now = Date.now();
+    let lastClaimTime = claimCooldownStore.get(callerDiscordId) || 0;
 
-      if (lastClaimTime && now - lastClaimTime < CLAIM_COOLDOWN_MS) {
-        const remainingSec = Math.ceil((lastClaimTime + CLAIM_COOLDOWN_MS - now) / 1000);
-        return NextResponse.json(
-          {
-            error: `Cooldown active: Please wait ${remainingSec}s before generating another account.`,
-            code: 'COOLDOWN_ACTIVE',
-            retryAfter: remainingSec
-          },
-          {
-            status: 429,
-            headers: {
-              'Retry-After': String(remainingSec)
-            }
-          }
-        );
+    // Check fast memory first; if not in memory or expired, check persistent audit log
+    if (now - lastClaimTime >= CLAIM_COOLDOWN_MS) {
+      const { data: recentLog } = await supabaseAdmin
+        .from('website_claim_logs')
+        .select('claimed_at')
+        .eq('discord_user_id', callerDiscordId)
+        .order('claimed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentLog?.claimed_at) {
+        const dbTimestamp = new Date(recentLog.claimed_at).getTime();
+        if (!isNaN(dbTimestamp) && dbTimestamp > lastClaimTime) {
+          lastClaimTime = dbTimestamp;
+          claimCooldownStore.set(callerDiscordId, dbTimestamp);
+        }
       }
+    }
+
+    if (now - lastClaimTime < CLAIM_COOLDOWN_MS) {
+      const remainingSec = Math.max(1, Math.ceil((lastClaimTime + CLAIM_COOLDOWN_MS - now) / 1000));
+      return NextResponse.json(
+        {
+          error: `Cooldown active: Please wait ${remainingSec}s before generating another account.`,
+          code: 'COOLDOWN_ACTIVE',
+          retryAfter: remainingSec
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(remainingSec)
+          }
+        }
+      );
     }
 
     // Verify Service Active / Maintenance Status (Owner can bypass for testing)
