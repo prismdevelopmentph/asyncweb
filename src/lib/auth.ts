@@ -48,6 +48,12 @@ function resolveVerifiedDiscordId(user: User): string | null {
     }
   }
 
+  // 3. Fallback: OAuth user_metadata claims from Discord login
+  const metaDiscordId = user.user_metadata?.provider_id || user.user_metadata?.sub;
+  if (metaDiscordId && typeof metaDiscordId === 'string' && metaDiscordId.trim()) {
+    return metaDiscordId.trim();
+  }
+
   return null;
 }
 

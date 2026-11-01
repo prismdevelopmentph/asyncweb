@@ -96,9 +96,9 @@ export async function GET(request: NextRequest) {
               const nameStr = String(svc.name || '').trim();
 
               const configEnabled = configMap.get(`service_enabled_${idStr}`);
-              const isEnabled = svc.is_enabled !== undefined && svc.is_enabled !== null
-                ? Boolean(svc.is_enabled)
-                : (configEnabled !== undefined ? configEnabled === 'true' : true);
+              const isEnabled = configEnabled !== undefined
+                ? configEnabled === 'true'
+                : (svc.is_enabled !== undefined && svc.is_enabled !== null ? Boolean(svc.is_enabled) : true);
 
               const nameLower = nameStr.toLowerCase();
               const brandColor = configMap.get(`service_color_${idStr}`)
@@ -194,9 +194,8 @@ export async function GET(request: NextRequest) {
           try {
             await supabaseAdmin.from('config').upsert({
               key: 'last_reset_date',
-              value: todayPht,
-              updated_at: new Date().toISOString()
-            });
+              value: todayPht
+            }, { onConflict: 'key' });
 
             await supabaseAdmin
               .from('user_limits')
@@ -274,7 +273,7 @@ export async function GET(request: NextRequest) {
             { data: licServicesData }
           ] = await Promise.all([
             supabaseAdmin.from('license_daily_usages').select('license_id, service_name, used_count').in('license_id', activeLicIds).eq('usage_date', todayStr),
-            supabaseAdmin.from('user_limits').select('license_id, count').eq('discord_user_id', userId).in('license_id', activeLicIds),
+            supabaseAdmin.from('user_limits').select('license_id, count').eq('discord_user_id', userId),
             supabaseAdmin.from('license_services').select('license_id, service_id').in('license_id', activeLicIds)
           ]);
 
@@ -295,8 +294,8 @@ export async function GET(request: NextRequest) {
           // Fallback to user_limits if license_daily_usages has no entries for a license
           if (userLimitRows) {
             for (const ul of userLimitRows) {
-              const licId = String(ul.license_id);
-              if (!totalUsageByLic.has(licId) || (totalUsageByLic.get(licId) === 0 && Number(ul.count) > 0)) {
+              const licId = ul.license_id ? String(ul.license_id) : (activeLicenses.length === 1 ? String(activeLicenses[0].id) : null);
+              if (licId && (!totalUsageByLic.has(licId) || (totalUsageByLic.get(licId) === 0 && Number(ul.count) > 0))) {
                 totalUsageByLic.set(licId, Number(ul.count) || 0);
               }
             }

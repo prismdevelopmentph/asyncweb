@@ -40,7 +40,7 @@ BEGIN
     WHERE key = 'last_reset_date'
     LIMIT 1;
 
-    IF v_reset_date_str IS NOT NULL AND v_reset_date_str ~ '^\d{4}-\d{2}-\d{2}$' THEN
+    IF v_reset_date_str IS NOT NULL AND v_reset_date_str ~ '^\d{4}-\d{2}-\d{2}$' AND v_reset_date_str::DATE >= v_today THEN
         v_today := v_reset_date_str::DATE;
     END IF;
 

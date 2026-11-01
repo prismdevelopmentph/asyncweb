@@ -150,8 +150,10 @@ export async function GET(request: NextRequest) {
       (claimLogsRes?.data || []).forEach((c: any) => {
         if (c.discord_user_id) {
           const uId = String(c.discord_user_id);
-          const cDate = c.claimed_at ? String(c.claimed_at).slice(0, 10) : '';
-          if (cDate >= todayPht) {
+          const cDate = c.claimed_at
+            ? new Date(c.claimed_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+            : '';
+          if (cDate === todayPht) {
             claimsTodayByUser.set(uId, (claimsTodayByUser.get(uId) || 0) + 1);
           }
         }
@@ -309,9 +311,9 @@ export async function GET(request: NextRequest) {
       const enrichedServices = (servicesRes.data || []).map((svc: any) => {
         const idStr = String(svc.id);
         const configEnabled = configMap.get(`service_enabled_${idStr}`);
-        const isEnabled = svc.is_enabled !== undefined && svc.is_enabled !== null
-          ? Boolean(svc.is_enabled)
-          : (configEnabled !== undefined ? configEnabled === 'true' : true);
+        const isEnabled = configEnabled !== undefined
+          ? configEnabled === 'true'
+          : (svc.is_enabled !== undefined && svc.is_enabled !== null ? Boolean(svc.is_enabled) : true);
         const nameLower = String(svc.name || '').trim().toLowerCase();
         const brandColor = configMap.get(`service_color_${idStr}`)
           || (svc.brand_color && svc.brand_color !== '#a855f7' ? svc.brand_color : null)

@@ -593,6 +593,10 @@ export default function AccountGeneratorPage() {
       const sUser = session?.user ?? null;
       setUser(sUser);
       setAuthLoading(false);
+      if (sUser) {
+        const discordId = sUser.user_metadata?.provider_id || sUser.user_metadata?.sub || sUser.id;
+        fetchStatus(discordId);
+      }
     });
 
     return () => {

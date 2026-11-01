@@ -41,9 +41,9 @@ export async function GET(request: NextRequest) {
 
         // Check if disabled via indexed services column or fallback config
         const configEnabled = configMap.get(`service_enabled_${idStr}`);
-        const isEnabled = svc.is_enabled !== undefined && svc.is_enabled !== null
-          ? Boolean(svc.is_enabled)
-          : (configEnabled !== undefined ? configEnabled === 'true' : true);
+        const isEnabled = configEnabled !== undefined
+          ? configEnabled === 'true'
+          : (svc.is_enabled !== undefined && svc.is_enabled !== null ? Boolean(svc.is_enabled) : true);
 
         const brandColor = configMap.get(`service_color_${idStr}`) || svc.brand_color || '#a855f7';
         const iconValue = configMap.get(`service_icon_${idStr}`) || svc.icon_value || svc.name?.toLowerCase() || 'gamepad';
