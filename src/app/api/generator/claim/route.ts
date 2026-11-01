@@ -11,6 +11,13 @@ const tokenHwidStore: Map<string, BoundSession> =
   (globalThis as any).__async_token_hwid_store ||
   ((globalThis as any).__async_token_hwid_store = new Map<string, BoundSession>());
 
+// 5-second anti-spam generation cooldown per user
+const claimCooldownStore: Map<string, number> =
+  (globalThis as any).__async_claim_cooldown_store ||
+  ((globalThis as any).__async_claim_cooldown_store = new Map<string, number>());
+
+const CLAIM_COOLDOWN_MS = 5 * 1000;
+
 function resolveTokenSessionKey(token: string): string {
   const parts = token.split('.');
   if (parts.length === 3) {
@@ -37,6 +44,29 @@ export async function POST(request: NextRequest) {
 
     const callerDiscordId = auth.data.discordId;
     const isOwner = isOwnerDiscordId(callerDiscordId);
+
+    // ── 5-Second Generation Cooldown Gate (Backend-Only) ──
+    if (!isOwner) {
+      const now = Date.now();
+      const lastClaimTime = claimCooldownStore.get(callerDiscordId);
+
+      if (lastClaimTime && now - lastClaimTime < CLAIM_COOLDOWN_MS) {
+        const remainingSec = Math.ceil((lastClaimTime + CLAIM_COOLDOWN_MS - now) / 1000);
+        return NextResponse.json(
+          {
+            error: `Cooldown active: Please wait ${remainingSec}s before generating another account.`,
+            code: 'COOLDOWN_ACTIVE',
+            retryAfter: remainingSec
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(remainingSec)
+            }
+          }
+        );
+      }
+    }
 
     // Verify Service Active / Maintenance Status (Owner can bypass for testing)
     const { data: svcRow } = await supabaseAdmin
@@ -171,6 +201,17 @@ export async function POST(request: NextRequest) {
         { error: data?.error || 'Failed to generate account.' },
         { status: data?.status || 400 }
       );
+    }
+
+    // Register 5-second cooldown timestamp upon successful claim
+    claimCooldownStore.set(callerDiscordId, Date.now());
+
+    // Prune stale cooldown entries if map grows large
+    if (claimCooldownStore.size > 10000) {
+      const cutoff = Date.now() - 60000;
+      for (const [k, v] of claimCooldownStore.entries()) {
+        if (v < cutoff) claimCooldownStore.delete(k);
+      }
     }
 
     return NextResponse.json({
