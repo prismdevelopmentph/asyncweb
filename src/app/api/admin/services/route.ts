@@ -39,11 +39,11 @@ export async function GET(request: NextRequest) {
         const idStr = String(svc.id);
         const nameStr = String(svc.name || '').trim();
 
-        // Check if disabled via config or services column
+        // Check if disabled via indexed services column or fallback config
         const configEnabled = configMap.get(`service_enabled_${idStr}`);
-        const isEnabled = configEnabled !== undefined 
-          ? configEnabled === 'true' 
-          : (svc.is_enabled !== undefined ? Boolean(svc.is_enabled) : true);
+        const isEnabled = svc.is_enabled !== undefined && svc.is_enabled !== null
+          ? Boolean(svc.is_enabled)
+          : (configEnabled !== undefined ? configEnabled === 'true' : true);
 
         const brandColor = configMap.get(`service_color_${idStr}`) || svc.brand_color || '#a855f7';
         const iconValue = configMap.get(`service_icon_${idStr}`) || svc.icon_value || svc.name?.toLowerCase() || 'gamepad';
@@ -108,9 +108,12 @@ export async function PATCH(request: NextRequest) {
     if (iconValue !== undefined) updates.icon_value = String(iconValue).trim();
     if (name !== undefined) updates.name = String(name).trim();
 
-    // 1. Attempt updating services table directly
+    // 1. Attempt updating services table directly (indexed column)
     if (Object.keys(updates).length > 0) {
-      await supabaseAdmin.from('services').update(updates).eq('id', serviceId);
+      const { error: svcUpdateErr } = await supabaseAdmin.from('services').update(updates).eq('id', serviceId);
+      if (svcUpdateErr) {
+        console.warn('[Admin Services API] Direct table update note:', svcUpdateErr.message);
+      }
     }
 
     // 2. Also persist to config table for zero-fail redundancy

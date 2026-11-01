@@ -52,9 +52,9 @@ export async function POST(request: NextRequest) {
         .eq('key', `service_enabled_${svcRow.id}`)
         .maybeSingle();
 
-      const isEnabled = cfgRow?.value !== undefined 
-        ? cfgRow.value === 'true' 
-        : (svcRow.is_enabled !== undefined ? Boolean(svcRow.is_enabled) : true);
+      const isEnabled = svcRow.is_enabled !== undefined && svcRow.is_enabled !== null
+        ? Boolean(svcRow.is_enabled)
+        : (cfgRow?.value !== undefined ? cfgRow.value === 'true' : true);
 
       if (!isEnabled && !isOwner) {
         return NextResponse.json(
