@@ -3508,9 +3508,6 @@ export default function AdminPage() {
                                           <span className="text-[10px] opacity-75 font-normal uppercase">
                                             ({lic.tier || 'lifetime'})
                                           </span>
-                                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-zinc-200">
-                                            {lic.used_today || 0}/{lic.effective_limit ?? lic.daily_limit ?? 15}
-                                          </span>
                                         </div>
 
                                         {/* Hover Tooltip Card */}
@@ -3783,7 +3780,7 @@ export default function AdminPage() {
                                   return (
                                     <span
                                       key={lic.id}
-                                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-mono font-medium border flex items-center gap-1.5 ${
+                                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-mono font-medium border ${
                                         isPkg
                                           ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
                                           : isAll
@@ -3791,11 +3788,8 @@ export default function AdminPage() {
                                           : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
                                       }`}
                                     >
-                                      <span>{scopeLabel.replace('[Package] ', '')}</span>
-                                      <span className="opacity-75 text-[10px]">({lic.tier || 'lifetime'})</span>
-                                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-zinc-200">
-                                        {lic.used_today || 0}/{lic.effective_limit ?? lic.daily_limit ?? 15}
-                                      </span>
+                                      {scopeLabel.replace('[Package] ', '')}
+                                      <span className="opacity-75 text-[10px] ml-1">({lic.tier || 'lifetime'})</span>
                                     </span>
                                   );
                                 })}
