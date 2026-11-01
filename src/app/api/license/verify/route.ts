@@ -3,8 +3,77 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
+// Sliding-window IP rate limiter: 15 verification checks per 60 seconds per IP
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+
+const verifyRateLimitStore: Map<string, RateLimitBucket> =
+  (globalThis as any).__async_verify_ratelimit_store ||
+  ((globalThis as any).__async_verify_ratelimit_store = new Map<string, RateLimitBucket>());
+
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_ATTEMPTS = 15;
+
+function getClientIp(request: Request): string {
+  const cfIp = request.headers.get('cf-connecting-ip');
+  if (cfIp && cfIp.trim()) return cfIp.trim();
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp && realIp.trim()) return realIp.trim();
+  return '127.0.0.1';
+}
+
+function checkVerifyRateLimit(ip: string): { allowed: boolean; retryAfter: number } {
+  if (!ip) return { allowed: true, retryAfter: 0 };
+  const now = Date.now();
+  const bucket = verifyRateLimitStore.get(ip);
+
+  // Prune map if size exceeds 5000 entries
+  if (verifyRateLimitStore.size > 5000) {
+    for (const [k, v] of verifyRateLimitStore.entries()) {
+      if (v.resetAt <= now) verifyRateLimitStore.delete(k);
+    }
+  }
+
+  if (!bucket || bucket.resetAt <= now) {
+    verifyRateLimitStore.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, retryAfter: 0 };
+  }
+
+  if (bucket.count >= RATE_LIMIT_MAX_ATTEMPTS) {
+    const retryAfter = Math.ceil((bucket.resetAt - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  bucket.count += 1;
+  return { allowed: true, retryAfter: 0 };
+}
+
 export async function POST(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const rateCheck = checkVerifyRateLimit(clientIp);
+
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        {
+          found: false,
+          valid: false,
+          error: `Rate limit exceeded. Please wait ${rateCheck.retryAfter}s before verifying more keys.`,
+          code: 'RATE_LIMITED'
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateCheck.retryAfter)
+          }
+        }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const rawKey = body.key || body.license_key || body.licenseKey;
 
@@ -15,7 +84,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const key = rawKey.trim();
+    const key = rawKey.trim().toUpperCase();
+
+    // Fast structural check: Reject obvious non-keys before hitting PostgreSQL
+    if (!key.startsWith('LIC-') || key.length < 8) {
+      return NextResponse.json({
+        found: false,
+        valid: false,
+        message: 'License token not recognized in ASYNC database. Beware of unauthorized resellers.'
+      });
+    }
 
     // Query production licenses table
     const { data: license, error } = await supabaseAdmin
