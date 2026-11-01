@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const { data: services, error: svcErr } = await supabaseAdmin
       .from('services')
       .select('*')
-      .order('id', { ascending: true });
+      .order('display_order', { ascending: true });
 
     if (svcErr) throw svcErr;
 
@@ -76,9 +76,27 @@ export async function GET(request: NextRequest) {
           iconValue,
           iconType: svc.icon_type || 'simpleicon',
           stockCount,
+          displayOrder: svc.display_order ?? 0,
         };
       })
     );
+
+    const CANONICAL_SERVICE_ORDER = ['steam', 'discord', 'rockstar', 'cyberghost', 'netflix', 'valorant'];
+    enriched.sort((a: any, b: any) => {
+      const orderA = a.displayOrder ?? 0;
+      const orderB = b.displayOrder ?? 0;
+      if (orderA > 0 && orderB > 0 && orderA !== orderB) return orderA - orderB;
+      if (orderA > 0) return -1;
+      if (orderB > 0) return 1;
+      const nameA = String(a.name || '').toLowerCase();
+      const nameB = String(b.name || '').toLowerCase();
+      const idxA = CANONICAL_SERVICE_ORDER.findIndex(k => nameA.includes(k));
+      const idxB = CANONICAL_SERVICE_ORDER.findIndex(k => nameB.includes(k));
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return nameA.localeCompare(nameB);
+    });
 
     return NextResponse.json({ ok: true, services: enriched });
   } catch (err: any) {

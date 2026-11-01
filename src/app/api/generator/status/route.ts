@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     const stockPromise = (async () => {
       try {
         const [{ data: servicesData }, { data: configRows }] = await Promise.all([
-          supabaseAdmin.from('services').select('*').order('id', { ascending: true }),
+          supabaseAdmin.from('services').select('*').order('display_order', { ascending: true }),
           supabaseAdmin.from('config').select('key, value').or('key.like.service_enabled_%,key.like.service_color_%,key.like.service_icon_%')
         ]);
 
@@ -128,9 +128,27 @@ export async function GET(request: NextRequest) {
                 stockCount: count,
                 brandColor,
                 iconValue,
+                displayOrder: svc.display_order ?? 0,
               };
             })
           );
+
+          const CANONICAL_SERVICE_ORDER = ['steam', 'discord', 'rockstar', 'cyberghost', 'netflix', 'valorant'];
+          dynamicServices.sort((a, b) => {
+            const orderA = a.displayOrder ?? 0;
+            const orderB = b.displayOrder ?? 0;
+            if (orderA > 0 && orderB > 0 && orderA !== orderB) return orderA - orderB;
+            if (orderA > 0) return -1;
+            if (orderB > 0) return 1;
+            const nameA = a.name.toLowerCase();
+            const nameB = b.name.toLowerCase();
+            const idxA = CANONICAL_SERVICE_ORDER.findIndex(k => nameA.includes(k));
+            const idxB = CANONICAL_SERVICE_ORDER.findIndex(k => nameB.includes(k));
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            return nameA.localeCompare(nameB);
+          });
 
           response.services = dynamicServices;
 
