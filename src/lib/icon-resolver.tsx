@@ -28,6 +28,15 @@ export const DEFAULT_BRAND_COLORS: Record<string, string> = {
   twitch: '#9146ff',
 };
 
+export const DEFAULT_BRAND_GLOWS: Record<string, string> = {
+  steam: 'hover:border-[#66c0f4]/50 hover:shadow-[0_0_20px_rgba(102,192,244,0.15)]',
+  discord: 'hover:border-[#5865f2]/50 hover:shadow-[0_0_20px_rgba(88,101,242,0.15)]',
+  rockstar: 'hover:border-[#ffab00]/50 hover:shadow-[0_0_20px_rgba(255,171,0,0.15)]',
+  cyberghost: 'hover:border-[#10b981]/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]',
+  netflix: 'hover:border-[#e50914]/50 hover:shadow-[0_0_20px_rgba(229,9,20,0.15)]',
+  valorant: 'hover:border-[#ff4655]/50 hover:shadow-[0_0_20px_rgba(255,70,85,0.15)]',
+};
+
 export function resolveIconDetails(iconValueOrName: string) {
   if (!iconValueOrName) return { path: null, isSvg: false, color: '#a855f7' };
   const raw = iconValueOrName.trim();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireUser, requireOwner } from '@/lib/auth';
+import { DEFAULT_BRAND_COLORS } from '@/lib/icon-resolver';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -311,7 +312,12 @@ export async function GET(request: NextRequest) {
         const isEnabled = svc.is_enabled !== undefined && svc.is_enabled !== null
           ? Boolean(svc.is_enabled)
           : (configEnabled !== undefined ? configEnabled === 'true' : true);
-        const brandColor = configMap.get(`service_color_${idStr}`) || svc.brand_color || '#a855f7';
+        const nameLower = String(svc.name || '').trim().toLowerCase();
+        const brandColor = configMap.get(`service_color_${idStr}`)
+          || (svc.brand_color && svc.brand_color !== '#a855f7' ? svc.brand_color : null)
+          || DEFAULT_BRAND_COLORS[nameLower]
+          || svc.brand_color
+          || '#a855f7';
         const iconValue = configMap.get(`service_icon_${idStr}`) || svc.icon_value || svc.name?.toLowerCase() || 'gamepad';
 
         return {

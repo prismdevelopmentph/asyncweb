@@ -6,7 +6,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ChatWidget from '@/components/ChatWidget';
 import { supabase } from '@/lib/supabase';
-import { DynamicBrandIcon, DEFAULT_BRAND_COLORS } from '@/lib/icon-resolver';
+import { DynamicBrandIcon, DEFAULT_BRAND_COLORS, DEFAULT_BRAND_GLOWS } from '@/lib/icon-resolver';
 import {
   Copy,
   Search,
@@ -753,24 +753,30 @@ export default function AccountGeneratorPage() {
     if (dynamicServices.length > 0) {
       return dynamicServices.map((svc) => {
         const idLower = String(svc.name || '').toLowerCase();
+        const brandColor = (svc.brandColor && svc.brandColor !== '#a855f7')
+          ? svc.brandColor
+          : (DEFAULT_BRAND_COLORS[idLower] || svc.brandColor || '#a855f7');
+        const bgGlow = DEFAULT_BRAND_GLOWS[idLower] || 'hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)]';
+
         return {
           id: String(svc.id),
           name: svc.name,
           iconValue: svc.iconValue || idLower,
           leftCount: svc.stockCount ?? (stock as any)[idLower] ?? 0,
-          color: svc.brandColor || DEFAULT_BRAND_COLORS[idLower] || '#a855f7',
+          color: brandColor,
+          bgGlow,
           isEnabled: svc.isEnabled ?? true,
         };
       });
     }
 
     return [
-      { id: 'steam', name: 'Steam', iconValue: 'steam', leftCount: stock.steam, color: '#66c0f4', isEnabled: true },
-      { id: 'discord', name: 'Discord', iconValue: 'discord', leftCount: stock.discord, color: '#5865f2', isEnabled: true },
-      { id: 'rockstar', name: 'Rockstar', iconValue: 'rockstar', leftCount: stock.rockstar, color: '#ffab00', isEnabled: true },
-      { id: 'cyberghost', name: 'CyberGhost', iconValue: 'cyberghost', leftCount: stock.cyberghost, color: '#10b981', isEnabled: true },
-      { id: 'netflix', name: 'Netflix', iconValue: 'netflix', leftCount: stock.netflix, color: '#e50914', isEnabled: true },
-      { id: 'valorant', name: 'Valorant', iconValue: 'valorant', leftCount: stock.valorant, color: '#ff4655', isEnabled: true },
+      { id: 'steam', name: 'Steam', iconValue: 'steam', leftCount: stock.steam, color: '#66c0f4', bgGlow: DEFAULT_BRAND_GLOWS.steam, isEnabled: true },
+      { id: 'discord', name: 'Discord', iconValue: 'discord', leftCount: stock.discord, color: '#5865f2', bgGlow: DEFAULT_BRAND_GLOWS.discord, isEnabled: true },
+      { id: 'rockstar', name: 'Rockstar', iconValue: 'rockstar', leftCount: stock.rockstar, color: '#ffab00', bgGlow: DEFAULT_BRAND_GLOWS.rockstar, isEnabled: true },
+      { id: 'cyberghost', name: 'CyberGhost', iconValue: 'cyberghost', leftCount: stock.cyberghost, color: '#10b981', bgGlow: DEFAULT_BRAND_GLOWS.cyberghost, isEnabled: true },
+      { id: 'netflix', name: 'Netflix', iconValue: 'netflix', leftCount: stock.netflix, color: '#e50914', bgGlow: DEFAULT_BRAND_GLOWS.netflix, isEnabled: true },
+      { id: 'valorant', name: 'Valorant', iconValue: 'valorant', leftCount: stock.valorant, color: '#ff4655', bgGlow: DEFAULT_BRAND_GLOWS.valorant, isEnabled: true },
     ];
   }, [dynamicServices, stock]);
 
@@ -1129,7 +1135,7 @@ export default function AccountGeneratorPage() {
                             ? 'opacity-50 border-rose-500/30 bg-rose-950/10 cursor-not-allowed'
                             : isOutOfStock && !stockLoading
                             ? 'opacity-60 bg-zinc-950 hover:bg-zinc-900/60 cursor-pointer'
-                            : 'bg-zinc-900/50 hover:bg-zinc-900 hover:border-zinc-700 hover:-translate-y-0.5 cursor-pointer'
+                            : `bg-zinc-900/50 hover:bg-zinc-900 hover:-translate-y-0.5 cursor-pointer ${(svc as any).bgGlow || 'hover:border-zinc-700'}`
                         }`}
                       >
                         <div 

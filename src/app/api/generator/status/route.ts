@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { requireUser } from '@/lib/auth';
+import { DEFAULT_BRAND_COLORS } from '@/lib/icon-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +100,12 @@ export async function GET(request: NextRequest) {
                 ? Boolean(svc.is_enabled)
                 : (configEnabled !== undefined ? configEnabled === 'true' : true);
 
-              const brandColor = configMap.get(`service_color_${idStr}`) || svc.brand_color || '#a855f7';
+              const nameLower = nameStr.toLowerCase();
+              const brandColor = configMap.get(`service_color_${idStr}`)
+                || (svc.brand_color && svc.brand_color !== '#a855f7' ? svc.brand_color : null)
+                || DEFAULT_BRAND_COLORS[nameLower]
+                || svc.brand_color
+                || '#a855f7';
               const iconValue = configMap.get(`service_icon_${idStr}`) || svc.icon_value || svc.name?.toLowerCase() || 'gamepad';
 
               let count = 0;
