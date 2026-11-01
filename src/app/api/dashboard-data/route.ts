@@ -98,27 +98,61 @@ export async function GET(request: NextRequest) {
         Promise.resolve(
           supabaseAdmin
             .from('license_daily_usages')
-            .select('license_id, discord_id, used_count')
-            .eq('usage_date', new Date().toISOString().split('T')[0])
+            .select('license_id, discord_id, used_count, usage_date')
+            .in('usage_date', [
+              new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
+              new Date().toISOString().split('T')[0]
+            ])
         ).catch(() => ({ data: [], error: null })),
       ]);
 
-      const limitsMap = new Map();
-      (userLimitsRes.data || []).forEach((ul: any) => {
-        if (ul.license_id) limitsMap.set(String(ul.license_id), ul.count || 0);
-        if (ul.discord_user_id) limitsMap.set(String(ul.discord_user_id), Math.max(ul.count || 0, limitsMap.get(String(ul.discord_user_id)) || 0));
+      // Count active licenses per user to prevent cross-contamination for multi-key users
+      const userActiveLicCount = new Map<string, number>();
+      (generatorLicensesRes.data || []).forEach((lic: any) => {
+        if (lic.redeemed_by && lic.is_active) {
+          const u = String(lic.redeemed_by);
+          userActiveLicCount.set(u, (userActiveLicCount.get(u) || 0) + 1);
+        }
       });
 
-      // Merge live usage counts from license_daily_usages for today
+      // 1. Precise per-license usage map (summed across services for today)
+      const licenseUsageMap = new Map<string, number>();
       (dailyUsagesRes?.data || []).forEach((du: any) => {
-        const cnt = Number(du.used_count) || 0;
         if (du.license_id) {
           const licId = String(du.license_id);
-          limitsMap.set(licId, Math.max(limitsMap.get(licId) || 0, cnt));
+          const cnt = Number(du.used_count) || 0;
+          licenseUsageMap.set(licId, (licenseUsageMap.get(licId) || 0) + cnt);
         }
-        if (du.discord_id) {
-          const uId = String(du.discord_id);
-          limitsMap.set(uId, Math.max(limitsMap.get(uId) || 0, cnt));
+      });
+
+      // 2. Legacy user_limits fallback
+      const legacyLimitsByLicId = new Map<string, number>();
+      const legacyLimitsByUserId = new Map<string, number>();
+      (userLimitsRes.data || []).forEach((ul: any) => {
+        if (ul.license_id) legacyLimitsByLicId.set(String(ul.license_id), Number(ul.count) || 0);
+        if (ul.discord_user_id) {
+          const u = String(ul.discord_user_id);
+          legacyLimitsByUserId.set(u, Math.max(Number(ul.count) || 0, legacyLimitsByUserId.get(u) || 0));
+        }
+      });
+
+      // Merge legacy license_id counts if license_daily_usages has none
+      legacyLimitsByLicId.forEach((count, licId) => {
+        if (!licenseUsageMap.has(licId) || licenseUsageMap.get(licId) === 0) {
+          if (count > 0) licenseUsageMap.set(licId, count);
+        }
+      });
+
+      // 3. Claims audit log per user (ONLY used for single-license accounts)
+      const todayPht = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      const claimsTodayByUser = new Map<string, number>();
+      (claimLogsRes?.data || []).forEach((c: any) => {
+        if (c.discord_user_id) {
+          const uId = String(c.discord_user_id);
+          const cDate = c.claimed_at ? String(c.claimed_at).slice(0, 10) : '';
+          if (cDate >= todayPht) {
+            claimsTodayByUser.set(uId, (claimsTodayByUser.get(uId) || 0) + 1);
+          }
         }
       });
 
@@ -165,24 +199,20 @@ export async function GET(request: NextRequest) {
         };
       });
 
-      // Compute today's claims from immutable website_claim_logs audit table
-      const todayPht = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-      const claimsTodayByUser = new Map<string, number>();
-      (claimLogsRes?.data || []).forEach((c: any) => {
-        if (c.discord_user_id) {
-          const uId = String(c.discord_user_id);
-          const cDate = c.claimed_at ? String(c.claimed_at).slice(0, 10) : '';
-          if (cDate >= todayPht) {
-            claimsTodayByUser.set(uId, (claimsTodayByUser.get(uId) || 0) + 1);
-          }
-        }
-      });
-
       const augmentedGenLicenses = (generatorLicensesRes.data || []).map((lic: any) => {
-        const usedByLicId = limitsMap.get(String(lic.id)) || 0;
-        const usedByUserId = lic.redeemed_by ? (limitsMap.get(String(lic.redeemed_by)) || 0) : 0;
-        const usedByClaims = lic.redeemed_by ? (claimsTodayByUser.get(String(lic.redeemed_by)) || 0) : 0;
-        const finalUsedToday = Math.max(usedByLicId, usedByUserId, usedByClaims);
+        const licId = String(lic.id);
+        const uId = lic.redeemed_by ? String(lic.redeemed_by) : null;
+        const isSingleLicenseUser = uId ? (userActiveLicCount.get(uId) || 0) <= 1 : true;
+
+        // Strict per-license usage: multi-license users NEVER clone user-level claims
+        let finalUsedToday = licenseUsageMap.get(licId) || 0;
+
+        // Fallback to user-level limits ONLY if user owns strictly one single license
+        if (finalUsedToday === 0 && isSingleLicenseUser && uId) {
+          const legacyUserCount = legacyLimitsByUserId.get(uId) || 0;
+          const claimsCount = claimsTodayByUser.get(uId) || 0;
+          finalUsedToday = Math.max(legacyUserCount, claimsCount);
+        }
 
         let effectiveLimit = lic.daily_limit;
         if (effectiveLimit === null || effectiveLimit === undefined) {
