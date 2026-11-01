@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
         licenseServicesRes,
         packageServicesRes,
         visitorLogsRes,
-        serviceConfigRes
+        serviceConfigRes,
+        dailyUsagesRes
       ] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
@@ -94,12 +95,31 @@ export async function GET(request: NextRequest) {
             .select('key, value')
             .or('key.like.service_enabled_%,key.like.service_color_%,key.like.service_icon_%')
         ).catch(() => ({ data: [], error: null })),
+        Promise.resolve(
+          supabaseAdmin
+            .from('license_daily_usages')
+            .select('license_id, discord_id, used_count')
+            .eq('usage_date', new Date().toISOString().split('T')[0])
+        ).catch(() => ({ data: [], error: null })),
       ]);
 
       const limitsMap = new Map();
       (userLimitsRes.data || []).forEach((ul: any) => {
         if (ul.license_id) limitsMap.set(String(ul.license_id), ul.count || 0);
         if (ul.discord_user_id) limitsMap.set(String(ul.discord_user_id), Math.max(ul.count || 0, limitsMap.get(String(ul.discord_user_id)) || 0));
+      });
+
+      // Merge live usage counts from license_daily_usages for today
+      (dailyUsagesRes?.data || []).forEach((du: any) => {
+        const cnt = Number(du.used_count) || 0;
+        if (du.license_id) {
+          const licId = String(du.license_id);
+          limitsMap.set(licId, Math.max(limitsMap.get(licId) || 0, cnt));
+        }
+        if (du.discord_id) {
+          const uId = String(du.discord_id);
+          limitsMap.set(uId, Math.max(limitsMap.get(uId) || 0, cnt));
+        }
       });
 
       const userGuildMap = new Map();
@@ -145,9 +165,24 @@ export async function GET(request: NextRequest) {
         };
       });
 
+      // Compute today's claims from immutable website_claim_logs audit table
+      const todayPht = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+      const claimsTodayByUser = new Map<string, number>();
+      (claimLogsRes?.data || []).forEach((c: any) => {
+        if (c.discord_user_id) {
+          const uId = String(c.discord_user_id);
+          const cDate = c.claimed_at ? String(c.claimed_at).slice(0, 10) : '';
+          if (cDate >= todayPht) {
+            claimsTodayByUser.set(uId, (claimsTodayByUser.get(uId) || 0) + 1);
+          }
+        }
+      });
+
       const augmentedGenLicenses = (generatorLicensesRes.data || []).map((lic: any) => {
         const usedByLicId = limitsMap.get(String(lic.id)) || 0;
         const usedByUserId = lic.redeemed_by ? (limitsMap.get(String(lic.redeemed_by)) || 0) : 0;
+        const usedByClaims = lic.redeemed_by ? (claimsTodayByUser.get(String(lic.redeemed_by)) || 0) : 0;
+        const finalUsedToday = Math.max(usedByLicId, usedByUserId, usedByClaims);
 
         let effectiveLimit = lic.daily_limit;
         if (effectiveLimit === null || effectiveLimit === undefined) {
@@ -167,7 +202,7 @@ export async function GET(request: NextRequest) {
 
         return {
           ...lic,
-          used_today: Math.max(usedByLicId, usedByUserId),
+          used_today: finalUsedToday,
           effective_limit: effectiveLimit,
           scope_label: scopeLabel,
         };

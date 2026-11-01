@@ -578,7 +578,7 @@ export default function AdminPage() {
         if (cachedStr) {
           const cached = JSON.parse(cachedStr);
           const hasStockEnriched = cached.data?.services?.some((s: any) => typeof s.stock_count === 'number');
-          if (cached.data?.userProfiles && hasStockEnriched && Date.now() - cached.timestamp < 60000) {
+          if (cached.data?.userProfiles && hasStockEnriched && Date.now() - cached.timestamp < 2000) {
             setAdminData(cached.data);
             setDataLoading(false);
             return;
@@ -3410,7 +3410,10 @@ export default function AdminPage() {
                 {/* View Switcher Pills */}
                 <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-950 border border-zinc-800/80 w-full sm:w-auto font-mono text-xs">
                   <button
-                    onClick={() => setGenViewMode('users')}
+                    onClick={() => {
+                      setGenViewMode('users');
+                      fetchAdminData(true);
+                    }}
                     className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-1 rounded-lg transition-all ${
                       genViewMode === 'users'
                         ? 'bg-purple-600 text-white font-bold shadow-sm'
@@ -3420,7 +3423,10 @@ export default function AdminPage() {
                     Active Users ({groupedGenUserList.length})
                   </button>
                   <button
-                    onClick={() => setGenViewMode('keys')}
+                    onClick={() => {
+                      setGenViewMode('keys');
+                      fetchAdminData(true);
+                    }}
                     className={`flex-1 sm:flex-initial text-center px-3 py-1.5 sm:py-1 rounded-lg transition-all ${
                       genViewMode === 'keys'
                         ? 'bg-zinc-800 text-white font-bold shadow-sm'
@@ -3428,6 +3434,13 @@ export default function AdminPage() {
                     }`}
                   >
                     Raw Keys ({filteredGenLicenses.length})
+                  </button>
+                  <button
+                    onClick={() => fetchAdminData(true)}
+                    className="p-1 px-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all border border-zinc-800"
+                    title="Refresh Live Quotas"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${dataLoading ? 'animate-spin text-purple-400' : ''}`} />
                   </button>
                 </div>
               </div>
@@ -3494,6 +3507,9 @@ export default function AdminPage() {
                                           <span>{scopeLabel.replace('[Package] ', '')}</span>
                                           <span className="text-[10px] opacity-75 font-normal uppercase">
                                             ({lic.tier || 'lifetime'})
+                                          </span>
+                                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-zinc-200">
+                                            {lic.used_today || 0}/{lic.effective_limit ?? lic.daily_limit ?? 15}
                                           </span>
                                         </div>
 
@@ -3767,7 +3783,7 @@ export default function AdminPage() {
                                   return (
                                     <span
                                       key={lic.id}
-                                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-mono font-medium border ${
+                                      className={`text-[11px] px-2.5 py-0.5 rounded-full font-mono font-medium border flex items-center gap-1.5 ${
                                         isPkg
                                           ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
                                           : isAll
@@ -3775,8 +3791,11 @@ export default function AdminPage() {
                                           : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
                                       }`}
                                     >
-                                      {scopeLabel.replace('[Package] ', '')}
-                                      <span className="opacity-75 text-[10px] ml-1">({lic.tier || 'lifetime'})</span>
+                                      <span>{scopeLabel.replace('[Package] ', '')}</span>
+                                      <span className="opacity-75 text-[10px]">({lic.tier || 'lifetime'})</span>
+                                      <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-black/40 border border-white/10 text-zinc-200">
+                                        {lic.used_today || 0}/{lic.effective_limit ?? lic.daily_limit ?? 15}
+                                      </span>
                                     </span>
                                   );
                                 })}
