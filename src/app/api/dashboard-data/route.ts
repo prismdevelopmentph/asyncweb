@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
         authUsersRes,
         licenseServicesRes,
         packageServicesRes,
-        visitorLogsRes
+        visitorLogsRes,
+        serviceConfigRes
       ] = await Promise.all([
         supabaseAdmin
           .from('security_lockouts')
@@ -87,6 +88,12 @@ export async function GET(request: NextRequest) {
         supabaseAdmin.from('license_services').select('license_id, service_id, services(name)'),
         supabaseAdmin.from('package_services').select('package_id, service_id, services(name)'),
         Promise.resolve(supabaseAdmin.from('visitor_logs').select('*').order('visited_at', { ascending: false }).limit(100)).catch(() => ({ data: [], error: null })),
+        Promise.resolve(
+          supabaseAdmin
+            .from('config')
+            .select('key, value')
+            .or('key.like.service_enabled_%,key.like.service_color_%,key.like.service_icon_%')
+        ).catch(() => ({ data: [], error: null })),
       ]);
 
       const limitsMap = new Map();
@@ -228,10 +235,28 @@ export async function GET(request: NextRequest) {
       const stockMap = new Map<string, number>();
       stockCounts.forEach((sc: any) => stockMap.set(String(sc.id), sc.count));
 
-      const enrichedServices = (servicesRes.data || []).map((svc: any) => ({
-        ...svc,
-        stock_count: stockMap.get(String(svc.id)) ?? 0,
-      }));
+      const configMap = new Map<string, string>();
+      (serviceConfigRes?.data || []).forEach((row: any) => {
+        configMap.set(row.key, String(row.value).trim());
+      });
+
+      const enrichedServices = (servicesRes.data || []).map((svc: any) => {
+        const idStr = String(svc.id);
+        const configEnabled = configMap.get(`service_enabled_${idStr}`);
+        const isEnabled = configEnabled !== undefined
+          ? configEnabled === 'true'
+          : (svc.is_enabled !== undefined ? Boolean(svc.is_enabled) : true);
+        const brandColor = configMap.get(`service_color_${idStr}`) || svc.brand_color || '#a855f7';
+        const iconValue = configMap.get(`service_icon_${idStr}`) || svc.icon_value || svc.name?.toLowerCase() || 'gamepad';
+
+        return {
+          ...svc,
+          is_enabled: isEnabled,
+          brand_color: brandColor,
+          icon_value: iconValue,
+          stock_count: stockMap.get(idStr) ?? 0,
+        };
+      });
 
       return NextResponse.json({
         isOwner: true,
