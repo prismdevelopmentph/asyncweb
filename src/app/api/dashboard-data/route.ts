@@ -100,10 +100,7 @@ export async function GET(request: NextRequest) {
           supabaseAdmin
             .from('license_daily_usages')
             .select('license_id, discord_id, used_count, usage_date')
-            .in('usage_date', [
-              new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
-              new Date().toISOString().split('T')[0]
-            ])
+            .eq('usage_date', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }))
         ).catch(() => ({ data: [], error: null })),
       ]);
 
