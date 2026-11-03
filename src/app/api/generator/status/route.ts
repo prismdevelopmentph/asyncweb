@@ -180,21 +180,6 @@ export async function GET(request: NextRequest) {
         const now = new Date();
         const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 
-        // Maintain master reset date in config table safely without destructive wipes during user GET requests
-        const { data: resetCfg } = await supabaseAdmin
-          .from('config')
-          .select('value')
-          .eq('key', 'last_reset_date')
-          .maybeSingle();
-
-        const activeResetDate = resetCfg?.value?.trim();
-        if (!activeResetDate || activeResetDate < todayStr) {
-          supabaseAdmin.from('config').upsert({
-            key: 'last_reset_date',
-            value: todayStr
-          }, { onConflict: 'key' }).then(() => {});
-        }
-
         const [
           { data: lockData },
           { data: licenseData },
@@ -253,7 +238,7 @@ export async function GET(request: NextRequest) {
             { data: licServicesData }
           ] = await Promise.all([
             supabaseAdmin.from('license_daily_usages').select('license_id, service_name, used_count').in('license_id', activeLicIds).eq('usage_date', todayStr),
-            supabaseAdmin.from('user_limits').select('license_id, count').eq('discord_user_id', userId),
+            supabaseAdmin.from('user_limits').select('license_id, count, updated_at').eq('discord_user_id', userId),
             supabaseAdmin.from('license_services').select('license_id, service_id').in('license_id', activeLicIds)
           ]);
 
@@ -271,11 +256,15 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // Fallback to user_limits if license_daily_usages has no entries for a license
+          // Fallback to user_limits ONLY if updated today in PHT
           if (userLimitRows) {
             for (const ul of userLimitRows) {
               const licId = ul.license_id ? String(ul.license_id) : (activeLicenses.length === 1 ? String(activeLicenses[0].id) : null);
-              if (licId && (!totalUsageByLic.has(licId) || (totalUsageByLic.get(licId) === 0 && Number(ul.count) > 0))) {
+              const ulDate = ul.updated_at
+                ? new Date(ul.updated_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+                : null;
+              const isUpdatedToday = ulDate === todayStr;
+              if (licId && isUpdatedToday && (!totalUsageByLic.has(licId) || (totalUsageByLic.get(licId) === 0 && Number(ul.count) > 0))) {
                 totalUsageByLic.set(licId, Number(ul.count) || 0);
               }
             }

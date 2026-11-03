@@ -123,14 +123,20 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      // 2. Legacy user_limits fallback
+      // 2. Legacy user_limits fallback (strictly guarded to today PHT)
+      const todayPht = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
       const legacyLimitsByLicId = new Map<string, number>();
       const legacyLimitsByUserId = new Map<string, number>();
       (userLimitsRes.data || []).forEach((ul: any) => {
-        if (ul.license_id) legacyLimitsByLicId.set(String(ul.license_id), Number(ul.count) || 0);
-        if (ul.discord_user_id) {
-          const u = String(ul.discord_user_id);
-          legacyLimitsByUserId.set(u, Math.max(Number(ul.count) || 0, legacyLimitsByUserId.get(u) || 0));
+        const ulDate = ul.updated_at
+          ? new Date(ul.updated_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' })
+          : null;
+        if (ulDate === todayPht) {
+          if (ul.license_id) legacyLimitsByLicId.set(String(ul.license_id), Number(ul.count) || 0);
+          if (ul.discord_user_id) {
+            const u = String(ul.discord_user_id);
+            legacyLimitsByUserId.set(u, Math.max(Number(ul.count) || 0, legacyLimitsByUserId.get(u) || 0));
+          }
         }
       });
 
@@ -142,7 +148,6 @@ export async function GET(request: NextRequest) {
       });
 
       // 3. Claims audit log per user (ONLY used for single-license accounts)
-      const todayPht = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
       const claimsTodayByUser = new Map<string, number>();
       (claimLogsRes?.data || []).forEach((c: any) => {
         if (c.discord_user_id) {
